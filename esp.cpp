@@ -13,11 +13,11 @@ using namespace std;
 
 //non-parallel functions
 // example: has<int>(3, {1,2,3,4,5}) // would return true
-template<typename T> bool has(T needle, unordered_set<T> haystack) {
+template<typename T> bool has(const T needle, const unordered_set<T> haystack) {
     auto result = haystack.find(needle);
     return (result != haystack.end());
 }
-template<typename T> bool hasStringKey(string needle, map<string,T> haystack) {
+template<typename T> bool hasStringKey(const string needle, const map<string,T> haystack) {
     auto result = haystack.find(needle);
     return (result != haystack.end());
 }
@@ -121,7 +121,7 @@ struct Loc {
 struct Comment {
     u16string type;
     u16string value;
-    int range;
+    int range[2];
     int rangeEnd;
     Loc loc;
     Comment() {
@@ -274,51 +274,53 @@ vector< u16string > FnExprTokens = {
     u"<=", u"<", u">", u"!=", u"!=="
 };
 
-map<string, string> Syntax = {
-    {"AssignmentExpression", "AssignmentExpression"},
-    {"ArrayExpression", "ArrayExpression"},
-    {"ArrowFunctionExpression", "ArrowFunctionExpression"},
-    {"BlockStatement", "BlockStatement"},
-    {"BinaryExpression", "BinaryExpression"},
-    {"BreakStatement", "BreakStatement"},
-    {"CallExpression", "CallExpression"},
-    {"CatchClause", "CatchClause"},
-    {"ConditionalExpression", "ConditionalExpression"},
-    {"ContinueStatement", "ContinueStatement"},
-    {"DoWhileStatement", "DoWhileStatement"},
-    {"DebuggerStatement", "DebuggerStatement"},
-    {"EmptyStatement", "EmptyStatement"},
-    {"ExpressionStatement", "ExpressionStatement"},
-    {"ForStatement", "ForStatement"},
-    {"ForInStatement", "ForInStatement"},
-    {"FunctionDeclaration", "FunctionDeclaration"},
-    {"FunctionExpression", "FunctionExpression"},
-    {"Identifier", "Identifier"},
-    {"IfStatement", "IfStatement"},
-    {"Literal", "Literal"},
-    {"LabeledStatement", "LabeledStatement"},
-    {"LogicalExpression", "LogicalExpression"},
-    {"MemberExpression", "MemberExpression"},
-    {"NewExpression", "NewExpression"},
-    {"ObjectExpression", "ObjectExpression"},
-    {"Program", "Program"},
-    {"Property", "Property"},
-    {"ReturnStatement", "ReturnStatement"},
-    {"SequenceExpression", "SequenceExpression"},
-    {"SwitchStatement", "SwitchStatement"},
-    {"SwitchCase", "SwitchCase"},
-    {"ThisExpression", "ThisExpression"},
-    {"ThrowStatement", "ThrowStatement"},
-    {"TryStatement", "TryStatement"},
-    {"UnaryExpression", "UnaryExpression"},
-    {"UpdateExpression", "UpdateExpression"},
-    {"VariableDeclaration", "VariableDeclaration"},
-    {"VariableDeclarator", "VariableDeclarator"},
-    {"WhileStatement", "WhileStatement"},
-    {"WithStatement", "WithStatement"}
+map<string, u16string> Syntax = {
+    {"AssignmentExpression", u"AssignmentExpression"},
+    {"ArrayExpression", u"ArrayExpression"},
+    {"ArrowFunctionExpression", u"ArrowFunctionExpression"},
+    {"BlockStatement", u"BlockStatement"},
+    {"BinaryExpression", u"BinaryExpression"},
+    {"BreakStatement", u"BreakStatement"},
+    {"CallExpression", u"CallExpression"},
+    {"CatchClause", u"CatchClause"},
+    {"ConditionalExpression", u"ConditionalExpression"},
+    {"ContinueStatement", u"ContinueStatement"},
+    {"DoWhileStatement", u"DoWhileStatement"},
+    {"DebuggerStatement", u"DebuggerStatement"},
+    {"EmptyStatement", u"EmptyStatement"},
+    {"ExpressionStatement", u"ExpressionStatement"},
+    {"ForStatement", u"ForStatement"},
+    {"ForInStatement", u"ForInStatement"},
+    {"FunctionDeclaration", u"FunctionDeclaration"},
+    {"FunctionExpression", u"FunctionExpression"},
+    {"Identifier", u"Identifier"},
+    {"IfStatement", u"IfStatement"},
+    {"Literal", u"Literal"},
+    {"LabeledStatement", u"LabeledStatement"},
+    {"LogicalExpression", u"LogicalExpression"},
+    {"MemberExpression", u"MemberExpression"},
+    {"NewExpression", u"NewExpression"},
+    {"ObjectExpression", u"ObjectExpression"},
+    {"Program", u"Program"},
+    {"Property", u"Property"},
+    {"ReturnStatement", u"ReturnStatement"},
+    {"SequenceExpression", u"SequenceExpression"},
+    {"SwitchStatement", u"SwitchStatement"},
+    {"SwitchCase", u"SwitchCase"},
+    {"ThisExpression", u"ThisExpression"},
+    {"ThrowStatement", u"ThrowStatement"},
+    {"TryStatement", u"TryStatement"},
+    {"UnaryExpression", u"UnaryExpression"},
+    {"UpdateExpression", u"UpdateExpression"},
+    {"VariableDeclaration", u"VariableDeclaration"},
+    {"VariableDeclarator", u"VariableDeclarator"},
+    {"WhileStatement", u"WhileStatement"},
+    {"WithStatement", u"WithStatement"}
 };
 
 // PlaceHolders { Arrow { type } } //!!
+//map<string, int> 
+
 
 map<string, int> PropertyKind = {
     {"Data", 1},
@@ -386,19 +388,19 @@ void assert(bool condition, string message) {
     }
 }
 
-bool isDecimalDigit(char16_t ch) {
+bool isDecimalDigit(const char16_t ch) {
     return (ch >= 0x30 && ch <= 0x39); //0..9
 }
 
-bool isHexDigit(char16_t ch) {
+bool isHexDigit(const char16_t ch) {
     return (u16string({u"0123456789abcdefABCDEF"}).find_first_of(ch) != std::string::npos);    
 }
 
-bool isOctalDigit(char16_t ch) {
+bool isOctalDigit(const char16_t ch) {
     return (u16string({u"01234567"}).find_first_of(ch) != std::string::npos);    
 }
 
-char16_t toLowercaseHex(char16_t ch) { //used in scanHexEscape
+char16_t toLowercaseHex(const char16_t ch) { //used in scanHexEscape
     //assumes isHexDigit(ch) evals to true
     u16string hexletters = u"abcdefABCDEF";
     int pos = hexletters.find_first_of(ch);
@@ -410,19 +412,19 @@ char16_t toLowercaseHex(char16_t ch) { //used in scanHexEscape
 }
 
 //7.2 White Space
-bool isWhiteSpace(char16_t ch) {
+bool isWhiteSpace(const char16_t ch) {
     return (ch == 0x20) || (ch == 0x09) || (ch == 0x0B) || (ch == 0x0C) || (ch == 0xA0) || (ch >= 0x1680 && has<int>(ch, {0x1680, 0x180E, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x202F, 0x205F, 0x3000, 0xFEFF}));
 }
 
 // 7.3 Line Terminators
 
-bool isLineTerminator(char16_t ch) {
+bool isLineTerminator(const char16_t ch) {
     return (ch == 0x0A) || (ch == 0x0D) || (ch == 0x2028) || (ch == 0x2029);
 }
 
 // 7.6 Identifier Names and Identifiers
 
-bool isIdentifierStart(char16_t ch) {
+bool isIdentifierStart(const char16_t ch) {
     smatch m;
     return (ch == 0x24) || (ch == 0x5F) ||  // $ (dollar) and _ (underscore)
         (ch >= 0x41 && ch <= 0x5A) ||         // A..Z
@@ -431,7 +433,7 @@ bool isIdentifierStart(char16_t ch) {
         ((ch >= 0x80) && regex_search(toU8string(u16string({ch})), m, Regex["NonAsciiIdentifierStart"]));
 } 
 
-bool isIdentifierPart(char16_t ch) {
+bool isIdentifierPart(const char16_t ch) {
     smatch m;
     return (ch == 0x24) || (ch == 0x5F) ||  // $ (dollar) and _ (underscore)
         (ch >= 0x41 && ch <= 0x5A) ||         // A..Z
@@ -443,7 +445,7 @@ bool isIdentifierPart(char16_t ch) {
 
 // 7.6.1.2 Future Reserved Words
 
-bool isFutureReservedWord(u16string id) {
+bool isFutureReservedWord(const u16string id) {
     return has<u16string>(id, { //
             u"class",
             u"enum",
@@ -454,7 +456,7 @@ bool isFutureReservedWord(u16string id) {
             });
 }
 
-bool isStrictModeReservedWord(u16string id) {
+bool isStrictModeReservedWord(const u16string id) {
     return has<u16string>(id, { 
             u"implements",
             u"interface",
@@ -468,12 +470,12 @@ bool isStrictModeReservedWord(u16string id) {
             });
 }
 
-bool isRestrictedWord(u16string id) {
+bool isRestrictedWord(const u16string id) {
     return (id == u"eval" || id == u"arguments");
 }
 
 // 7.6.1.1 Keywords
-bool isKeyword(u16string id) {
+bool isKeyword(const u16string id) {
     if (strict && isStrictModeReservedWord(id)) { //! ? where is strict stored??
         return true;
     }
@@ -554,7 +556,7 @@ int main() {
     return 0;
 }
 
-void skipSingleLineComment(int offset) {
+void skipSingleLineComment(const int offset) {
     int start;
     Loc loc; 
     char16_t ch;
@@ -698,7 +700,7 @@ void skipComment() {
     }
 }
 
-char16_t scanHexEscape(char16_t prefix) {
+char16_t scanHexEscape(const char16_t prefix) {
     int i, len;
     char16_t ch;
     int code = 0;
@@ -973,7 +975,7 @@ TokenStruct scanPunctuator() {
 }
     // 7.8.3 Numeric Literals
 
-TokenStruct scanHexLiteral(int start) {
+TokenStruct scanHexLiteral(const int start) {
     u16string number;
     TokenStruct t;
     u16string val;
@@ -1004,7 +1006,7 @@ TokenStruct scanHexLiteral(int start) {
     return t;
 }
 
-TokenStruct scanOctalLiteral(int start) {
+TokenStruct scanOctalLiteral(const int start) {
     u16string number = u"0";
     TokenStruct t;
 
@@ -1476,6 +1478,7 @@ function advanceSlash() {
     return scanPunctuator();
 }
 
+//#CLEAR
 TokenStruct advance() {
     char16_t ch;
     TokenStruct t;
@@ -1529,10 +1532,11 @@ TokenStruct advance() {
     return scanPunctuator();
 }
 
-function collectToken() {
+//#CLEAR
+TokenStruct collectToken() {
     Loc loc;
     TokenStruct token, t;
-    value;
+    u16string value;
 
     skipComment();
     loc.start.line = lineNumber;
@@ -1553,15 +1557,16 @@ function collectToken() {
     return token;
 }
 
+//#CLEAR
 function lex() {
-    var token;
+    TokenStruct token;
 
     token = lookahead;
     idx = token.end;
     lineNumber = token.lineNumber;
     lineStart = token.lineStart;
 
-    lookahead = (typeof extra.tokens !== 'undefined') ? collectToken() : advance(); //!!
+    lookahead = (tokenTracking) ? collectToken() : advance(); 
 
     idx = token.end;
     lineNumber = token.lineNumber;
@@ -1570,48 +1575,56 @@ function lex() {
     return token;
 }
 
-function peek() {
+//#CLEAR
+void peek() {
     int pos, line, start;
-
     pos = idx;
     line = lineNumber;
     start = lineStart;
-    lookahead = (typeof extra.tokens !== 'undefined') ? collectToken() : advance(); //!!
+    lookahead = (tokenTracking) ? collectToken() : advance(); 
     idx = pos;
     lineNumber = line;
     lineStart = start;
-
 }
 
 //# Position and SourceLocation are defined as structs near the top.
 
-//CLEAR 
-Loc WrappingSourceLocation(startToken) {
-    Loc result;
-    if (startToken.type == Token["StringLiteral"]) {
-        this.start.line = startToken.startLineNumber;
-        this.start.column = startToken.start - startToken.startLineStart;
-    } else {
-        this.start.line = startToken.lineNumber;
-        this.start.column = startToken.start - startToken.lineStart;
-    }
-    return result;
+//#CLEAR 
+Json::Value posToJson(Position p) {
+    Json::Value root;
+    root["line"] = p.line;
+    root["column"] = p.column;
 }
+
+Json::Value locToJson(Loc l) {
+    Json::Value root;
+    root["start"] = posToJson(l.start); 
+    if (l.end.line != -1) {
+        root["end"] = posToJson(l.end); 
+    }
+    return root;
+}
+
+//#CLEAR
+//Loc 
+
 class NodeFinish {
-};
+}
 
 class Node {
 public:
     Json::Value jv;
     Loc loc;
     bool isNull;
-    string type;
     NodeFinish nf;
+    bool hasRange;
+    vector<Comment> trailingComments;
+    vector<Comment> leadingComments;
+
     Node() { 
-        jv["range"] = Json::arrayValue;
-        jv["range"][0] = -1;
-        jv["range"][1] = -1;
-        jv["loc"]
+        hasRange = false;
+
+        jv["loc"] = locToJson(loc);
         isNull = false;
 
         idx = lookahead.start;
@@ -1623,434 +1636,441 @@ public:
             lineStart = lookahead.lineStart;
         }
         if (extra.range) {
-            this->range[0] = idx;
-            this->range[1] = 0;
+            if (!hasRange) jv["range"] = Json::arrayValue;
+            jv["range"][0] = idx;
+            jv["range"][1] = 0;
         }
     }
 
-    void processComment() {
-        vector<Comment> trailingComments;
-        //! begin
-        var lastChild,
-            bottomRight = extra.bottomRightStack,
-            last = bottomRight[bottomRight.length - 1];
+    void trailingCommentsIntoJson(bool leading) {
+        string key;
+        vector<Comment> * commentVec;
+        if (leading) {
+            key = "leadingComments";
+            commentVec = &leadingComments;
+        } else {
+            key = "trailingComments";
+            commentVec = &trailingComments;
+        }
+        if (commentVec.size() > 0) {
+            jv[key] = Json::arrayValue;
+            //! do this section. vec<Comment>
 
-        if (this.type === Syntax["Program"]) { 
-            if (this.body.length > 0) {
+        } else {
+            jv.removeKey(key);
+        }
+    }
+
+    //#PARTIAL
+    void processComment() {
+        //# assumes attachComments 
+        //# so that means range is already true.
+
+        vector<Comment> trailingComments;
+                
+        vector< Node * > * bottomRight = &(extra.bottomRightStack);
+        Node * lastChild,
+            * last = bottomRight[bottomRight.length - 1];
+        bool LEADING = true;
+
+
+        if (jv["type"] == s(Syntax["Program"])) {  
+            if (this.body.length > 0) { //!
                 return;
             }
         }
-        //!end
 
         if (extra.trailingComments.size() > 0) {
-            if (extra.trailingComments[0].rangeStart >= this->range[1]) {
+            if (extra.trailingComments[0].range[0] >= jv["range"][1].asInt()) {
                 trailingComments = extra.trailingComments;
                 extra.trailingComments.clear();
             } else {
-                extra.trailingComments.clear();
+                extra.trailingComments.clear(); 
+                //# originally first clause had =[] and this has .length = 0
+                //# don't think there's an effective difference thoug
             }
         } else {
-            if (last && //! if (last) need better way to check. 
-                last.trailingComments && last.trailingComments[0].range[0] >= this.range[1]) { //! last?
-                trailingComments = last.trailingComments;
-                last.trailingComments.clear();
+            if (!(last->isNull) && 
+                last->trailingComments.size() > 0 && 
+                last->trailingComments[0].range[0] >= jv["range"][1].asInt()) {
+                trailingComments = last->trailingComments;
+                last->trailingComments.clear();
+                last->commentsIntoJson(! LEADING);
                 //delete last.trailingComments; 
                 //? maybe have a boolean to say no trailing comments? length will prob. be workable.
             }
         }
 
         // Eating the stack.
-        if (last) { //!if (last)
-            while (last && last.range[0] >= this->range[0]) { //if (last)
+        if (!(last->isNull)) {
+            while ((!(last->isNull)) && last->jv["range"][0] >= jv["range"][0].asInt()) {
                 lastChild = last;
-                last = bottomRight.pop();
+                last = bottomRight->pop();
             }
         }
 
-        if (lastChild) { //! if (lastChild) 
-            if (lastChild.leadingComments && //!if leadingComments. not size because an empty array returns true in js.
-                lastChild.leadingComments[lastChild.leadingComments.size() - 1].range[1] <= this->range[0]) {
-
-                this.leadingComments = lastChild.leadingComments;
-                lastChild.leadingComments.clear();
-                //lastChild.leadingComments = undefined; //length enough?
+        if (!(lastChild->isNull)) { 
+            if (lastChild->leadingComments.size() > 0 &&
+                lastChild->leadingComments[lastChild->leadingComments.size() - 1].range[1] <= jv["range"][0].asInt()) {
+                this->leadingComments = lastChild->leadingComments;
+                lastChild->leadingComments.clear();
+                lastChild->commentsIntoJson(LEADING);
+                this->commentsIntoJson(LEADING);
             }
         } else if (extra.leadingComments.size() > 0 && 
-                   extra.leadingComments[extra.leadingComments.size() - 1].range[1] <= this->range[0]) {
-            this.leadingComments = extra.leadingComments;
-            extra.leadingComments.clear()
-            //extra.leadingComments = [];
+                   extra.leadingComments[extra.leadingComments.size() - 1].range[1] <= jv["range"][0].asInt()) {
+            this->leadingComments = extra.leadingComments;
+            extra.leadingComments.clear();
+            this->commentsIntoJson(LEADING);
         }
 
-
-        if (trailingComments) {
+        if (trailingComments.size() > 0) {
             this.trailingComments = trailingComments;
+            this->commentsIntoJson(! LEADING);
         }
 
-        bottomRight.push(this);
+        bottomRight->push_back(this);
     }
 
     void finish() {
         if (extra.range) {
-            this->jv["range"][1] = idx; 
+            jv["range"][1] = idx; 
         }
         if (extra.loc) {
-            this->jv["loc"]["end"] = new Position();
-            if (extra.source) { //! .source type?
-                this->jv["loc"]["source"] = extra.source; //! need to change structs to add .source.
+            Position newpos;
+            jv["loc"]["end"] = posToJson(newpos);
+            if (extra.source) { 
+                jv["loc"]["source"] = extra.source; 
             }
         }
 
         if (extra.attachComment) {
-            this.processComment();
+            this->processComment();
         }
     }
-}
 
-
-    
-    NodeArrayExpression(vector<> elements) {
-        this->elements = elements;
+    void finishArrayExpression(elements) {
+        jv["type"] = s(Syntax["ArrayExpression"]);
+        jv["elements"] = elements;
+        this->finish();
     }
-    //this.finish();
-}
-    finishArrowFunctionExpression: function (params, defaults, body, expression) {
-        this.type = Syntax["ArrowFunctionExpression"];
-        this.id = null;
-        this.params = params;
-        this.defaults = defaults;
-        this.body = body;
-        this.rest = null;
-        this.generator = false;
-        this.expression = expression;
-        this.finish();
-        return this;
-    },
 
-    finishAssignmentExpression: function (operator, left, right) {
-        this.type = Syntax["AssignmentExpression"];
-        this.operator = operator;
-        this.left = left;
-        this.right = right;
-        this.finish();
-        return this;
-    },
+    void s(u16string in) {
+     return toU8string(in);
+    }
 
-    finishBinaryExpression: function (operator, left, right) {
-        this.type = (operator === '||' || operator === '&&') ? Syntax["LogicalExpression"] : Syntax["BinaryExpression"];
-        this.operator = operator;
-        this.left = left;
-        this.right = right;
-        this.finish();
-        return this;
-    },
+    void finishArrowFunctionExpression(params, defaults, body, expression) {
+        jv["type"] = s(Syntax["ArrowFunctionExpression"]);
+        jv["id"] = null;
+        jv["params"] = params;
+        jv["defaults"] = defaults;
+        jv["body"] = body;
+        jv["rest"] = null;
+        jv["generator"] = false;
+        jv["expression"] = expression;
+        this->finish();
+    }
 
-    finishBlockStatement: function (body) {
-        this.type = Syntax["BlockStatement"];
-        this.body = body;
-        this.finish();
-        return this;
-    },
+    void finishAssignmentExpression(u16string oper, left, right) {
+        jv["type"] = s(Syntax["AssignmentExpression"]);
+        jv["operator"] = s(oper);
+        jv["left"] = left;
+        jv["right"] = right;
+        this->finish();
+    }
 
-    finishBreakStatement: function (label) {
-        this.type = Syntax["BreakStatement"];
-        this.label = label;
-        this.finish();
-        return this;
-    },
+    void finishBinaryExpression(u16string oper, left, right) {
+        jv["type"] = s((oper == u"||" || oper == u"&&") ? Syntax["LogicalExpression"] : Syntax["BinaryExpression"]);
+        jv["operator"] = s(oper);
+        jv["left"] = left; //!
+        jv["right"] = right; //!
+        this->finish();
+    }
 
-    finishCallExpression: function (callee, args) {
-        this.type = Syntax["CallExpression"];
-        this.callee = callee;
-        this.arguments = args;
-        this.finish();
-        return this;
-    },
+    void finishBlockStatement(body) {
+        jv["type"] = s(Syntax["BlockStatement"]);
+        jv["body"] = body;
+        this->finish();
+    }
 
-    finishCatchClause: function (param, body) {
-        this.type = Syntax["CatchClause"];
-        this.param = param;
-        this.body = body;
-        this.finish();
-        return this;
-    },
+    void finishBreakStatement(label) {
+        jv["type"] = s(Syntax["BreakStatement"]);
+        jv["label"] = label;
+        this->finish();
+    }
 
-    finishConditionalExpression: function (test, consequent, alternate) {
-        this.type = Syntax["ConditionalExpression"];
-        this.test = test;
-        this.consequent = consequent;
-        this.alternate = alternate;
-        this.finish();
-        return this;
-    },
+    void finishCallExpression(callee, args) {
+        jv["type"] = s(Syntax["CallExpression"]);
+        jv["callee"] = callee;
+        jv["arguments"] = args;
+        this->finish();
+    }
 
-    finishContinueStatement: function (label) {
-        this.type = Syntax["ContinueStatement"];
-        this.label = label;
-        this.finish();
-        return this;
-    },
+    void finishCatchClause(param, body) {
+        jv["type"] = s(Syntax["CatchClause"]);
+        jv["param"] = param;
+        jv["body"] = body;
+        this->finish();
+    }
 
-    finishDebuggerStatement: function () {
-        this.type = Syntax["DebuggerStatement"];
-        this.finish();
-        return this;
-    },
+    void finishConditionalExpression(test, consequent, alternate) {
+        jv["type"] = s(Syntax["ConditionalExpression"]);
+        jv["test"] = test;
+        jv["consequent"] = consequent;
+        jv["alternate"] = alternate;
+        this->finish();
+    }
 
-    finishDoWhileStatement: function (body, test) {
-        this.type = Syntax["DoWhileStatement"];
-        this.body = body;
-        this.test = test;
-        this.finish();
-        return this;
-    },
+    void finishContinueStatement(label) {
+        jv["type"] = s(Syntax["ContinueStatement"]);
+        jv["label"] = label;
+        this->finish();
+    }
 
-    finishEmptyStatement: function () {
-        this.type = Syntax["EmptyStatement"];
-        this.finish();
-        return this;
-    },
+    void finishDebuggerStatement() {
+        jv["type"] = s(Syntax["DebuggerStatement"]);
+        this->finish();
+    }
 
-    finishExpressionStatement: function (expression) {
-        this.type = Syntax["ExpressionStatement"];
-        this.expression = expression;
-        this.finish();
-        return this;
-    },
+    void finishDoWhileStatement(body, test) {
+        jv["type"] = s(Syntax["DoWhileStatement"]);
+        jv["body"] = body;
+        jv["test"] = test;
+        this->finish();
+    }
 
-    finishForStatement: function (init, test, update, body) {
-        this.type = Syntax["ForStatement"];
-        this.init = init;
-        this.test = test;
-        this.update = update;
-        this.body = body;
-        this.finish();
-        return this;
-    },
+    void finishEmptyStatement() {
+        jv["type"] = s(Syntax["EmptyStatement"]);
+        this->finish();
+    }
 
-    finishForInStatement: function (left, right, body) {
-        this.type = Syntax["ForInStatement"];
-        this.left = left;
-        this.right = right;
-        this.body = body;
-        this.each = false;
-        this.finish();
-        return this;
-    },
+    void finishExpressionStatement(expression) {
+        jv["type"] = s(Syntax["ExpressionStatement"]);
+        jv["expression"] = expression;
+        this->finish();
+    }
 
-    finishFunctionDeclaration: function (id, params, defaults, body) {
-        this.type = Syntax["FunctionDeclaration"];
-        this.id = id;
-        this.params = params;
-        this.defaults = defaults;
-        this.body = body;
-        this.rest = null;
-        this.generator = false;
-        this.expression = false;
-        this.finish();
-        return this;
-    },
+    void finishForStatement(init, test, update, body) {
+        jv["type"] = s(Syntax["ForStatement"]);
+        jv["init"] = init;
+        jv["test"] = test;
+        jv["update"] = update;
+        jv["body"] = body;
+        this->finish();
+    }
 
-    finishFunctionExpression: function (id, params, defaults, body) {
-        this.type = Syntax["FunctionExpression"];
-        this.id = id;
-        this.params = params;
-        this.defaults = defaults;
-        this.body = body;
-        this.rest = null;
-        this.generator = false;
-        this.expression = false;
-        this.finish();
-        return this;
-    },
+    void finishForInStatement(left, right, body) {
+        jv["type"] = s(Syntax["ForInStatement"]);
+        jv["left"] = left;
+        jv["right"] = right;
+        jv["body"] = body;
+        jv["each"] = false;
+        this->finish();
+    }
 
-    finishIdentifier: function (name) {
-        this.type = Syntax["Identifier"];
-        this.name = name;
-        this.finish();
-        return this;
-    },
+    void finishFunctionDeclaration(id, params, defaults, body) {
+        jv["type"] = s(Syntax["FunctionDeclaration"]);
+        jv["id"] = id;
+        jv["params"] = params;
+        jv["defaults"] = defaults;
+        jv["body"] = body;
+        jv["rest"] = null;
+        jv["generator"] = false;
+        jv["expression"] = false;
+        this->finish();
+    }
 
-    finishIfStatement: function (test, consequent, alternate) {
-        this.type = Syntax["IfStatement"];
-        this.test = test;
-        this.consequent = consequent;
-        this.alternate = alternate;
-        this.finish();
-        return this;
-    },
+    void finishFunctionExpression(id, params, defaults, body) {
+        jv["type"] = s(Syntax["FunctionExpression"]);
+        jv["id"] = id;
+        jv["params"] = params;
+        jv["defaults"] = defaults;
+        jv["body"] = body;
+        jv["rest"] = null;
+        jv["generator"] = false;
+        jv["expression"] = false;
+        this->finish();
+    }
 
-    finishLabeledStatement: function (label, body) {
-        this.type = Syntax["LabeledStatement"];
-        this.label = label;
-        this.body = body;
-        this.finish();
-        return this;
-    },
+    void finishIdentifier(name) {
+        jv["type"] = s(Syntax["Identifier"]);
+        jv["name"] = name;
+        this->finish();
+    }
 
-    finishLiteral: function (TokenStruct token) {
-        this.type = Syntax["Literal"]; //#c
+    void finishIfStatement(test, consequent, alternate) {
+        jv["type"] = s(Syntax["IfStatement"]);
+        jv["test"] = test;
+        jv["consequent"] = consequent;
+        jv["alternate"] = alternate;
+        this->finish();
+    }
+
+    void finishLabeledStatement(label, body) {
+        jv["type"] = s(Syntax["LabeledStatement"]);
+        jv["label"] = label;
+        jv["body"] = body;
+        this->finish();
+
+    }
+
+    void finishLiteral(TokenStruct token) {
+        jv["type"] = s(Syntax["Literal"]); //#c
         //!todo what type of literal?
-        this.value = token.value;
+        jv["value"] = token.value;
         this->jv["raw"] = slice(sourceraw, token.start, token.end); //#c
-        this.finish();
-        return this;
-    },
-
-    finishMemberExpression: function (accessor, object, property) {
-        this.type = Syntax["MemberExpression"];
-        this.computed = accessor == '[';
-        this.object = object;
-        this.property = property;
-        this.finish();
-        return this;
-    },
-
-    finishNewExpression: function (callee, args) {
-        this.type = Syntax["NewExpression"];
-        this.callee = callee;
-        this.arguments = args;
-        this.finish();
-        return this;
-    },
-
-    finishObjectExpression: function (properties) {
-        this.type = Syntax["ObjectExpression"];
-        this.properties = properties;
-        this.finish();
-        return this;
-    },
-
-    finishPostfixExpression: function (operator, argument) {
-        this.type = Syntax["UpdateExpression"];
-        this.operator = operator;
-        this.argument = argument;
-        this.prefix = false;
-        this.finish();
-        return this;
-    },
-
-    finishProgram: function (body) {
-        this.type = Syntax["Program"];
-        this.body = body;
-        this.finish();
-        return this;
-    },
-
-    finishProperty: function (kind, key, value) {
-        this.type = Syntax["Property"];
-        this.key = key;
-        this.value = value;
-        this.kind = kind;
-        this.finish();
-        return this;
-    },
-
-    finishReturnStatement: function (argument) {
-        this.type = Syntax["ReturnStatement"];
-        this.argument = argument;
-        this.finish();
-        return this;
-    },
-
-    finishSequenceExpression: function (expressions) {
-        this.type = Syntax["SequenceExpression"];
-        this.expressions = expressions;
-        this.finish();
-        return this;
-    },
-
-    finishSwitchCase: function (test, consequent) {
-        this.type = Syntax["SwitchCase"];
-        this.test = test;
-        this.consequent = consequent;
-        this.finish();
-        return this;
-    },
-
-    finishSwitchStatement: function (discriminant, cases) {
-        this.type = Syntax["SwitchStatement"];
-        this.discriminant = discriminant;
-        this.cases = cases;
-        this.finish();
-        return this;
-    },
-
-    finishThisExpression: function () {
-        this.type = Syntax["ThisExpression"];
-        this.finish();
-        return this;
-    },
-
-    finishThrowStatement: function (argument) {
-        this.type = Syntax["ThrowStatement"];
-        this.argument = argument;
-        this.finish();
-        return this;
-    },
-
-    finishTryStatement: function (block, guardedHandlers, handlers, finalizer) {
-        this.type = Syntax["TryStatement"];
-        this.block = block;
-        this.guardedHandlers = guardedHandlers;
-        this.handlers = handlers;
-        this.finalizer = finalizer;
-        this.finish();
-        return this;
-    },
-
-    finishUnaryExpression: function (operator, argument) {
-        this.type = (operator === '++' || operator === '--') ? Syntax["UpdateExpression"] : Syntax["UnaryExpression"];
-        this.operator = operator;
-        this.argument = argument;
-        this.prefix = true;
-        this.finish();
-        return this;
-    },
-
-    finishVariableDeclaration: function (declarations, kind) {
-        this.type = Syntax["VariableDeclaration"];
-        this.declarations = declarations;
-        this.kind = kind;
-        this.finish();
-        return this;
-    },
-
-    finishVariableDeclarator: function (id, init) {
-        this.type = Syntax["VariableDeclarator"];
-        this.id = id;
-        this.init = init;
-        this.finish();
-        return this;
-    },
-
-    finishWhileStatement: function (test, body) {
-        this.type = Syntax["WhileStatement"];
-        this.test = test;
-        this.body = body;
-        this.finish();
-        return this;
-    },
-
-    finishWithStatement: function (object, body) {
-        this.type = Syntax["WithStatement"];
-        this.object = object;
-        this.body = body;
-        this.finish();
-        return this;
+        this->finish();
     }
 
+    void finishMemberExpression(accessor, object, property) {
+        jv["type"] = s(Syntax["MemberExpression"]);
+        jv["computed"] = accessor == '[';
+        jv["object"] = object;
+        jv["property"] = property;
+        this->finish();
+
+    }
+
+    void finishNewExpression(callee, args) {
+        jv["type"] = s(Syntax["NewExpression"]);
+        jv["callee"] = callee;
+        jv["arguments"] = args;
+        this->finish();
+    }
+
+    void finishObjectExpression(properties) {
+        jv["type"] = s(Syntax["ObjectExpression"]);
+        jv["properties"] = properties;
+        this->finish();
+    }
+
+    void finishPostfixExpression(u16string oper, argument) {
+        jv["type"] = s(Syntax["UpdateExpression"]);
+        jv["oper"] = s(oper);
+        jv["argument"] = argument;
+        jv["prefix"] = false;
+        this->finish();
+    }
+
+    void finishProgram(body) {
+        jv["type"] = s(Syntax["Program"]);
+        jv["body"] = body;
+        this->finish();
+    }
+
+    void finishProperty(kind, key, value) {
+        jv["type"] = s(Syntax["Property"]);
+        jv["key"] = key;
+        jv["value"] = value;
+        jv["kind"] = kind;
+        this->finish();
+    }
+
+    void finishReturnStatement(argument) {
+        jv["type"] = s(Syntax["ReturnStatement"]);
+        jv["argument"] = argument;
+        this->finish();
+    }
+
+    void finishSequenceExpression(expressions) {
+        jv["type"] = s(Syntax["SequenceExpression"]);
+        jv["expressions"] = expressions;
+        this->finish();
+    }
+
+    void finishSwitchCase(test, consequent) {
+        jv["type"] = s(Syntax["SwitchCase"]);
+        jv["test"] = test;
+        jv["consequent"] = consequent;
+        this->finish();
+    }
+
+    void finishSwitchStatement(discriminant, cases) {
+        jv["type"] = s(Syntax["SwitchStatement"]);
+        jv["discriminant"] = discriminant;
+        jv["cases"] = cases;
+        this->finish();
+    }
+
+    void finishThisExpression() {
+        jv["type"] = s(Syntax["ThisExpression"]);
+        this->finish();
+    }
+
+    void finishThrowStatement(argument) {
+        jv["type"] = s(Syntax["ThrowStatement"]);
+        jv["argument"] = argument;
+        this->finish();
+    }
+
+    void finishTryStatement(block, guardedHandlers, handlers, finalizer) {
+        jv["type"] = s(Syntax["TryStatement"]);
+        jv["block"] = block;
+        jv["guardedHandlers"] = guardedHandlers;
+        jv["handlers"] = handlers;
+        jv["finalizer"] = finalizer;
+        this->finish();
+    }
+
+    void finishUnaryExpression(u16string oper, argument) {
+        jv["type"] = s((oper == u"++" || oper == u"--") ? Syntax["UpdateExpression"] : Syntax["UnaryExpression"]);
+        jv["operator"] = s(oper);
+        jv["argument"] = argument;
+        jv["prefix"] = true;
+        this->finish();
+    }
+
+    void finishVariableDeclaration(declarations, kind) {
+        jv["type"] = s(Syntax["VariableDeclaration"]);
+        jv["declarations"] = declarations;
+        jv["kind"] = kind;
+        this->finish();
+    }
+
+    void finishVariableDeclarator(id, init) {
+        jv["type"] = s(Syntax["VariableDeclarator"]);
+        jv["id"] = id;
+        jv["init"] = init;
+        this->finish();
+    }
+
+    void finishWhileStatement(test, body) {
+        jv["type"] = s(Syntax["WhileStatement"]);
+        jv["test"] = test;
+        jv["body"] = body;
+        this->finish();
+    }
+
+    void finishWithStatement(object, body) {
+        jv["type"] = s(Syntax["WithStatement"]);
+        jv["object"] = object;
+        jv["body"] = body;
+        this->finish();
+    }
+};
 
 class WrappingNode : public Node {
  public:
     WrappingNode(TokenStruct startToken) : Node() {
         if (extra.range) {
-            this->range[0] = startToken.start;
-            this->range[1] = 0;
+            jv["range"][0] = startToken.start;
+            jv["range"][1] = 0;
         }
         if (extra.loc) {
-            loc = WrappingSourceLocation(startToken);
+            jv["loc"] = this->WrappingSourceLocation(startToken);
         }
+    }
+    Json::Value WrappingSourceLocation(startToken) {
+        Loc result;
+        if (startToken.type == Token["StringLiteral"]) {
+            this.start.line = startToken.startLineNumber;
+            this.start.column = startToken.start - startToken.startLineStart;
+        } else {
+            this.start.line = startToken.lineNumber;
+            this.start.column = startToken.start - startToken.lineStart;
+        }
+        //return result;
+        return locToJson(result);
     }
 }
 
@@ -2185,25 +2205,25 @@ function expectTolerant(u16string value) {
 // Expect the next token to match the specified keyword.
 // If not, an exception will be thrown.
 //#CLEAR
-function expectKeyword(u16string keyword) {
+void expectKeyword(const u16string keyword) {
     var token = lex();
     if (token.type != Token["Keyword"] || 
         res_u16(token.value) != keyword) {
         throwUnexpected(token);
     }
 }
-*/
+
 
 // Return true if the next token matches the specified punctuator.
 //#CLEAR
-bool match(u16string value) {
+bool match(const u16string value) {
     return lookahead.type == Token["Punctuator"] && res_u16(lookahead.value) == value;
 }
 
 // Return true if the next token matches the specified keyword
 
 //#CLEAR
-bool matchKeyword(u16string keyword) {
+bool matchKeyword(const u16string keyword) {
     return lookahead.type == Token["Keyword"] && res_u16(lookahead.value) == keyword;
 }
 
@@ -2254,7 +2274,7 @@ void consumeSemicolon() {
     // Return true if provided expression is LeftHandSideExpression
 
 
-bool isLeftHandSide(expr) { //! expr.type
+bool isLeftHandSide(const expr) { //! expr.type
     return expr.type == Syntax["Identifier"] || expr.type == Syntax["MemberExpression"];
 };
 
@@ -2320,35 +2340,40 @@ function parseObjectPropertyKey() {
 }
 
 function parseObjectProperty() {
-    var token, key, id, value, param, node = new Node();
+    TokenStruct token;
+    var key, id, value, param;
+    Node node = new Node();
 
     token = lookahead;
 
-    if (token.type === Token.Identifier) {
+    if (token.type == Token["Identifier"]) {
 
         id = parseObjectPropertyKey();
 
         // Property Assignment: Getter and Setter.
 
-        if (token.value === 'get' && !match(u":")) {
+        if (res_u16(token.value) == u"get" && !match(u":")) {
             key = parseObjectPropertyKey();
             expect(u"(");
             expect(u")");
-            value = parsePropertyFunction([]);
-            return node.finishProperty('get', key, value);
+            value = parsePropertyFunction([]); //! [] arg
+            node.finishProperty('get', key, value); //! cfrm
+            return node;
         }
-        if (token.value === 'set' && !match(u":")) {
+        if (res_u16(token.value) == u"set" && !match(u":")) {
             key = parseObjectPropertyKey();
             expect(u"(");
             token = lookahead;
-            if (token.type !== Token.Identifier) {
+            if (token.type != Token["Identifier"]) {
                 expect(u")");
-                throwErrorTolerant(token, Messages["UnexpectedToken"], token.value);
-                value = parsePropertyFunction([]);
+                throwErrorTolerant(token, 
+                                   Messages["UnexpectedToken"], 
+                                   res_u16(token.value));
+                value = parsePropertyFunction([]); //! [] arg
             } else {
-                param = [ parseVariableIdentifier() ];
+                param = [ parseVariableIdentifier() ]; //! []
                 expect(u")");
-                value = parsePropertyFunction(param, token);
+                value = parsePropertyFunction(param, token); //! cfrm
             }
             return node.finishProperty('set', key, value);
         }
@@ -2370,12 +2395,13 @@ function parseObjectInitialiser() {
     var properties = [];
     TokenSruct token;
     Node node = new Node();
-    var property, name, key, kind, map = {};
+    var property;
+    u16string name, key, kind, map = {};
 
     expect(u"{");
 
     while (!match(u"}")) {
-        property = parseObjectProperty();
+ mak       property = parseObjectProperty();
 
         if (property.key.type === Syntax["Identifier"]) {
             name = property.key.name;
@@ -2425,7 +2451,7 @@ function parseGroupExpression() {
 
     if (match(u")")) {
         lex();
-        return PlaceHolders.ArrowParameterPlaceHolder;
+        return PlaceHolders.ArrowParameterPlaceHolder; //! PlaceHolders
     }
 
     ++state.parenthesisCount;
@@ -2723,7 +2749,7 @@ int binaryPrecedence(TokenStruct token, bool allowIn) {
 // 11.11 Binary Logical Operators
 
 Node parseBinaryExpression() {
-    var marker, markers, expr, token, prec, stack, right, operator, left, i;
+    var marker, markers, expr, token, prec, stack, right, oper, left, i;
 
     marker = lookahead;
     left = parseUnaryExpression();
@@ -2749,10 +2775,10 @@ Node parseBinaryExpression() {
         // Reduce: make a binary expression from the three topmost entries.
         while ((stack.length > 2) && (prec <= stack[stack.length - 2].prec)) {
             right = stack.pop();
-            operator = stack.pop().value;
+            oper = stack.pop().value;
             left = stack.pop();
             markers.pop();
-            expr = new WrappingNode(markers[markers.length - 1]).finishBinaryExpression(operator, left, right);
+            expr = new WrappingNode(markers[markers.length - 1]).finishBinaryExpression(oper, left, right);
             stack.push(expr);
         }
 
