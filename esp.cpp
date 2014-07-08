@@ -6,8 +6,10 @@
 #include <codecvt>
 #include <algorithm>
 #include <regex>
+#include <functional>!!
 #include <unordered_set>
 #include <jsoncpp/json/writer.h>
+#include <jsoncpp/json/reader.h>
 //algorithm is for find(vector.begin()
 using namespace std;
 
@@ -22,8 +24,25 @@ template<typename T> bool hasStringKey(const string needle, const map<string,T> 
     return (result != haystack.end());
 }
 
-bool contains() {
+template <typename T>
+Json::Value vec2jsonCallback(vector<T> in, 
+                             function<Json::Value(T&)> const& f) {
+    Json::Value root = Json::arrayValue;
+    for (int i=0; i<in.size(); i++) {
+        root[i] = f(in[i]);
+    }
+    return root;
+} 
+
+template <typename T>
+Json::Value vec2json(vector<T> in) {
+    Json::Value root = Json::arrayValue;
+    for (int i=0; i<in.size(); i++) {
+        root[i] = in[i];
+    }
+    return root;
 }
+
 
 string toU8string(u16string input){ 
     std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
@@ -90,12 +109,12 @@ void throwUnexpected(TokenStruct token);
 
 
 
-struct RegexResult {
+struct RegexHalf {
     u16string value;
     u16string literal;
     int start;
     int end;
-    RegexResult() { start = -1; end = -1; }
+    RegexHalf() { start = -1; end = -1; }
 }
 
 struct Position {
@@ -137,16 +156,28 @@ struct Comment {
 struct ExError {
 };
 
+struct RegexHalf {
+    u16string value;
+    u16string literal;
+}
+
+//used in initial scannig
 struct TokenStruct {
     bool isNull; 
     int type;
-    u16string typestring;
     void* value;
+
+    int literaltype; //lin only.
+
+    u16string literal; //regex literal only
+    u16string flags; //regex literal only
+
     int lineNumber;
     int lineStart;
     int startLineNumber;
     int startLineStart;
     int start;
+
     int range[2];
     int end;
     bool octal;
@@ -170,6 +201,18 @@ struct TokenStruct {
     }
 };
 
+//stored in extra.tokens
+struct TokenRecord {
+    Loc loc;
+    int range[2];
+    u16string valuestring;
+    u16string typestring;
+    TokenRecord() {
+        range[0] = -1;
+        range[1] = -1;
+    }
+}
+
 
 struct Argument {
     u16string type;
@@ -186,8 +229,11 @@ NULLTOKEN.isNull = true;
 
 struct ExtraStruct {
     bool tokenTracking; //port-specific member to replace "if (extra.tokens)"
-    vector<TokenStruct> tokens;
+    vector<TokenRecord> tokenRecords; //called extra.tokens in esprima
+    // name changed here to distinguish specific type and different domains
+    // of these types.
 
+    bool hasSource;
     String source; 
 
     bool tokenize;
@@ -208,6 +254,18 @@ struct ExtraStruct {
     vector<Comment> trailingComments;
     vector<> bottomRightStack;
 
+    Extra() {
+        tokenize = false;
+        errorTolerant = false;
+        attachComment = false;
+        tokenRecords.clear();
+        comments.clear();
+        errors.clear();
+        leadingComments.clear();
+        trailingComments.clear();
+        
+    }
+
     //auto source; //! see wrappingNode.finish()
 };
 
@@ -221,9 +279,42 @@ struct StateStruct {
     int lastCommentStart;
 };
 
+struct OptionsStruct {
+    bool range;
+    bool loc;
+    bool comment;
+    bool tolerant;
+    bool attachComment;
+    bool tokens;
+    bool hasSource;
+    string source;
+    OptionsStruct() {
+        range = false;
+        loc = false;
+        comment = false;
+        tolerant = false;
+        attachComment = false;
+        tokens = false;
+        hasSource = false;
+    }
+    OptionsStruct(Json::Value in) {
+        range = in.isMember("range") && in["range"].asBool();
+        loc = in.isMember("loc") && in["loc"].asBool();
+        attachComment = in.isMember("attachComment") && in["attachComment"].asBool();
+        comment = in.isMember("comment") && in["comment"].asBool();
+        tolerant = in.isMember("tolerant") && in["tolerant"].asBool();
+        tokens = in.isMember("tokens") && in["tokens"].asBool();
+        hasSource = in.isMember("source");
+        if (hasSource) {
+            source = in["source!!"].asString();
+        }
+    }
+};
+
 //! expr type (see isLeftHandSide)
 
 
+OptionStruct options;
 ExtraStruct extra;
 StateStruct state;
 TokenStruct lookahead; //! todo somewhere lookahead.value is treated a straight u16string value instead of token.
@@ -235,6 +326,13 @@ bool strict = false; //! remove initialization
 
 char16_t * sourceraw;
 char16_t source(int idx) { return *(sourceraw + idx); }
+
+map<string, int> LiteralType = {
+    {"String", 1},
+    {"Int", 2},
+    {"Double", 3},
+    {"Regexp", 4}
+};
 
 map<string, int> Token = {
     {"BooleanLiteral", 1},
@@ -511,6 +609,8 @@ bool isKeyword(const u16string id) {
 
 // 7.4 Comments
 
+//#CLEAR+
+//# only called if extra.commentTracking
 void addComment(u16string type, u16string value, int start, int end, Loc loc) {
     Comment comment;
 
@@ -528,8 +628,8 @@ void addComment(u16string type, u16string value, int start, int end, Loc loc) {
     comment.type = type;
     comment.value = value; 
     if (extra.range) {
-        comment.rangeStart = start;
-        comment.rangeEnd = end;
+        comment.range[0] = start;
+        comment.range[1] = end;
     }
     if (extra.loc) {
         comment.loc = loc;
@@ -556,6 +656,7 @@ int main() {
     return 0;
 }
 
+//#CLEAR+
 void skipSingleLineComment(const int offset) {
     int start;
     Loc loc; 
@@ -593,10 +694,11 @@ void skipSingleLineComment(const int offset) {
     }
 }
 
-void skipSingleLineComment() {
+void skipSingleLineComment() { //? are we sure that in javascript the calls to this with no arg will default to 0?
     skipSingleLineComment(0);
 }
 
+//#CLEAR+
 void skipMultiLineComment() {
     int start;
     Loc loc;
@@ -643,6 +745,7 @@ void skipMultiLineComment() {
     throwError(NULLTOKEN, Messages["UnexpectedToken"], "ILLEGAL");
 }
 
+//#CLEAR+
 void skipComment() {
     char16_t ch;
     bool start;
@@ -700,6 +803,7 @@ void skipComment() {
     }
 }
 
+//#CLEAR+
 char16_t scanHexEscape(const char16_t prefix) {
     int i, len;
     char16_t ch;
@@ -886,9 +990,9 @@ TokenStruct scanPunctuator() {
         ++idx;
         if (extra.tokenize) {
             if (code[0] == 0x28) {
-                extra.openParenToken = extra.tokens.size();
+                extra.openParenToken = extra.tokenRecords.size();
             } else if (code[0] == 0x7B) {
-                extra.openCurlyToken = extra.tokens.size();
+                extra.openCurlyToken = extra.tokenRecords.size();
             }
         }
         t.value = new u16string({ code[0] });
@@ -1134,7 +1238,7 @@ TokenStruct scanStringLiteral() {
             break;
         } else if (ch == u'\\') {
             ch = source(idx++);
-            if (!ch || !isLineTerminator(ch)) { //!! what does !ch mean in this context?
+            if (!ch || !isLineTerminator(ch)) { // what does !ch mean in this context
                 if (ch == u'u' || ch == u'x') {
                     if (source(idx) == u'{') {
                         ++idx;
@@ -1218,22 +1322,11 @@ TokenStruct scanStringLiteral() {
     return t;
 }
 
-void testRegExp(pattern, flags) {
-    int value;
-    try {
-        value 5;
-        //new RegExp(pattern, flags); //!!!! lol.
-    } catch (e) {
-        throwError(NULLTOKEN, Messages["InvalidRegExp"], u""); //? before had no third arg, using "" here.
-    }
-    return value;
-}
-
-RegexResult scanRegExpBody() {
+RegexHalf scanRegExpBody() {
     char16_t ch;
     u16string str = u"", body;
     bool classMarker, terminated;
-    RegexResult rr;
+    RegexHalf rh;
 
     ch = source(idx);
     assert(ch == u'/', 'Regular expression literal must start with a slash');
@@ -1273,16 +1366,16 @@ RegexResult scanRegExpBody() {
 
     // Exclude leading and trailing slash.
     body = str.substr(1, str.length - 2);
-    rr.value = body;
-    rr.literal = str;
-    return rr;
+    rh.value = body;
+    rh.literal = str;
+    return rh;
 }
 
-RegexResult scanRegExpFlags() {
+RegexHalf scanRegExpFlags() {
     char16_t ch;
     u16string str, flags;
     int restore;
-    RegexResult rr;
+    RegexHalf rh;
 
     str = u"";
     flags = u"";
@@ -1321,18 +1414,17 @@ RegexResult scanRegExpFlags() {
         }
     }
     
-    rr.value = flags;
-    rr.literal = str;
-    return rr;
+    rh.value = flags;
+    rh.literal = str;
+    return rh;
 }
 
-RegexResult scanRegExp() {
+TokenStruct scanRegExp() {
     int start;
-    RegexResult body; 
-    RegexResult flags; 
+    RegexHalf body; 
+    RegexHalf flags; 
     int value; 
     TokenStruct t;
-    RegexResult rr;
     //? value is int? to think on. 
     //testRegExp is I think supposed to normally return a regex object.
 
@@ -1342,7 +1434,7 @@ RegexResult scanRegExp() {
 
     body = scanRegExpBody();
     flags = scanRegExpFlags();
-    value = testRegExp(body.value, flags.value);
+    //value = testRegExp(body.value, flags.value);
 
     if (extra.tokenize) {
         t.type = Token["RegularExpression"];
@@ -1354,18 +1446,20 @@ RegexResult scanRegExp() {
         return t; //not polymorphic right now. not going to work... :!
     }
 
-    rr.literal = body.literal + flags.literal;
-    rr.value = value;
-    rr.start = start;
-    rr.end = idx;
-    return rr;
+    t.literal = body.literal; 
+    t.literal.append(flags.literal);
+    t.value = body.value;
+    t.flags = flags.value;
+    t.start = start;
+    t.end = idx;
+    return t;
 }
 
-function collectRegex() {
+//#PARTIAL
+TokenStruct collectRegex() {
     int pos;
     Loc loc;
-    RegexResult regex;
-    TokenStruct token;
+    RegexHalf regex;
     u16string tokval;
 
     skipComment();
@@ -1379,83 +1473,85 @@ function collectRegex() {
     loc.end.column = idx - lineStart;
 
     if (!extra.tokenize) {
+        TokenRecord token, tr;
         // Pop the previous token, which is likely '/' or '/='
-        if (extra.tokens.size() > 0) {
-            token = extra.tokens[extra.tokens.size() - 1];
-            if (token.range[0] == pos && token.typestring == "Punctuator") {
-                //? also compares typestring not type. see
-                // the function below for more discusion.
-                tokval = res_u16(token.value);
-                if (tokval == u"/" || tokval == u"/=") { //! polymorphism problems.
-                    extra.tokens.pop_back();
+        if (extra.tokenRecords.size() > 0) {
+            token = extra.tokenRecords[extra.tokenRecords.size() - 1];
+            if (token.range[0] == pos && token.typestring == u"Punctuator") {
+                tokval = token.valuestring; 
+                if (tokval == u"/" || tokval == u"/=") {
+                    extra.tokenRecords.pop(); //! is it pop or pop back? also search/change other instances of pop() accordingly.
                 }
             }
         }
 
-        TokenStruct t;
-        t.type = u"RegularExpression";
-        t.value = regex.literal;
-        t.range[0] = pos;
-        t.range[1] = idx;
-        t.loc = loc;
-        extra.tokens.push_back(t);
+        tr.typestring = u"RegularExpression";
+        tr.valuestring = regex.literal;
+        tr.range[0] = pos;
+        tr.range[1] = idx;
+        tr.loc = loc;
+        extra.tokenRecords.push_back(tr);
     }
 
-    return regex; //...
+    return regex;
 }
 
+//#CLEAR
 bool isIdentifierName(token) {
     return has<int>(token.type, { Token["Identifier"], Token["Keyword"],
                 Token["BooleanLiteral"], Token["NullLiteral"]});
 }
 
-function advanceSlash() {
-    TokenStruct prevToken, checkToken;
+//#PARTIAL
+TokenStruct advanceSlash() {
+    //# only gets called if extra.tokenize == true
+
+    TokenRecord prevToken, checkToken;
     // Using the following algorithm:
     // https://github.com/mozilla/sweet.js/wiki/design
-    prevToken = extra.tokens[extra.tokens.length - 1];
-    if (!prevToken) {
+    if (extra.tokenRecords.size() == 0) {
         // Nothing before that: it cannot be a division.
         return collectRegex(); //...
-    }
-    if (prevToken.typestring == u"Punctuator") { //? was compared to a string before? what? hm...
-        // ? seems to be called after resolved to name? but seems so inefficient to compare strings...
-        //  overloading the same member name with different types even in a dynamic language.
-        //  generally represents that the member serves at least two separate roles and has 
-        //  outgrown a single name.
+    }    
+    prevToken = extra.tokenRecords[extra.tokenRecords.length - 1];
+
+    if (prevToken.typestring == u"Punctuator") { 
         if (res_u16(prevToken.value) == u"]") { //!
             return scanPunctuator();
         }
-        if (res_u16(prevToken.value) == u")" && extra.openParenToken >= 1) { //!
-            checkToken = extra.tokens[extra.openParenToken - 1];
+        if (prevToken.valuestring == u")" && extra.openParenToken > 0) { 
+            checkToken = extra.tokenRecords[extra.openParenToken - 1];
             if (//checkToken && //# instead of checking for existence, we 
                 //# add the openParenToken value check to the condition above.
+                //# remember exta.tokens() is already size > 0 bcos check at top of func.
                 checkToken.typestring == u"Keyword" && 
-                //? once again a comparison that wouldn't have worked before.
-                has<u16string>(res_u16(checkToken.value), {u"if", u"while", u"for", u"with"})) {
-                return collectRegex(); //...
+                has<u16string>(checkToken.valuestring, {u"if", u"while", u"for", u"with"})) {
+                return collectRegex(); //? returns tokenstruct?
             }
             return scanPunctuator();
         }
-        if (res_u16(prevToken.value) == u"}") {
+        if (prevToken.valuestring == u"}") {
             // Dividing a function by anything makes little sense,
             // but we have to check for that.
             if (extra.openCurlyToken >= 3 &&
-                extra.tokens[extra.openCurlyToken - 3].typestring == "Keyword") { 
-                //? again previously checked type against string here.
+                extra.tokenRecords.size() >= ((extra.openCurlyToken -3) +1) &&
+                extra.tokenRecords[extra.openCurlyToken - 3].typestring == u"Keyword") { 
                 // Anonymous function.
-                //- checkToken = extra.tokens[extra.openCurlyToken - 4];
+                //- checkToken = extra.tokenRecords[extra.openCurlyToken - 4];
                 //- if (!checkToken) {
-                if (extra.openCurlyToken == 3)
+                if (if extra.openCurlyToken > 3) {
+                    checkToken = extra.tokenRecords[extra.openCurlyToken -4];
+                } else { 
                     return scanPunctuator();
                 }
-            } else if (extra.openCurlyToken >= 4,
-                       //-extra.tokens[extra.openCurlyToken - 4] &&
-                    extra.tokens[extra.openCurlyToken - 4].typestring == "Keyword") {
+            } else if (extra.openCurlyToken >= 4 &&
+                extra.tokenRecords.size() >= ((extra.openCurlyToken -4) +1) &&
+                    extra.tokenRecords[extra.openCurlyToken - 4].typestring == u"Keyword") {
                 // again previously had checked type against string in this cond.
                 // Named function.
-                //- checkToken = extra.tokens[extra.openCurlyToken - 5];
-                //- if (!checkToken) {
+                if (if extra.openCurlyToken > 4) {
+                    checkToken = extra.tokenRecords[extra.openCurlyToken -5];
+                } else { 
                     return collectRegex();
                 }
             } else {
@@ -1463,17 +1559,17 @@ function advanceSlash() {
             }
             // checkToken determines whether the function is
             // a declaration or an expression.
-            if (FnExprTokens.idxOf(checkToken.value) >= 0) {
+            if (FnExprTokens.idxOf(checkToken.value) >= 0) { //!
                 // It is an expression.
                 return scanPunctuator();
             }
             // It is a declaration.
-            return collectRegex(); //...
+            return collectRegex(); 
         }
-        return collectRegex(); //...
+        return collectRegex();
     }
-    if (prevToken.type == Token["Keyword"]) { //checking type against string
-        return collectRegex(); //...
+    if (prevToken.typestring == u"Keyword") { //! not checking type against string whaat.
+        return collectRegex(); 
     }
     return scanPunctuator();
 }
@@ -1535,7 +1631,8 @@ TokenStruct advance() {
 //#CLEAR
 TokenStruct collectToken() {
     Loc loc;
-    TokenStruct token, t;
+    TokenStruct token;
+    TokenRecord tr;
     u16string value;
 
     skipComment();
@@ -1547,11 +1644,10 @@ TokenStruct collectToken() {
     loc.end.column = idx - lineStart;
 
     if (token.type != Token["EOF"]) { //this didn't check against string. is fine.
-        value = slice(sourceraw, token.start, token.end);
-        t.typestring = TokenName[token.type];
-        t.value = new u16string(value);
-        t.loc = loc;
-        extra.tokens.push_back(t);
+        tr.valuestring = slice(sourceraw, token.start, token.end);
+        tr.typestring = TokenName[token.type];
+        tr.loc = loc;
+        extra.tokenRecords.push_back(tr);
     }
 
     return token;
@@ -1620,7 +1716,9 @@ public:
     bool hasRange;
     vector<Comment> trailingComments;
     vector<Comment> leadingComments;
+    vector< vector<string> > regexPaths; //lin only. obv.
 
+    //#CLEAR
     Node() { 
         hasRange = false;
 
@@ -1641,8 +1739,35 @@ public:
             jv["range"][1] = 0;
         }
     }
+    
+    Json::Value toJson() {
+        return this->jv;
+    }
 
-    void trailingCommentsIntoJson(bool leading) {
+    void reg(Node &child, String index) {
+        if (child.regexPaths.size() == 0) { return; }
+        if (child.regexPaths[0][0] == ".") {
+            regexPaths.push_back({index});
+        }
+        for (int i=0; i<child.regexPaths.size(); i++) {
+            regexPaths.push_back(child.regexPaths[i]);
+            regexPaths.back().push_back(index);
+        }
+        child.regexPaths.clear();
+    }
+    Json::value regexPaths2json() {
+        Json::value root = Json::arrayValue;
+        for (int i=0; i<regexPaths.size(); i++) {
+            root[i] = Json::arrayValue;
+            for (int j=0; j<regexPaths[i].size(); j++) {
+                root[i][j] = regexPaths[i].back();
+                regexPaths[i].pop_back();
+            }
+        }
+        return root;
+    }
+
+    void trailingCommentsIntoJson(const bool leading) {
         string key;
         vector<Comment> * commentVec;
         if (leading) {
@@ -1732,6 +1857,7 @@ public:
         bottomRight->push_back(this);
     }
 
+    //#CLEAR
     void finish() {
         if (extra.range) {
             jv["range"][1] = idx; 
@@ -1739,7 +1865,7 @@ public:
         if (extra.loc) {
             Position newpos;
             jv["loc"]["end"] = posToJson(newpos);
-            if (extra.source) { 
+            if (extra.hasSource) { 
                 jv["loc"]["source"] = extra.source; 
             }
         }
@@ -1916,8 +2042,17 @@ public:
 
     void finishLiteral(TokenStruct token) {
         jv["type"] = s(Syntax["Literal"]); //#c
-        //!todo what type of literal?
-        jv["value"] = token.value;
+        //#!todo pass kind of literal through in extra node member.
+        if (token.literaltype == LiteralType["String"]) {
+            jv["value"] = res_u16(token.value);
+        } else if (token.literaltype == LiteralType["Int"]) {
+            jv["value"] = *((int*) token.value);
+        } else if (token.literaltype == LiteralType["Double"]) {
+            jv["value"] = *((double*) token.value);
+        } else if (token.literaltype == LiteralType["Regexp"]) {
+            jv["value"] = *((int*) token.value);
+            regexPaths.push(".");
+        }
         this->jv["raw"] = slice(sourceraw, token.start, token.end); //#c
         this->finish();
     }
@@ -1931,10 +2066,10 @@ public:
 
     }
 
-    void finishNewExpression(callee, args) {
+    void finishNewExpression(callee, vector<Node> args) {
         jv["type"] = s(Syntax["NewExpression"]);
         jv["callee"] = callee;
-        jv["arguments"] = args;
+        jv["arguments"] = args; //!vec<Node> .
         this->finish();
     }
 
@@ -2076,6 +2211,7 @@ class WrappingNode : public Node {
 
 // Return true if there is a line terminator before the next token.
 
+//#CLEAR+
 bool peekLineTerminator() {
     int pos = idx,
         line = lineNumber,
@@ -2510,7 +2646,7 @@ function parsePrimaryExpression() {
         token.value = null;
         expr = node.finishLiteral(token);
     } else if (match(u"/") || match(u"/=")) {
-        if (typeof extra.tokens !== 'undefined') {
+        if (extra.tokenTracking) {
             expr = node.finishLiteral(collectRegex());
         } else {
             expr = node.finishLiteral(scanRegExp());
@@ -2525,8 +2661,8 @@ function parsePrimaryExpression() {
 
 // 11.2 Left-Hand-Side Expressions
 
-function parseArguments() {
-    var args = [];
+vector< Node > parseArguments() {
+    vector< Node > args; //!
 
     expect(u"(");
 
@@ -2576,17 +2712,22 @@ function parseComputedMember() {
 }
 
 function parseNewExpression() {
-    var callee, args, node = new Node();
+    var callee;
+    vector< Node > args;
+    Node node = new Node();
 
     expectKeyword(u"new");
     callee = parseLeftHandSideExpression();
-    args = match(u"(") ? parseArguments() : [];
+    if (match(u"(")) { args = parseArguments(); }
 
     return node.finishNewExpression(callee, args);
 }
 
 function parseLeftHandSideExpressionAllowCall() {
-    var expr, args, property, startToken, previousAllowIn = state.allowIn;
+    vector< Node > args;
+    var expr, property; //!
+    TokenStruct startToken;
+    bool previousAllowIn = state.allowIn;
 
     startToken = lookahead;
     state.allowIn = true;
@@ -4041,13 +4182,13 @@ Node parseProgram() {
 //#CLEAR
 void filterTokenLocation() {
     int i;
-    TokenStruct token, entry;
-    vector<TokenStruct> tokens;
+    TokenRecord token, entry;
+    vector<TokenRecord> tokens;
 
-    for (i = 0; i < extra.tokens.size(); ++i) {
-        entry = extra.tokens[i];
-        token.type = entry.type;
-        token.value = entry.value;
+    for (i = 0; i < extra.tokenRecords.size(); ++i) {
+        entry = extra.tokenRecords[i];
+        token.typestring = entry.typestring;
+        token.valuestring = entry.valuestring;
         if (extra.range) { 
             token.range[0] = entry.range[0];
             token.range[1] = entry.range[1];
@@ -4057,11 +4198,26 @@ void filterTokenLocation() {
         }
         tokens.push_back(token);
     }
-    extra.tokens = tokens;
+    extra.tokenRecords = tokens;
 }
 
-vector<TokenStruct> tokenize(code, options) {
-        vector<TokenStruct> tokens;
+string tokenize(string code) {
+    OptionsStruct o;
+    return tokenize(code, o);
+}
+string tokenize(string code, OptionsStruct options) {
+    return tokenize(toU16string(code), options);
+}
+string tokenize(u16string code) {
+    OptionsStruct o;
+    return tokenize(code, o);
+}
+
+//#partial
+string tokenize(u16string code, OptionsStruct options) {
+    vector<TokenRecord> tokens;
+    Json::Value outJson;
+    Json::FastWriter fw;
 
     //! do this in outer javascript before call. 
     //! as it's a js-environment specific problem.
@@ -4070,38 +4226,42 @@ vector<TokenStruct> tokenize(code, options) {
     //    code = toString(code);
     //}
 
-    source = code;
+    sourceraw = code.data();
     idx = 0;
     lineNumber = (source.length > 0) ? 1 : 0;
     lineStart = 0;
     length = source.length;
     lookahead = null;
+
     state.allowIn = true;
     state.inFunctionBody = false;
     state.inIteration = false;
     state.inSwitch = false;
-    state.lastCommentStart = -1
+    state.lastCommentStart = -1;
     //! parenthesisCount for state not provided here normally as in parse. 
     //! That going to be a problem for us later?
 
     // Of course we collect tokens here.
     options["tokens"] = true;
+
+    extra.Extra();
     extra.tokenTracking = true; 
     extra.tokenize = true;
     // The following two fields are necessary to compute the Regex tokens.
     extra.openParenToken = -1;
     extra.openCurlyToken = -1;
 
-    extra.range = hasStringKey("range", options) && options["range"] == "true";
-    extra.loc = hasStringKey("loc", options) && options["loc"] == "true";
-
-    extra.commentTracking = hasStringKey("comment", options) && options["comment"] == "true";
-    extra.errorTolerant = hasStringKey("tolerant", options) && options["tolerant"] == "true";
+    extra.range = options.range; 
+    extra.loc = options.loc;
+    extra.commentTracking = options.comment;
+    extra.errorTolerant = options.tolerant;
 
     try {
         peek();
         if (lookahead.type == Token["EOF"]) {
-            return extra.tokens;
+            outJson["tokenlist"] = vec2jsonCallback(extra.tokenRecords, &TokenRecord::toJson);
+            free sourceraw;
+            return fw.write(outJson);
         }
 
         lex();
@@ -4121,38 +4281,40 @@ vector<TokenStruct> tokenize(code, options) {
         }
 
         filterTokenLocation();
-        tokens = extra.tokens;
+        outJson["tokenlist"] = vec2jsonCallback(extra.tokenRecords, &TokenRecord::toJson); 
         if (extra.commentTracking) {
-            tokens.comments = extra.comments; //! how to pass this and errors back in a way
-            // that strikes a balance between idiomatic c++ lib use, sane translation to javascript
-            // in asm.js, and fitting within library style? 
+            outJson["comments"] = vec2jsonCallback(extra.comments,
+                                                   &Comment::toJson);
         }
         if (extra.errorTolerant) {
-            tokens.errors = extra.errors; //!
+            outJson["errors"] = vec2jsonCallback(extra.errors,
+                                                 &ExError::toJson);
         }
     } catch (e) {
         throw e;
     } finally {
     }
-    return tokens;
+
+    free sourceraw;
+    return fw.write(tokens);
 }
 
-
-function parse(string code) {
-    parse(code, {});
+string parse(const string code) {
+    OptionsStruct o;
+    return parse(code, o);
 }
-function parse(string code, Map<string, string> options) {
-    parse(toU16string(code), options);
+string parse(const string code, const OptionsStruct options) {
+    return parse(toU16string(code), options);
 }
-function parse(u16string code) {
-    parse(code, {});
+string parse(const u16string code) {
+    OptionsStruct o;
+    return parse(code, o);
 }
 
-function parse(u16string code, Map<string, string> options) {
-    var program, toString;
-
-    toString = String;
-
+//#partial
+string parse(const u16string code, const OptionsStruct options) {
+    Node programNode;
+    Json::Value programJson;
     //! do this in outer javascript before call. 
     //! as it's a js-environment specific problem.
 
@@ -4160,7 +4322,7 @@ function parse(u16string code, Map<string, string> options) {
     //    code = toString(code);
     //}
 
-    source = code;
+    sourceraw = code.data();
     idx = 0;
     lineNumber = (source.length > 0) ? 1 : 0;
     lineStart = 0;
@@ -4171,19 +4333,22 @@ function parse(u16string code, Map<string, string> options) {
     state.inFunctionBody = false;
     state.inIteration = false;
     state.inSwitch = false;
-    state.lastCommentStart = -1
-    
-    extra.range = hasStringKey("range", options) && options["range"] == "true";
-    extra.loc = hasStringKey("loc", options) && options["loc"] == "true";
-    extra.attachComment = hasStringKey("attachComment", options) && options["attachComment"] == "true"; 
+    state.lastCommentStart = -1;
 
-    if (extra.loc && hasStringKey("source", options)) {
+    extra.Extra();
+ 
+    extra.range = options.range;
+    extra.loc = options.loc;
+    extra.attachComment = options.attachComment;
+
+    if (extra.loc && options.hasSource) {
+        exta.hasSource = true;
         extra.source = options.source;
-    } else { extra.source = ""; } //! is using "" as a null value here going to be alright? check.
+    } else { extra.hasSource = false; }
 
-    extra.tokenTracking = hasStringKey("tokens", options) && options["tokens"] == "true";
-    extra.commentTracking = hasStringKey("comment", options) && options["comment"] == "true";
-    extra.errorTolerant = hasStringKey("tolerant", options) && options["tolerant"] == "true";
+    extra.tokenTracking = options.takens;
+    extra.commentTracking = options.comment;
+    extra.errorTolerant = options.tolerant;
 
     //values which aren't strictly dependent on attachComment being true
     //but attachComment is sufficient for them to be true.
@@ -4194,17 +4359,22 @@ function parse(u16string code, Map<string, string> options) {
 
 
     try {
-        program = parseProgram();
+        programNode = parseProgram();
+        //programJson["noderoot"] = programNode.jv;
+        programJson = programNode.jv;
+        programJson["regexp"] = programNode.regexPaths2json();
         if (extra.commentTracking) {
-            program.comments = extra.comments; 
-            //! how to pass comments and modules back idomatically to library, c++, asm.js module output?
+            programJson["comments"] = vec2jsonCallback(extra.comments,
+                                                       &Comment::toJson); //! do these .toJson funcs all exist?
         }
         if (extra.tokenTracking) {
             filterTokenLocation();
-            program.tokens = extra.tokens;
+            programJson["tokens"] = vec2jsonCallback(extra.tokenRecords,
+                                                     &TokenStruct::toJson);
         }
         if (extra.errorTolerant) {
-            program.errors = extra.errors;
+            programJson["errors"] = vec2jsonCallback(extra.errors,
+                                                     &ExError::toJson);
         }
     } catch (e) {
         throw e;
@@ -4212,8 +4382,29 @@ function parse(u16string code, Map<string, string> options) {
         extra = {};
     }
 
-    return program;
+    free sourceraw;
+    Json::FastWriter fw;
+    return fw.write(program);
 }
+
+//WARNING! ALLOCATES MEM. It's your job to free it.
+char* strToChar(string in) {
+    char *out = new char[in.size()+1];
+    strcpy(out, in.c_str());
+    return out;
+}
+
+extern "C" {
+    char* tokenizeExt(char *code, char* options) {
+        return strToChar(tokenize(string(code_str), 
+                                  Options.dejson(string(options))));
+    }
+    char* parseExt(char *code, char* options) {
+        return strToChar(parse(string(code_str), 
+                                  Options.dejson(string(options))));
+    }
+}
+
 
     // Sync with *.json manifests.
     exports.version = '2.0.0-dev';
