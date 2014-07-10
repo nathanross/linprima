@@ -1709,8 +1709,6 @@ Json::Value locToJson(Loc l) {
 //#CLEAR
 //Loc 
 
-class NodeFinish {
-}
 
 class Node {
 public:
@@ -1725,7 +1723,7 @@ public:
 
     u16string type;
     u16string name;
-
+    
     //#CLEAR
     Node() { 
         hasRange = false;
@@ -1751,8 +1749,10 @@ public:
     Json::Value toJson() {
         return this->jv;
     }
+    
+    void reg(String path, Node &child) {
+        if (child.isNull) { jv[path] = Json::Value.null; }
 
-    void reg(Node &child, String index) {
         if (child.regexPaths.size() == 0) { return; }
         if (child.regexPaths[0][0] == ".") {
             regexPaths.push_back({index});
@@ -1762,18 +1762,22 @@ public:
             regexPaths.back().push_back(index);
         }
         child.regexPaths.clear();
+
+        jv[path] = child.jv;
     }
-    Json::Value nodeVec(vector< Node > & nodes) {
-        Json::Value root = Json::arrayValue;
+
+    Json::Value nodeVec(String path, vector< Node > & nodes) {
+        jv[path] = Json::arrayValue;
+        Json::Value * rootptr = &(jv[path]);
+
         for (int i=0; i<nodes.size(); i++) {
             if (nodes[i].isNull) {
-                root[i] = Json::Value.null; //! probably not correct way to access this value
+                rootptr->[i] = Json::Value.null; //! probably not correct way to access this value
             } else {
                 reg(nodes[i]);
-                root[i] = nodes[i].jv;
+                rootptr->[i] = nodes[i].jv;
             }
         } 
-        return root;
     }
     void addType(String in) {
         type = Syntax[in];
@@ -1790,7 +1794,7 @@ public:
         }
         return root;
     }
-
+    
     void trailingCommentsIntoJson(const bool leading) {
         string key;
         vector<Comment> * commentVec;
@@ -1809,7 +1813,7 @@ public:
             jv.removeKey(key);
         }
     }
-
+    
     //#PARTIAL
     void processComment() {
         //# assumes attachComments 
@@ -1902,12 +1906,12 @@ public:
     //#partial
     void finishArrayExpression(vector< Node >& elements) {
         addType("ArrayExpression");
-        jv["elements"] = nodeVec(elements);
+        nodeVec("elements", elements);
         this->finish();
     }
 
     void s(u16string in) {
-     return toU8string(in);
+        return toU8string(in);
     }
 
     void finishArrowFunctionExpression(params, defaults, body, expression) {
@@ -1922,18 +1926,16 @@ public:
         this->finish();
     }
 
-    void finishAssignmentExpression(u16string oper, TokenStruct left, Node right) {
-        reg(left); 
-        reg(right);
+    void finishAssignmentExpression(u16string oper, TokenStruct left, Node& right) {
         addType("AssignmentExpression");
         jv["operator"] = s(oper);
         jv["left"] = s(left.strvalue);
-        jv["right"] = right->jv;
+        reg("right", right);
         this->finish();
     }
 
     void finishBinaryExpression(u16string oper, left, right) {
-        addType(s((oper == u"||" || oper == u"&&") ? "LogicalExpression" : "BinaryExpression");
+        addType((oper == u"||" || oper == u"&&") ? "LogicalExpression" : "BinaryExpression");
         jv["operator"] = s(oper);
         jv["left"] = left; //!
         jv["right"] = right; //!
@@ -1941,85 +1943,94 @@ public:
     }
 
     //#CLEAR
-    void finishBlockStatement(vector< Node > & body) {
+    void finishBlockStatement(vector< Node >& body) {
         addType("BlockStatement");
-        jv["body"] = nodeVec(body);
-        this->finish();
-    }
-
-    void finishBreakStatement(label) {
-        addType("BreakStatement");
-        jv["label"] = label;
+        nodeVec("body", body);
         this->finish();
     }
 
     //#CLEAR
-    void finishCallExpression(Node callee, Vector< Node > args) {
+    void finishBreakStatement(Node& label) {
+        addType("BreakStatement");
+        reg("label", label);
+        this->finish();
+    }
+
+    //#CLEAR
+    void finishCallExpression(Node& callee, Vector< Node >& args) {
         addType("CallExpression");
-        reg(callee);
-        jv["callee"] = callee;
-        jv["arguments"] = nodeVec(args);
+        reg("callee", callee);
+        nodeVec("arguments", args);
         this->finish();
     }
 
-    void finishCatchClause(param, body) {
+    //#CLEAR
+    void finishCatchClause(Node& param, Node& body) {
         addType("CatchClause");
-        jv["param"] = param;
-        jv["body"] = body;
+        reg("param", param);
+        reg("body", body);
         this->finish();
     }
 
-    void finishConditionalExpression(test, consequent, alternate) {
+    //#CLEAR
+    void finishConditionalExpression(Node& test, Node& consequent, Node& alternate) {
         addType("ConditionalExpression");
-        jv["test"] = test;
-        jv["consequent"] = consequent;
-        jv["alternate"] = alternate;
+        reg("test", test);
+        reg("consequent", consequent);
+        reg("alternate", alternate);
         this->finish();
     }
 
-    void finishContinueStatement(label) {
+    //#CLEAR
+    void finishContinueStatement(Node& label) {
         addType("ContinueStatement");
-        jv["label"] = label;
+        reg("label", label);
         this->finish();
     }
 
+    //#CLEAR
     void finishDebuggerStatement() {
         addType("DebuggerStatement");
         this->finish();
     }
 
-    void finishDoWhileStatement(body, test) {
+    //#CLEAR
+    void finishDoWhileStatement(Node& body, Node& test) {
         addType("DoWhileStatement");
-        jv["body"] = body;
-        jv["test"] = test;
+        reg("body", body);
+        reg("test", test);
         this->finish();
     }
 
+    //#CLEAR
     void finishEmptyStatement() {
         addType("EmptyStatement");
         this->finish();
     }
 
-    void finishExpressionStatement(expression) {
+    //#CLEAR
+    void finishExpressionStatement(Node expression) {
         addType("ExpressionStatement");
-        jv["expression"] = expression;
+        reg("expression", expression);
         this->finish();
     }
 
-    void finishForStatement(init, test, update, body) {
+    //#CLEAR
+    void finishForStatement(Node& init, Node& test, Node& update, Node& body) {
         addType("ForStatement");
-        jv["init"] = init;
-        jv["test"] = test;
-        jv["update"] = update;
-        jv["body"] = body;
+        reg("init", init);
+        reg("test", test);
+        reg("update", update);
+        reg("body", body);
         this->finish();
     }
 
+    //#CLEAR
     void finishForInStatement(left, right, body) {
         addType("ForInStatement");
-        jv["left"] = left;
-        jv["right"] = right;
-        jv["body"] = body;
+        reg("left", left);
+        reg("right", right);
+        reg("body", body);
         jv["each"] = false;
         this->finish();
     }
@@ -2058,23 +2069,20 @@ public:
     }
 
     //#CLEAR
-    void finishIfStatement(Node test, Node consequent, Node alternate) { 
-        reg(test);
-        reg(consequent);
-        reg(alternate);
+    void finishIfStatement(Node& test, Node& consequent, Node& alternate) { 
         addType("IfStatement");
-        jv["test"] = test.jv;
-        jv["consequent"] = consequent.jv;
-        jv["alternate"] = alternate.jv;
+        reg("test", test);
+        reg("consequent", consequent);
+        reg("alternate", alternate);
         this->finish();
     }
 
-    void finishLabeledStatement(label, body) {
+    //#CLEAR
+    void finishLabeledStatement(Node label, Node body) {
         addType("LabeledStatement");
-        jv["label"] = label;
-        jv["body"] = body;
+        reg("label", label);
+        reg("body", body);
         this->finish();
-
     }
 
     void finishLiteral(TokenStruct token) {
@@ -2095,21 +2103,18 @@ public:
     }
 
     //#CLEAR
-    void finishMemberExpression(char16_t accessor, Node object, Node property) {
-        reg(object);
-        reg(property);
+    void finishMemberExpression(char16_t accessor, Node& object, Node& property) {
         addType("MemberExpression");
         jv["computed"] = (accessor == u'[');
-        jv["object"] = object.jv;
-        jv["property"] = property.jv;
+        reg("object", object);
+        reg("property", property);
         this->finish();
     }
 
-    void finishNewExpression(Node callee, vector<Node> args) {
-        reg(callee);
+    void finishNewExpression(Node& callee, vector<Node>& args) {
         addType("NewExpression");
-        jv["callee"] = callee.jv;
-        jv["arguments"] = nodeVec(args);
+        reg("callee", callee);
+        nodeVec("arguments", args);
         this->finish();
     }
 
@@ -2120,11 +2125,10 @@ public:
     }
 
     //#CLEARto
-    void finishPostfixExpression(u16string oper, Node argument) {
-        reg(argument);
+    void finishPostfixExpression(u16string oper, Node& argument) {
         addType("UpdateExpression");
         jv["oper"] = s(oper);
-        jv["argument"] = argument.jv;
+        reg("argument", argument);
         jv["prefix"] = false;
         this->finish();
     }
@@ -2136,19 +2140,18 @@ public:
     }
 
     //#CLEAR
-    void finishProperty(u16string kind, Node key, Node value) {
-        reg(key);
-        reg(value);
+    void finishProperty(u16string kind, Node& key, Node& value) {
         addType("Property");
-        jv["key"] = key.jv;
-        jv["value"] = value.jv;
+        reg("key", key);
+        reg("value", value);
         jv["kind"] = s(kind);
         this->finish();
     }
 
-    void finishReturnStatement(argument) {
+    //#CLEAR
+    void finishReturnStatement(Node& argument) {
         addType("ReturnStatement");
-        jv["argument"] = argument;
+        reg("argument", argument);
         this->finish();
     }
 
@@ -2158,17 +2161,19 @@ public:
         this->finish();
     }
 
-    void finishSwitchCase(test, consequent) {
+    //#CLEAR
+    void finishSwitchCase(Node& test, vector< Node >& consequent) {
         addType("SwitchCase");
-        jv["test"] = test;
-        jv["consequent"] = consequent;
+        reg("test", test);
+        nodeVec("consequent", consequent); //#todo switch nodeVec to be like reg, nodeVec("consequent", consequent)
         this->finish();
     }
 
-    void finishSwitchStatement(discriminant, cases) {
+    //#CLEAR
+    void finishSwitchStatement(Node& discriminant, vector < Node >& cases) {
         addType("SwitchStatement");
-        jv["discriminant"] = discriminant;
-        jv["cases"] = cases;
+        reg("discriminant", discriminant);
+        nodeVec("cases", cases);
         this->finish();
     }
 
@@ -2177,66 +2182,72 @@ public:
         this->finish();
     }
 
-    void finishThrowStatement(argument) {
+    //#CLEAR
+    void finishThrowStatement(Node& argument) {
         addType("ThrowStatement");
-        jv["argument"] = argument;
+        reg("argument", argument);
         this->finish();
     }
 
-    void finishTryStatement(block, guardedHandlers, handlers, finalizer) {
+    //#CLEAR
+    void finishTryStatement(Node& block, vector<Node>& guardedHandlers, 
+                            vector<Node>& handlers, Node& finalizer) {
         addType("TryStatement");
-        jv["block"] = block;
-        jv["guardedHandlers"] = guardedHandlers;
-        jv["handlers"] = handlers;
-        jv["finalizer"] = finalizer;
+        reg("block", block);
+        nodeVec("guardedHandlers", guradedHandlers);
+        nodeVec("handlers", handlers);
+        reg("finalizer", finalizer);
         this->finish();
     }
 
-    void finishUnaryExpression(u16string oper, argument) {
-        addType(s((oper == u"++" || oper == u"--") ? "UpdateExpression" : "UnaryExpression");
+    //#CLEAR
+    void finishUnaryExpression(u16string oper, Node& argument) {
+        addType((oper == u"++" || oper == u"--") ? "UpdateExpression" : "UnaryExpression");
         jv["operator"] = s(oper);
-        jv["argument"] = argument;
+        reg("argument", argument);
         jv["prefix"] = true;
         this->finish();
     }
 
-    void finishVariableDeclaration(declarations, kind) {
+    //#CLEAR
+    void finishVariableDeclaration(List< Node >& declarations, u16string kind) {
         addType("VariableDeclaration");
-        jv["declarations"] = declarations;
-        jv["kind"] = kind;
+        nodeVec("declarations", declarations);
+        jv["kind"] = s(kind);
         this->finish();
     }
 
-    void finishVariableDeclarator(id, init) {
+    //#CLEAR
+    void finishVariableDeclarator(Node& id, Node& init) {
         addType("VariableDeclarator");
-        jv["id"] = id;
-        jv["init"] = init;
+        reg("id", id);
+        reg("init", init);
         this->finish();
     }
 
-    void finishWhileStatement(Node test, Node body) {
-        reg(test);
-        reg(body);
+    //#CLEAR
+    void finishWhileStatement(Node& test, Node& body) {
         addType("WhileStatement");
-        jv["test"] = test.jv;
-        jv["body"] = body.jv;
+        reg("test", test);
+        reg("body", body);
         this->finish();
     }
 
-    void finishWithStatement(object, body) {
+    //#CLEAR
+    void finishWithStatement(Node& object, Node& body) {
         addType("WithStatement");
-        jv["object"] = object;
-        jv["body"] = body;
+        reg("object", object);
+        reg("body", body);
         this->finish();
     }
 };
 
-
+    
 Node NULLNODE;
 NULLNODE.isNull = true;
 
 class WrappingNode : public Node {
- public:
+public:
     WrappingNode(TokenStruct startToken) : Node() {
         if (extra.range) {
             jv["range"][0] = startToken.start;
@@ -2258,8 +2269,8 @@ class WrappingNode : public Node {
         //return result;
         return locToJson(result);
     }
-}
-
+};
+    
 // Return true if there is a line terminator before the next token.
 
 //#CLEAR+
@@ -2719,12 +2730,10 @@ Node parsePrimaryExpression() {
 }
 
 // 11.2 Left-Hand-Side Expressions
-
+//# CLEAR
 vector< Node > parseArguments() {
-    vector< Node > args; //!
-
+    vector< Node > args; 
     expect(u"(");
-
     if (!match(u")")) {
         while (idx < length) {
             args.push(parseAssignmentExpression());
@@ -2734,9 +2743,7 @@ vector< Node > parseArguments() {
             expectTolerant(u",");
         }
     }
-
     expect(u")");
-
     return args;
 }
 
@@ -2866,7 +2873,7 @@ Node parsePostfixExpression() {
             token = lex();
             tmpnode = new WrappingNode(startToken);
             tmpnode.finishPostfixExpression(token.strvalue, expr);
-            expr = tmpnode;
+            return tmpnode;
         }
     }
 
@@ -2874,10 +2881,10 @@ Node parsePostfixExpression() {
 }
 
 // 11.4 Unary Operators
-
+//#CLEAR
 Node parseUnaryExpression() {
     TokenStruct token, startToken;
-    Node expr;
+    Node expr, tmpnode;
     u16string exprname;
 
     if (lookahead.type != Token["Punctuator"] && lookahead.type != Token["Keyword"]) {
@@ -2895,20 +2902,26 @@ Node parseUnaryExpression() {
             throwErrorTolerant(NULLTOKEN, Messages["InvalidLHSInAssignment"]);
         }
 
-        expr = new WrappingNode(startToken).finishUnaryExpression(token.strvalue, expr); //! token.value
+        tmpnode = new WrappingNode(startToken);
+        tmpnode.finishUnaryExpression(token.strvalue, expr);
+        return tmpnode;
     } else if (match(u"+") || match(u"-") || match(u"~") || match(u"!")) {
         startToken = lookahead;
         token = lex();
         expr = parseUnaryExpression();
-        expr = new WrappingNode(startToken).finishUnaryExpression(token.strvalue, expr); //!
+        tmpnode = new WrappingNode(startToken);
+        tmpnode = finishUnaryExpression(token.strvalue, expr);
+        return tmpnode;
     } else if (matchKeyword(u"delete") || matchKeyword(u"void") || matchKeyword(u"typeof")) {
         startToken = lookahead;
         token = lex();
         expr = parseUnaryExpression();
-        expr = new WrappingNode(startToken).finishUnaryExpression(token.stvalue, expr); //!
-        if (strict && expr.jv["operator"] == u"delete" && expr["argument"]["type"] == Syntax["Identifier"]) {
+        tmpnode = new WrappingNode(startToken);
+        tmpnode.finishUnaryExpression(token.strvalue, expr);
+        if (strict && token.strvalue == u"delete" && expr.type == Syntax["Identifier"]) {
             throwErrorTolerant(NULLTOKEN, Messages["StrictDelete"], "");
         }
+        return tmpnode;
     } else {
         expr = parsePostfixExpression();
     }
@@ -2916,7 +2929,7 @@ Node parseUnaryExpression() {
     return expr;
 }
 
-//#CLEAN
+//#CLEAR
 int binaryPrecedence(TokenStruct token, bool allowIn) {
     int prec = 0;
     u16string tokval;
@@ -2926,28 +2939,28 @@ int binaryPrecedence(TokenStruct token, bool allowIn) {
     }
     tokval = token.strvalue;
     
-    if (tokenval == u"||") {
+    if (tokval == u"||") {
         prec = 1;
-    } else if (tokenval == u"&&") {
+    } else if (tokval == u"&&") {
         prec = 2;
-    } else if (tokenval == u"|") {
+    } else if (tokval == u"|") {
         prec = 3;
-    } else if (tokenval == u"^") {
+    } else if (tokval == u"^") {
         prec = 4;
-    } else if (tokenval == u"&") {
+    } else if (tokval == u"&") {
         prec = 5;
-    } else if (has(tokenval, {u"==", u"!=", u"===", u"!=="})) {
+    } else if (has(tokval, {u"==", u"!=", u"===", u"!=="})) {
         prec = 6;
-    } else if (has(tokenval, {u"<", u">", u"<=", u">=", u"instanceof"})) {
+    } else if (has(tokval, {u"<", u">", u"<=", u">=", u"instanceof"})) {
         prec = 7;
-    } else if (tokenval == u"in") {
+    } else if (tokval == u"in") {
         prec = allowIn ? 7 : 0
-    } else if (has(tokenval,
+    } else if (has(tokval,
                    {u"<<", u">>", u">>>"})) {
         prec = 8;
-    } else if (tokenval == u"+" || tokenval == u"-") {
+    } else if (tokval == u"+" || tokval == u"-") {
         prec = 9;
-    } else if (has(tokenval, {u"*", u"/", u"%"})) {
+    } else if (has(tokval, {u"*", u"/", u"%"})) {
         prec = 11;
     }
 
@@ -2963,33 +2976,40 @@ int binaryPrecedence(TokenStruct token, bool allowIn) {
 // 11.11 Binary Logical Operators
 
 Node parseBinaryExpression() {
-    var marker, markers;
-    Node tmpnode, expr;
-    TokenStruct token, prec, stack, right, oper, left, i;
+
+    Node tmpnode, expr, left, right;
+    vector < Node > stack;
+    TokenStruct marker, token;
+    vector< TokenStruct > markers;
+    var oper;
+    int i, prec;
 
     marker = lookahead;
     left = parseUnaryExpression();
-    if (left === PlaceHolders.ArrowParameterPlaceHolder) {
+    if (left == PlaceHolders.ArrowParameterPlaceHolder) { //! placeholder
         return left;
     }
 
     token = lookahead;
     prec = binaryPrecedence(token, state.allowIn);
-    if (prec === 0) {
+    if (prec == 0) {
         return left;
     }
-    token.prec = prec;
+    token.prec = prec; //!
     lex();
 
-    markers = [marker, lookahead];
+    markers.push_back(marker);
+    markers.push_back(lookahead);
     right = parseUnaryExpression();
 
-    stack = [left, token, right];
+    stack.push_back(left);
+    stack.push_back(token);
+    stack.push_back(right);
 
-    while ((prec = binaryPrecedence(lookahead, state.allowIn)) > 0) {
+    while ((prec = binaryPrecedence(lookahead, state.allowIn)) > 0) { //? will this work the same in c++ as in js
 
         // Reduce: make a binary expression from the three topmost entries.
-        while ((stack.length > 2) && (prec <= stack[stack.length - 2].prec)) {
+        while ((stack.size() > 2) && (prec <= stack[stack.size() - 2].prec)) { //? will this work the same in c++ as in js?
             right = stack.pop();
             oper = stack.pop().value;
             left = stack.pop();
@@ -3025,13 +3045,16 @@ Node parseBinaryExpression() {
 
 // 11.12 Conditional Operator
 
-function parseConditionalExpression() {
-    var expr, previousAllowIn, consequent, alternate, startToken;
+//#partial
+Node parseConditionalExpression() {
+    Node expr, tmpnode, consequent, alternate;
+    bool previousAllowIn;
+    TokenStruct startToken;
 
     startToken = lookahead;
 
     expr = parseBinaryExpression();
-    if (expr === PlaceHolders.ArrowParameterPlaceHolder) {
+    if (expr == PlaceHolders.ArrowParameterPlaceHolder) { //! get arrowparameterplaceholder coord.
         return expr;
     }
     if (match(u"?")) {
@@ -3043,7 +3066,9 @@ function parseConditionalExpression() {
         expect(u":");
         alternate = parseAssignmentExpression();
 
-        expr = new WrappingNode(startToken).finishConditionalExpression(expr, consequent, alternate);
+        tmpnode = new WrappingNode(startToken);
+        tmpnode.finishConditionalExpression(expr, consequent, alternate);
+        return tmpnode;
     }
 
     return expr;
@@ -3114,8 +3139,8 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node > expressions) {
         message: options.message
     };
 }
-
- Node parseArrowFunctionExpression(options, Node node) {
+    
+Node parseArrowFunctionExpression(options, Node node) {
      bool previousStrict;
      var body;
 
@@ -3269,17 +3294,18 @@ Node parseVariableIdentifier() {
     return node;
 }
 
-function parseVariableDeclaration(kind) {
-    var init = null, id, node;
+//#CLEAR
+Node parseVariableDeclaration(u16string kind) {
+    Node id, node, init = NULLNODE;
 
     id = parseVariableIdentifier();
 
     // 12.2.1
     if (strict && isRestrictedWord(id.name)) {
-        throwErrorTolerant(NULLTOKEN, Messages["StrictVarName"]);
+        throwErrorTolerant(NULLTOKEN, Messages["StrictVarName"], "");
     }
 
-    if (kind === 'const') {
+    if (kind == u"const") {
         expect(u"=");
         init = parseAssignmentExpression();
     } else if (match(u"=")) {
@@ -3291,9 +3317,9 @@ function parseVariableDeclaration(kind) {
     return node;
 }
 
-//#partial
-Vector< abcdef > parseVariableDeclarationList(kind) {
-    vector<> list; //type parseVariableDeclaration
+//#CLEAR
+Vector< Node > parseVariableDeclarationList(u16string kind) {
+    vector< Node > list; 
 
     do {
         list.push_back(parseVariableDeclaration(kind));
@@ -3306,15 +3332,15 @@ Vector< abcdef > parseVariableDeclarationList(kind) {
     return list;
 }
 
-//#partial
+//#CLEAR
 Node parseVariableStatement(Node node) {
-    vector< abcdef > declarations;
+    vector< Node > declarations;
 
     expectKeyword(u"var");
-    declarations = parseVariableDeclarationList(); //! no arg provided but expects arg
+    declarations = parseVariableDeclarationList(u""); 
     consumeSemicolon();
 
-    node.finishVariableDeclaration(declarations, "var");
+    node.finishVariableDeclaration(declarations, u"var");
     return node;
 }
 
@@ -3322,9 +3348,9 @@ Node parseVariableStatement(Node node) {
 // Both are experimental and not in the specification yet.
 // see http://wiki.ecmascript.org/doku.php?id=harmony:const
 // and http://wiki.ecmascript.org/doku.php?id=harmony:let
-
-Node parseConstLetDeclaration(kind) {
-    var declarations;
+//#CLEAR
+Node parseConstLetDeclaration(u16string kind) {
+    List< Node > declarations;
     Node node;
 
     expectKeyword(kind);
@@ -3336,7 +3362,7 @@ Node parseConstLetDeclaration(kind) {
 
 // 12.3 Empty Statement
 
-//#CLEAN
+//#CLEAR
 Node parseEmptyStatement() {
     Node node;
     expect(u";");
@@ -3345,7 +3371,7 @@ Node parseEmptyStatement() {
 }
 
 // 12.4 Expression Statement
-//#clean
+//#CLEAR
 Node parseExpressionStatement(Node node) {
     var expr = parseExpression();
     consumeSemicolon();
@@ -3354,7 +3380,7 @@ Node parseExpressionStatement(Node node) {
 }
 
 // 12.5 If statement
-//#partial
+//#CLEAR
 Node parseIfStatement(Node node) {
     var test;
     Node consequent, alternate;
@@ -3367,7 +3393,7 @@ Node parseIfStatement(Node node) {
         lex();
         alternate = parseStatement();
     } else {
-        alternate = NULLTOKEN; //!account for this in finishIfStatetment
+        alternate = NULLNODE;
     }
     node.finishIfStatement(test, consequent, alternate);
     return node;
@@ -3375,30 +3401,23 @@ Node parseIfStatement(Node node) {
 
 // 12.6 Iteration Statements
 
-Node parseDoWhileStatement(node) {
-    var body, test, oldInIteration;
+//#CLEAR
+Node parseDoWhileStatement(Node node) {
+    Node body, test;
+    bool oldInIteration;
 
     expectKeyword(u"do");
-
     oldInIteration = state.inIteration;
     state.inIteration = true;
-
     body = parseStatement();
-
     state.inIteration = oldInIteration;
-
     expectKeyword(u"while");
-
     expect(u"(");
-
     test = parseExpression();
-
     expect(u")");
-
     if (match(u";")) {
         lex();
     }
-
     node.finishDoWhileStatement(body, test);
     return node;
 }
@@ -3419,36 +3438,37 @@ Node parseWhileStatement(Node node) {
     return node;
 }
 
+//#CLEAR
 Node parseForVariableDeclaration() {
     TokenStruct token;
-    var declarations;
+    vector< Node > declarations;
     Node node;
 
     token = lex();
     declarations = parseVariableDeclarationList();
-
-    node.finishVariableDeclaration(declarations, token.value);
+    node.finishVariableDeclaration(declarations, token.strvalue);
     return node;
 }
 
-Node parseForStatement(node) {
-    var init, test, update, left, right, body, oldInIteration, previousAllowIn = state.allowIn;
+//#CLEAR
+Node parseForStatement(Node node) {
 
-    init = test = update = null;
+    bool oldInIteration, previousAllowIn = state.allowIn;
+
+    Node body, left, right, update=NULLNODE, test=NULLNODE, init=NULLNODE;
 
     expectKeyword(u"for");
-
     expect(u"(");
 
     if (match(u";")) {
         lex();
     } else {
-        if (matchKeyword('var') || matchKeyword('let')) {
+        if (matchKeyword(u"var") || matchKeyword(u"let")) {
             state.allowIn = false;
             init = parseForVariableDeclaration();
             state.allowIn = previousAllowIn;
 
-            if (init.declarations.length === 1 && matchKeyword('in')) {
+            if (init.jv["declarations"].size() == 1 && matchKeyword(u"in")) { //? more efficient way than jsoncpp access?
                 lex();
                 left = init;
                 right = parseExpression();
@@ -3459,25 +3479,25 @@ Node parseForStatement(node) {
             init = parseExpression();
             state.allowIn = previousAllowIn;
 
-            if (matchKeyword('in')) {
+            if (matchKeyword(u"in")) {
                 // LeftHandSideExpression
                 if (!isLeftHandSide(init)) {
-                    throwErrorTolerant(NULLTOKEN, Messages["InvalidLHSInForIn"]);
+                    throwErrorTolerant(NULLTOKEN, Messages["InvalidLHSInForIn"],"");
                 }
 
                 lex();
                 left = init;
                 right = parseExpression();
-                init = null;
+                init = NULLNODE;
             }
         }
 
-        if (typeof left === 'undefined') {
+        if (left.isNull) {
             expect(u";");
         }
     }
 
-    if (typeof left === 'undefined') {
+    if (left.isNull) {
 
         if (!match(u";")) {
             test = parseExpression();
@@ -3498,52 +3518,57 @@ Node parseForStatement(node) {
 
     state.inIteration = oldInIteration;
 
-    return (typeof left === 'undefined') ?
-            node.finishForStatement(init, test, update, body) :
-            node.finishForInStatement(left, right, body);
+    if (left.isNull) {
+        node.finishForStatement(init, test, update, body) 
+    } else {
+        node.finishForInStatement(left, right, body);
+    }
+    return node;
 }
 
 // 12.7 The continue statement
-
-Node parseContinueStatement(node) {
-    var label = null, key;
+//#CLEAR
+Node parseContinueStatement(Node node) {
+    Node label = NULLNODE;
+    u16string key;
 
     expectKeyword(u"continue");
 
     // Optimize the most common form: 'continue;'.
-    if (source.charCodeAt(idx) === 0x3B) {
+    if (source(idx) == 0x3B) {
         lex();
 
-        if (!state.inIteration) {
-            throwError(NULLTOKEN, Messages["IllegalContinue"]);
+        if (!(state.inIteration)) {
+            throwError(NULLTOKEN, Messages["IllegalContinue"],"");
         }
 
-        node.finishContinueStatement(null);
+        node.finishContinueStatement(NULLNODE);
         return node;
     }
 
     if (peekLineTerminator()) {
         if (!state.inIteration) {
-            throwError(NULLTOKEN, Messages["IllegalContinue"]);
+            throwError(NULLTOKEN, Messages["IllegalContinue"],"");
         }
 
-        node.finishContinueStatement(null);
+        node.finishContinueStatement(NULLNODE);
         return node;
     }
 
-    if (lookahead.type === Token.Identifier) {
+    if (lookahead.type == Token["Identifier"]) {
         label = parseVariableIdentifier();
 
-        key = '$' + label.name;
-        if (!Object.prototype.hasOwnProperty.call(state.labelSet, key)) {
-            throwError(NULLTOKEN, Messages["UnknownLabel"], label.name);
+        key = u"$";
+        key.append(label.name);
+        if (has<u16string>(key, state.labelSet)) {
+            throwError(NULLTOKEN, Messages["UnknownLabel"], toU8string(label.name));
         }
     }
 
     consumeSemicolon();
 
-    if (label === null && !state.inIteration) {
-        throwError(NULLTOKEN, Messages["IllegalContinue"]);
+    if (label.isNull && !(state.inIteration)) {
+        throwError(NULLTOKEN, Messages["IllegalContinue"],"");
     }
 
     node.finishContinueStatement(label);
@@ -3551,47 +3576,47 @@ Node parseContinueStatement(node) {
 }
 
 // 12.8 The break statement
-
-Node parseBreakStatement(node) {
+//#CLEAR
+Node parseBreakStatement(Node node) {
     Node label;
     u16string key;
 
     expectKeyword(u"break");
 
     // Catch the very common case first: immediately a semicolon (U+003B).
-    if (source.charCodeAt(idx) === 0x3B) {
+    if (source(idx) == 0x3B) {
         lex();
 
         if (!(state.inIteration || state.inSwitch)) {
-            throwError(NULLTOKEN, Messages["IllegalBreak"]);
+            throwError(NULLTOKEN, Messages["IllegalBreak"],"");
         }
 
-        node.finishBreakStatement(null);
+        node.finishBreakStatement(NULLNODE);
         return node;
     }
 
     if (peekLineTerminator()) {
         if (!(state.inIteration || state.inSwitch)) {
-            throwError(NULLTOKEN, Messages["IllegalBreak"]);
+            throwError(NULLTOKEN, Messages["IllegalBreak"],"");
         }
 
-        node.finishBreakStatement(null);
+        node.finishBreakStatement(NULLNODE);
         return node;
     }
 
-    if (lookahead.type === Token.Identifier) {
+    if (lookahead.type == Token["Identifier"]) {
         label = parseVariableIdentifier();
 
         key = u"$";
         key.append(label.name);
-        if (!Object.prototype.hasOwnProperty.call(state.labelSet, key)) {
-            throwError(NULLTOKEN, Messages["UnknownLabel"], label.name);
+        if (has<u16string>(key, state.labelSet)) {
+            throwError(NULLTOKEN, Messages["UnknownLabel"], toU8string(label.name));
         }
     }
 
     consumeSemicolon();
 
-    if (label === null && !(state.inIteration || state.inSwitch)) {
+    if (label.isNull && !(state.inIteration || state.inSwitch)) {
         throwError(NULLTOKEN, Messages["IllegalBreak"], "");
     }
 
@@ -3600,13 +3625,13 @@ Node parseBreakStatement(node) {
 }
 
 // 12.9 The return statement
-
-Node parseReturnStatement(node) {
-    var argument = null;
+//#CLEAR
+Node parseReturnStatement(Node node) {
+    Node argument = NULLNODE;
 
     expectKeyword(u"return");
 
-    if (!state.inFunctionBody) {
+    if (!(state.inFunctionBody)) {
         throwErrorTolerant(NULLTOKEN, Messages["IllegalReturn"], "");
     }
 
@@ -3626,7 +3651,7 @@ Node parseReturnStatement(node) {
     }
 
     if (!match(u";")) {
-        if (!match(u"}") && lookahead.type !== Token["EOF"]) {
+        if (!match(u"}") && lookahead.type != Token["EOF"]) {
             argument = parseExpression();
         }
     }
@@ -3638,9 +3663,9 @@ Node parseReturnStatement(node) {
 }
 
 // 12.10 The with statement
-
-Node parseWithStatement(node) {
-    var object, body;
+//#CLEAR
+Node parseWithStatement(Node node) {
+    Node object, body;
 
     if (strict) {
         // TODO(ikarienator): Should we update the test cases instead?
@@ -3658,16 +3683,14 @@ Node parseWithStatement(node) {
 }
 
 // 12.10 The swith statement
-
+//#CLEAR
 Node parseSwitchCase() {
-    var test;
-    vector<> consequent;
-    var statement;
-    Node node;
+    Node test, statement, node;
+    vector< Node > consequent;
 
     if (matchKeyword(u"default")) {
         lex();
-        test = null;
+        test = NULLNODE;
     } else {
         expectKeyword(u"case");
         test = parseExpression();
@@ -3686,10 +3709,10 @@ Node parseSwitchCase() {
     return node;
 }
 
+//#CLEAR
 Node parseSwitchStatement(Node node) {
-    var discriminant; 
-    vector<> cases; 
-    var clause;
+    Node discriminant, clause; 
+    vector< Node > cases; 
     bool oldInSwitch, defaultFound;
 
     expectKeyword(u"switch");
@@ -3697,7 +3720,6 @@ Node parseSwitchStatement(Node node) {
     discriminant = parseExpression();
     expect(u")");
     expect(u"{");
-    cases = [];
     if (match(u"}")) {
         lex();
         node.finishSwitchStatement(discriminant, cases);
@@ -3711,8 +3733,8 @@ Node parseSwitchStatement(Node node) {
         if (match(u"}")) {
             break;
         }
-        clause = parseSwitchCase(); //!ret?
-        if (clause.test === null) {
+        clause = parseSwitchCase();
+        if (clause.jv["test"].isNull()) { //? possible bottleneck jsoncpp use.
             if (defaultFound) {
                 throwError(NULLTOKEN, Messages["MultipleDefaultsInSwitch"],"");
             }
@@ -3728,9 +3750,9 @@ Node parseSwitchStatement(Node node) {
 }
 
 // 12.13 The throw statement
-//#partial
+//#CLEAR
 Node parseThrowStatement(Node node) {
-    var argument; //!return
+    Node argument;
 
     expectKeyword(u"throw");
     if (peekLineTerminator()) {
@@ -3744,10 +3766,9 @@ Node parseThrowStatement(Node node) {
 
 // 12.14 The try statement
 
-//#partial
+//#CLEAR
 Node parseCatchClause() {
-    var body;
-    Node param, node;
+    Node body, param, node;
 
     expectKeyword(u"catch");
 
@@ -3758,29 +3779,29 @@ Node parseCatchClause() {
 
     param = parseVariableIdentifier();
     // 12.14.1
-    if (strict && isRestrictedWord(param.name)) { //! param.name ???
-        throwErrorTolerant(NULLTOKEN, Messages["StrictCatchVariable"]);
+    if (strict && isRestrictedWord(param.name)) { 
+        throwErrorTolerant(NULLTOKEN, Messages["StrictCatchVariable"],"");
     }
 
     expect(u")");
-    body = parseBlock(); //ret
+    body = parseBlock();
     node.finishCatchClause(param, body);
     return;
 }
 
-//#partial
+//#CLEAR
 Node parseTryStatement(Node node) {
-    var block, finalizer; //! type (parseBlock)
-    vector<> handlers; //!type (parseCatchClause)
+    Node block, finalizer; 
+    vector< Node > handlers;
 
-    finalizer = null; //!
+    finalizer = NULLNODE;
 
     expectKeyword(u"try");
 
     block = parseBlock();
 
     if (matchKeyword(u"catch")) {
-        handlers.push(parseCatchClause());
+        handlers.push_back(parseCatchClause());
     }
 
     if (matchKeyword(u"finally")) {
@@ -3792,12 +3813,12 @@ Node parseTryStatement(Node node) {
         throwError(NULLTOKEN, Messages["NoCatchOrFinally"], "");
     }
 
-    node.finishTryStatement(block, [], handlers, finalizer); //! call includes a dynamic aray.
+    node.finishTryStatement(block, {}, handlers, finalizer); //? pass empty vec in arg ok? 
     return node;
 }
 
 // 12.15 The debugger statement
-
+//#CLEAR
 Node parseDebuggerStatement(Node node) {
     expectKeyword(u"debugger");
     consumeSemicolon();
@@ -3810,9 +3831,8 @@ Node parseDebuggerStatement(Node node) {
 //#partial
 Node parseStatement() {
     int type = lookahead.type;
-    var   expr;
     u16string key, tokval;
-    Node node, labeledBody;
+    Node expr, node, labeledBody;
 
     if (type == Token["EOF"]) {
         throwUnexpected(lookahead);
@@ -3863,7 +3883,7 @@ Node parseStatement() {
         }
     }
 
-    expr = parseExpression(); //! type?
+    expr = parseExpression(); 
 
     // 12.12 Labelled Statements
     if ((expr.type == Syntax["Identifier"]) && match(u":")) {
@@ -3871,13 +3891,13 @@ Node parseStatement() {
 
         key = u"$";
         key.append(expr.name);
-        if (has(key, state.labelSet)) {
+        if (has<u16string>(key, state.labelSet)) {
             throwError(NULLTOKEN, Messages["Redeclaration"], 'Label', expr.name); //! pretty odd call here. 4 args?
         }
 
-        state.labelSet[key] = true;
+        state.labelSet.insert(key);
         labeledBody = parseStatement();
-        delete state.labelSet[key];
+        state.labelSet.erase(key);
         node.finishLabeledStatement(expr, labeledBody);
         return node;
     }
@@ -3889,7 +3909,7 @@ Node parseStatement() {
 }
 
 // 13 Function Definition
-//#partial
+//#CLEAR
 Node parseFunctionSourceElements() {
     Node sourceElement;
     vector< Node > sourceElements;
@@ -3909,8 +3929,13 @@ Node parseFunctionSourceElements() {
         token = lookahead;
 
         sourceElement = parseSourceElement(); 
+        //# returns in turn the value of parseStatement for stringLiteral 
+        //# so returns a string literal expression node wrapped in an expressionStatement node.
         sourceElements.push_back(sourceElement); 
-        if (sourceElement.expression.type != Syntax["Literal"]) { //.expression.type
+        if (sourceElement.jv["expression"]["type"] != Syntax["Literal"]) { 
+            //? this one I doubt there's more an efficient way to do this
+            //? then jsoncpp accesses. Storing node hierarchies just to fix this call seems to 
+            //? be likely less performant.
             // this is not directive
             break;
         }
