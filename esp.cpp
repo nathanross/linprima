@@ -195,9 +195,12 @@ struct TokenStruct {
         octal=false; 
         range[0] = -1;
         range[1] = -1;
+        value = nullptr;
     }
     ~TokenStruct() {
-        free (this->value);
+        if (value != nullptr) {
+            free (this->value);
+        }
     }
 };
 
@@ -1718,6 +1721,9 @@ public:
     vector<Comment> leadingComments;
     vector< vector<string> > regexPaths; //lin only. obv.
 
+    u16string type;
+    u16string name;
+
     //#CLEAR
     Node() { 
         hasRange = false;
@@ -1754,6 +1760,22 @@ public:
             regexPaths.back().push_back(index);
         }
         child.regexPaths.clear();
+    }
+    Json::Value nodeVec(vector< Node > & nodes) {
+        Json::Value root = Json::arrayValue;
+        for (int i=0; i<nodes.size(); i++) {
+            if (nodes[i].isNull) {
+                root[i] = Json::Value.null; //! probably not correct way to access this value
+            } else {
+                reg(nodes[i]);
+                root[i] = nodes[i].jv;
+            }
+        } 
+        return root;
+    }
+    void addType(String in) {
+        type = Syntax[in];
+        jv["type"] = s(type);
     }
     Json::value regexPaths2json() {
         Json::value root = Json::arrayValue;
@@ -1875,9 +1897,10 @@ public:
         }
     }
 
-    void finishArrayExpression(elements) {
-        jv["type"] = s(Syntax["ArrayExpression"]);
-        jv["elements"] = elements;
+    //#partial
+    void finishArrayExpression(vector< Node >& elements) {
+        addType("ArrayExpression");
+        jv["elements"] = nodeVec(elements);
         this->finish();
     }
 
@@ -1886,7 +1909,7 @@ public:
     }
 
     void finishArrowFunctionExpression(params, defaults, body, expression) {
-        jv["type"] = s(Syntax["ArrowFunctionExpression"]);
+        addType("ArrowFunctionExpression");
         jv["id"] = null;
         jv["params"] = params;
         jv["defaults"] = defaults;
@@ -1897,50 +1920,55 @@ public:
         this->finish();
     }
 
-    void finishAssignmentExpression(u16string oper, left, right) {
-        jv["type"] = s(Syntax["AssignmentExpression"]);
+    void finishAssignmentExpression(u16string oper, TokenStruct left, Node right) {
+        reg(left); 
+        reg(right);
+        addType("AssignmentExpression");
         jv["operator"] = s(oper);
-        jv["left"] = left;
-        jv["right"] = right;
+        jv["left"] = s(res_u16(left.value));
+        jv["right"] = right->jv;
         this->finish();
     }
 
     void finishBinaryExpression(u16string oper, left, right) {
-        jv["type"] = s((oper == u"||" || oper == u"&&") ? Syntax["LogicalExpression"] : Syntax["BinaryExpression"]);
+        addType(s((oper == u"||" || oper == u"&&") ? "LogicalExpression" : "BinaryExpression");
         jv["operator"] = s(oper);
         jv["left"] = left; //!
         jv["right"] = right; //!
         this->finish();
     }
 
-    void finishBlockStatement(body) {
-        jv["type"] = s(Syntax["BlockStatement"]);
-        jv["body"] = body;
+    //#CLEAR
+    void finishBlockStatement(vector< Node > & body) {
+        addType("BlockStatement");
+        jv["body"] = nodeVec(body);
         this->finish();
     }
 
     void finishBreakStatement(label) {
-        jv["type"] = s(Syntax["BreakStatement"]);
+        addType("BreakStatement");
         jv["label"] = label;
         this->finish();
     }
 
-    void finishCallExpression(callee, args) {
-        jv["type"] = s(Syntax["CallExpression"]);
+    //#CLEAR
+    void finishCallExpression(Node callee, Vector< Node > args) {
+        addType("CallExpression");
+        reg(callee);
         jv["callee"] = callee;
-        jv["arguments"] = args;
+        jv["arguments"] = nodeVec(args);
         this->finish();
     }
 
     void finishCatchClause(param, body) {
-        jv["type"] = s(Syntax["CatchClause"]);
+        addType("CatchClause");
         jv["param"] = param;
         jv["body"] = body;
         this->finish();
     }
 
     void finishConditionalExpression(test, consequent, alternate) {
-        jv["type"] = s(Syntax["ConditionalExpression"]);
+        addType("ConditionalExpression");
         jv["test"] = test;
         jv["consequent"] = consequent;
         jv["alternate"] = alternate;
@@ -1948,36 +1976,36 @@ public:
     }
 
     void finishContinueStatement(label) {
-        jv["type"] = s(Syntax["ContinueStatement"]);
+        addType("ContinueStatement");
         jv["label"] = label;
         this->finish();
     }
 
     void finishDebuggerStatement() {
-        jv["type"] = s(Syntax["DebuggerStatement"]);
+        addType("DebuggerStatement");
         this->finish();
     }
 
     void finishDoWhileStatement(body, test) {
-        jv["type"] = s(Syntax["DoWhileStatement"]);
+        addType("DoWhileStatement");
         jv["body"] = body;
         jv["test"] = test;
         this->finish();
     }
 
     void finishEmptyStatement() {
-        jv["type"] = s(Syntax["EmptyStatement"]);
+        addType("EmptyStatement");
         this->finish();
     }
 
     void finishExpressionStatement(expression) {
-        jv["type"] = s(Syntax["ExpressionStatement"]);
+        addType("ExpressionStatement");
         jv["expression"] = expression;
         this->finish();
     }
 
     void finishForStatement(init, test, update, body) {
-        jv["type"] = s(Syntax["ForStatement"]);
+        addType("ForStatement");
         jv["init"] = init;
         jv["test"] = test;
         jv["update"] = update;
@@ -1986,7 +2014,7 @@ public:
     }
 
     void finishForInStatement(left, right, body) {
-        jv["type"] = s(Syntax["ForInStatement"]);
+        addType("ForInStatement");
         jv["left"] = left;
         jv["right"] = right;
         jv["body"] = body;
@@ -1995,7 +2023,7 @@ public:
     }
 
     void finishFunctionDeclaration(id, params, defaults, body) {
-        jv["type"] = s(Syntax["FunctionDeclaration"]);
+        addType("FunctionDeclaration");
         jv["id"] = id;
         jv["params"] = params;
         jv["defaults"] = defaults;
@@ -2006,8 +2034,9 @@ public:
         this->finish();
     }
 
-    void finishFunctionExpression(id, params, defaults, body) {
-        jv["type"] = s(Syntax["FunctionExpression"]);
+    void finishFunctionExpression(id, params, defaults, Node body) {
+        reg(body);
+        addType("FunctionExpression");
         jv["id"] = id;
         jv["params"] = params;
         jv["defaults"] = defaults;
@@ -2018,22 +2047,28 @@ public:
         this->finish();
     }
 
-    void finishIdentifier(name) {
-        jv["type"] = s(Syntax["Identifier"]);
-        jv["name"] = name;
+    //#CLEAR
+    void finishIdentifier(u16string name) {
+        addType("Identifier");
+        this->name = name;
+        jv["name"] = s(name);
         this->finish();
     }
 
-    void finishIfStatement(test, consequent, alternate) {
-        jv["type"] = s(Syntax["IfStatement"]);
-        jv["test"] = test;
-        jv["consequent"] = consequent;
-        jv["alternate"] = alternate;
+    //#CLEAR
+    void finishIfStatement(Node test, Node consequent, Node alternate) { 
+        reg(test);
+        reg(consequent);
+        reg(alternate);
+        addType("IfStatement");
+        jv["test"] = test.jv;
+        jv["consequent"] = consequent.jv;
+        jv["alternate"] = alternate.jv;
         this->finish();
     }
 
     void finishLabeledStatement(label, body) {
-        jv["type"] = s(Syntax["LabeledStatement"]);
+        addType("LabeledStatement");
         jv["label"] = label;
         jv["body"] = body;
         this->finish();
@@ -2041,7 +2076,7 @@ public:
     }
 
     void finishLiteral(TokenStruct token) {
-        jv["type"] = s(Syntax["Literal"]); //#c
+        addType("Literal"); //#c
         //#!todo pass kind of literal through in extra node member.
         if (token.literaltype == LiteralType["String"]) {
             jv["value"] = res_u16(token.value);
@@ -2057,89 +2092,97 @@ public:
         this->finish();
     }
 
-    void finishMemberExpression(accessor, object, property) {
-        jv["type"] = s(Syntax["MemberExpression"]);
-        jv["computed"] = accessor == '[';
-        jv["object"] = object;
-        jv["property"] = property;
+    //#CLEAR
+    void finishMemberExpression(char16_t accessor, Node object, Node property) {
+        reg(object);
+        reg(property);
+        addType("MemberExpression");
+        jv["computed"] = (accessor == u'[');
+        jv["object"] = object.jv;
+        jv["property"] = property.jv;
         this->finish();
-
     }
 
-    void finishNewExpression(callee, vector<Node> args) {
-        jv["type"] = s(Syntax["NewExpression"]);
-        jv["callee"] = callee;
-        jv["arguments"] = args; //!vec<Node> .
+    void finishNewExpression(Node callee, vector<Node> args) {
+        reg(callee);
+        addType("NewExpression");
+        jv["callee"] = callee.jv;
+        jv["arguments"] = nodeVec(args);
         this->finish();
     }
 
     void finishObjectExpression(properties) {
-        jv["type"] = s(Syntax["ObjectExpression"]);
+        addType("ObjectExpression");
         jv["properties"] = properties;
         this->finish();
     }
 
-    void finishPostfixExpression(u16string oper, argument) {
-        jv["type"] = s(Syntax["UpdateExpression"]);
+    //#CLEARto
+    void finishPostfixExpression(u16string oper, Node argument) {
+        reg(argument);
+        addType("UpdateExpression");
         jv["oper"] = s(oper);
-        jv["argument"] = argument;
+        jv["argument"] = argument.jv;
         jv["prefix"] = false;
         this->finish();
     }
 
     void finishProgram(body) {
-        jv["type"] = s(Syntax["Program"]);
+        addType("Program");
         jv["body"] = body;
         this->finish();
     }
 
-    void finishProperty(kind, key, value) {
-        jv["type"] = s(Syntax["Property"]);
-        jv["key"] = key;
-        jv["value"] = value;
-        jv["kind"] = kind;
+    //#CLEAR
+    void finishProperty(u16string kind, Node key, Node value) {
+        reg(key);
+        reg(value);
+        addType("Property");
+        jv["key"] = key.jv;
+        jv["value"] = value.jv;
+        jv["kind"] = s(kind);
         this->finish();
     }
 
     void finishReturnStatement(argument) {
-        jv["type"] = s(Syntax["ReturnStatement"]);
+        addType("ReturnStatement");
         jv["argument"] = argument;
         this->finish();
     }
 
     void finishSequenceExpression(expressions) {
-        jv["type"] = s(Syntax["SequenceExpression"]);
+        addType("SequenceExpression");
         jv["expressions"] = expressions;
         this->finish();
     }
 
     void finishSwitchCase(test, consequent) {
-        jv["type"] = s(Syntax["SwitchCase"]);
+        addType("SwitchCase");
         jv["test"] = test;
         jv["consequent"] = consequent;
         this->finish();
     }
 
     void finishSwitchStatement(discriminant, cases) {
-        jv["type"] = s(Syntax["SwitchStatement"]);
+        addType("SwitchStatement");
         jv["discriminant"] = discriminant;
         jv["cases"] = cases;
         this->finish();
     }
 
     void finishThisExpression() {
-        jv["type"] = s(Syntax["ThisExpression"]);
+        addType("ThisExpression");
         this->finish();
     }
 
     void finishThrowStatement(argument) {
-        jv["type"] = s(Syntax["ThrowStatement"]);
+        addType("ThrowStatement");
         jv["argument"] = argument;
         this->finish();
     }
 
     void finishTryStatement(block, guardedHandlers, handlers, finalizer) {
-        jv["type"] = s(Syntax["TryStatement"]);
+        addType("TryStatement");
         jv["block"] = block;
         jv["guardedHandlers"] = guardedHandlers;
         jv["handlers"] = handlers;
@@ -2148,7 +2191,7 @@ public:
     }
 
     void finishUnaryExpression(u16string oper, argument) {
-        jv["type"] = s((oper == u"++" || oper == u"--") ? Syntax["UpdateExpression"] : Syntax["UnaryExpression"]);
+        addType(s((oper == u"++" || oper == u"--") ? "UpdateExpression" : "UnaryExpression");
         jv["operator"] = s(oper);
         jv["argument"] = argument;
         jv["prefix"] = true;
@@ -2156,33 +2199,37 @@ public:
     }
 
     void finishVariableDeclaration(declarations, kind) {
-        jv["type"] = s(Syntax["VariableDeclaration"]);
+        addType("VariableDeclaration");
         jv["declarations"] = declarations;
         jv["kind"] = kind;
         this->finish();
     }
 
     void finishVariableDeclarator(id, init) {
-        jv["type"] = s(Syntax["VariableDeclarator"]);
+        addType("VariableDeclarator");
         jv["id"] = id;
         jv["init"] = init;
         this->finish();
     }
 
     void finishWhileStatement(test, body) {
-        jv["type"] = s(Syntax["WhileStatement"]);
+        addType("WhileStatement");
         jv["test"] = test;
         jv["body"] = body;
         this->finish();
     }
 
     void finishWithStatement(object, body) {
-        jv["type"] = s(Syntax["WithStatement"]);
+        addType("WithStatement");
         jv["object"] = object;
         jv["body"] = body;
         this->finish();
     }
 };
+
+
+Node NULLNODE;
+NULLNODE.isNull = true;
 
 class WrappingNode : public Node {
  public:
@@ -2391,7 +2438,7 @@ void consumeSemicolon() {
     int line;
 
     // Catch the very common case first: immediately a semicolon (U+003B).
-    if (source(idx) == 0x3B || match(u";")) { //! match(u"") what is this function?
+    if (source(idx) == 0x3B ||3 match(u";")) { //! match(u"") what is this function?
         lex();
         return;
     }
@@ -2417,17 +2464,18 @@ bool isLeftHandSide(const expr) { //! expr.type
 
 // 11.1.4 Array Initialiser
 
+
+//#CLEAR
 Node parseArrayInitialiser() {
-    vector<Node> elements;
-    Node node = new Node(), empty;
-    empty.isNull = true;
+    vector< Node > elements;
+    Node node = new Node();
 
     expect(u"[");
 
     while (!match(u"]")) {
         if (match(u",")) {
             lex();
-            elements.push_back(empty); //! what type is elements? what should null val be?
+            elements.push_back(NULLNODE);
         } else {
             elements.push_back(parseAssignmentExpression()); 
             if (!match(u"]")) {
@@ -2438,47 +2486,54 @@ Node parseArrayInitialiser() {
 
     lex();
 
-    return node.finishArrayExpression(elements); //!
+    node.finishArrayExpression(elements);
+    return node;
 }
 
 // 11.1.5 Object Initialiser
 
-function parsePropertyFunction(param, TokenStruct first) { //!typeof param
+//#partial
+Node parsePropertyFunction(vector<> param, TokenStruct first) { //!typeof param
     bool previousStrict;
-    var body;
-    node = new Node();
+    Node body, node = new Node();
 
     previousStrict = strict;
-    body = parseFunctionSourceElements(); //type body?
-    if (!(first.isNull) && strict && isRestrictedWord(param[0].name)) {
-        throwErrorTolerant(first, ["Messages["StrictParamName"]"],"");
+    body = parseFunctionSourceElements();
+    if (!(first.isNull) && strict && isRestrictedWord(param[0].name)) { //! type param
+        throwErrorTolerant(first, Messages["StrictParamName"],"");
     }
     strict = previousStrict;
-    return node.finishFunctionExpression(null, param, [], body);
+    node.finishFunctionExpression(null, param, [], body); //! args validity.
+    return node;
 }
 
-function parseObjectPropertyKey() {
-    var token, node = new Node();
+//#CLEAR
+Node parseObjectPropertyKey() {
+    TokenStruct token;
+    Node node = new Node();
 
     token = lex();
 
     // Note: This function is called only from parseObjectProperty(), where
     // EOF and Punctuator tokens are already filtered out.
 
-    if (token.type === Token.StringLiteral || token.type === Token.NumericLiteral) {
+    if (token.type == Token["StringLiteral"] || token.type == Token["NumericLiteral"]) {
         if (strict && token.octal) {
-            throwErrorTolerant(token, Messages["StrictOctalLiteral"]);
+            throwErrorTolerant(token, Messages["StrictOctalLiteral"], "");
         }
-        return node.finishLiteral(token);
+        node.finishLiteral(token);
+        return node;
     }
 
-    return node.finishIdentifier(token.value);
+    node.finishIdentifier(res_u16(token.value));
+    return node;
 }
 
-function parseObjectProperty() {
+//#CLEAR
+Node parseObjectProperty() {
     TokenStruct token;
-    var key, id, value, param;
-    Node node = new Node();
+    vector<Node> param;
+    Node id, key, value, node = new Node();
 
     token = lookahead;
 
@@ -2492,8 +2547,8 @@ function parseObjectProperty() {
             key = parseObjectPropertyKey();
             expect(u"(");
             expect(u")");
-            value = parsePropertyFunction([]); //! [] arg
-            node.finishProperty('get', key, value); //! cfrm
+            value = parsePropertyFunction({}, NULLTOKEN);
+            node.finishProperty(u"get", key, value);
             return node;
         }
         if (res_u16(token.value) == u"set" && !match(u":")) {
@@ -2504,58 +2559,60 @@ function parseObjectProperty() {
                 expect(u")");
                 throwErrorTolerant(token, 
                                    Messages["UnexpectedToken"], 
-                                   res_u16(token.value));
-                value = parsePropertyFunction([]); //! [] arg
+                                   toU8string(res_u16(token.value)));
+                value = parsePropertyFunction([{}, NULLTOKEN]);
             } else {
-                param = [ parseVariableIdentifier() ]; //! []
+                param = vector< Node >({ parseVariableIdentifier() });
                 expect(u")");
-                value = parsePropertyFunction(param, token); //! cfrm
+                value = parsePropertyFunction(param, token);
             }
-            return node.finishProperty('set', key, value);
+            node.finishProperty(u"set", key, value);
+            return node;
         }
         expect(u":");
         value = parseAssignmentExpression();
-        return node.finishProperty('init', id, value);
+        node.finishProperty(u"init", id, value);
+        return node;
     }
-    if (token.type === Token.EOF || token.type === Token.Punctuator) {
+    if (token.type == Token["EOF"] || token.type == Token["Punctuator"]) {
         throwUnexpected(token);
     } else {
         key = parseObjectPropertyKey();
         expect(u":");
         value = parseAssignmentExpression();
-        return node.finishProperty('init', key, value);
+        node.finishProperty(u"init", key, value);
+        return node;
     }
 }
 
-function parseObjectInitialiser() {
+Node parseObjectInitialiser() {
     var properties = [];
     TokenSruct token;
-    Node node = new Node();
-    var property;
+    Node node = new Node(), property;
     u16string name, key, kind, map = {};
 
     expect(u"{");
 
     while (!match(u"}")) {
- mak       property = parseObjectProperty();
+        property = parseObjectProperty();
 
-        if (property.key.type === Syntax["Identifier"]) {
-            name = property.key.name;
+        if (property.key.type == Syntax["Identifier"]) {
+            name = property.key.name; //! property.key
         } else {
-            name = toString(property.key.value);
+            name = toString(property.key.value); //! property.key
         }
-        kind = (property.kind === 'init') ? PropertyKind.Data : (property.kind === 'get') ? PropertyKind.Get : PropertyKind.Set;
+        kind = (property.kind == u"init") ? PropertyKind.Data : (property.kind == u"get") ? PropertyKind.Get : PropertyKind.Set; //! variaous.
 
         key = '$' + name;
         if (Object.prototype.hasOwnProperty.call(map, key)) {
-            if (map[key] === PropertyKind.Data) {
-                if (strict && kind === PropertyKind.Data) {
+            if (map[key] == PropertyKind.Data) {
+                if (strict && kind == PropertyKind.Data) {
                     throwErrorTolerant(NULLTOKEN, Messages["StrictDuplicateProperty"]);
-                } else if (kind !== PropertyKind.Data) {
+                } else if (kind != PropertyKind.Data) {
                     throwErrorTolerant(NULLTOKEN, Messages["AccessorDataProperty"]);
                 }
             } else {
-                if (kind === PropertyKind.Data) {
+                if (kind == PropertyKind.Data) {
                     throwErrorTolerant(NULLTOKEN, Messages["AccessorDataProperty"]);
                 } else if (map[key] & kind) {
                     throwErrorTolerant(NULLTOKEN, Messages["AccessorGetSet"]);
@@ -2575,35 +2632,32 @@ function parseObjectInitialiser() {
 
     expect(u"}");
 
-    return node.finishObjectExpression(properties);
+    node.finishObjectExpression(properties);
+    return node;
 }
 
 // 11.1.6 The Grouping Operator
 
 function parseGroupExpression() {
     var expr;
-
     expect(u"(");
-
     if (match(u")")) {
         lex();
         return PlaceHolders.ArrowParameterPlaceHolder; //! PlaceHolders
     }
-
     ++state.parenthesisCount;
-
     expr = parseExpression();
-
     expect(u")");
-
     return expr;
 }
 
 
 // 11.1 Primary Expressions
 
-function parsePrimaryExpression() {
-    var type, token, expr, node;
+Node parsePrimaryExpression() {
+    int type; 
+    TokenStruct token;
+    Node expr, node;
 
     if (match(u"(")) {
         return parseGroupExpression();
@@ -2620,36 +2674,37 @@ function parsePrimaryExpression() {
     type = lookahead.type;
     node = new Node();
 
-    if (type === Token.Identifier) {
-        expr =  node.finishIdentifier(lex().value);
-    } else if (type === Token.StringLiteral || type === Token.NumericLiteral) {
+    expr = node;
+    if (type == Token["Identifier"]) {
+        expr.finishIdentifier(lex().value);
+    } else if (type == Token["StringLiteral"] || type == Token["NumericLiteral"]) {
         if (strict && lookahead.octal) {
             throwErrorTolerant(lookahead, Messages["StrictOctalLiteral"]);
         }
-        expr = node.finishLiteral(lex());
-    } else if (type === Token.Keyword) {
+        expr.finishLiteral(lex());
+    } else if (type == Token["Keyword"]) {
         if (matchKeyword('function')) {
             return parseFunctionExpression();
         }
         if (matchKeyword('this')) {
             lex();
-            expr = node.finishThisExpression();
+            expr.finishThisExpression();
         } else {
             throwUnexpected(lex());
         }
-    } else if (type === Token.BooleanLiteral) {
+    } else if (type == Token["BooleanLiteral"]) {
         token = lex();
-        token.value = (token.value === 'true');
-        expr = node.finishLiteral(token);
-    } else if (type === Token.NullLiteral) {
+        token.value = (res_u16(token.value) == 'true'); //!Todo does boolean literal use string or actual bool value on scan?
+        expr.finishLiteral(token);
+    } else if (type == Token["NullLiteral"]) {
         token = lex();
         token.value = null;
-        expr = node.finishLiteral(token);
+        expr.finishLiteral(token);
     } else if (match(u"/") || match(u"/=")) {
         if (extra.tokenTracking) {
-            expr = node.finishLiteral(collectRegex());
+            expr.finishLiteral(collectRegex());
         } else {
-            expr = node.finishLiteral(scanRegExp());
+            expr.finishLiteral(scanRegExp());
         }
         peek();
     } else {
@@ -2681,8 +2736,10 @@ vector< Node > parseArguments() {
     return args;
 }
 
-function parseNonComputedProperty() {
-    var token, node = new Node();
+//#CLEAR
+Node parseNonComputedProperty() {
+    TokenStruct token;
+    Node node = new Node();
 
     token = lex();
 
@@ -2690,42 +2747,42 @@ function parseNonComputedProperty() {
         throwUnexpected(token);
     }
 
-    return node.finishIdentifier(token.value);
+    node.finishIdentifier(res_u16(token.value));
+    return node;
 }
-!!
-function parseNonComputedMember() {
-    expect(u".");
 
+//#CLEAR
+Node parseNonComputedMember() {
+    expect(u".");
     return parseNonComputedProperty();
 }
 
-function parseComputedMember() {
-    var expr;
-
+//#CLEAR
+Node parseComputedMember() {
+    Node expr;
     expect(u"[");
-
     expr = parseExpression();
-
     expect(u"]");
-
     return expr;
 }
 
-function parseNewExpression() {
-    var callee;
+//#CLEAR
+Node parseNewExpression() {
     vector< Node > args;
-    Node node = new Node();
+    Node callee, node = new Node();
 
     expectKeyword(u"new");
     callee = parseLeftHandSideExpression();
     if (match(u"(")) { args = parseArguments(); }
 
-    return node.finishNewExpression(callee, args);
+    node.finishNewExpression(callee, args);
+    return node;
 }
 
-function parseLeftHandSideExpressionAllowCall() {
+//#CLEAR
+Node parseLeftHandSideExpressionAllowCall() {
     vector< Node > args;
-    var expr, property; //!
+    Node expr, property, tmpnode;
     TokenStruct startToken;
     bool previousAllowIn = state.allowIn;
 
@@ -2736,13 +2793,19 @@ function parseLeftHandSideExpressionAllowCall() {
     for (;;) {
         if (match(u".")) {
             property = parseNonComputedMember();
-            expr = new WrappingNode(startToken).finishMemberExpression('.', expr, property);
+            tmpnode = new WrappingNode(startToken);
+            tmpnode.finishMemberExpression(u'.', expr, property);
+            expr = tmpnode;
         } else if (match(u"(")) {
             args = parseArguments();
-            expr = new WrappingNode(startToken).finishCallExpression(expr, args);
+            tmpnode = new WrappingNode(startToken);
+            tmpnode.finishCallExpression(expr, args);
+            expr = tmpnode;
         } else if (match(u"[")) {
             property = parseComputedMember();
-            expr = new WrappingNode(startToken).finishMemberExpression('[', expr, property);
+            tmpnode = new WrappingNode(startToken);
+            tmpnode.finishMemberExpression(u'[', expr, property);
+            expr = tmpnode;
         } else {
             break;
         }
@@ -2752,21 +2815,24 @@ function parseLeftHandSideExpressionAllowCall() {
     return expr;
 }
 
-function parseLeftHandSideExpression() {
-    var expr, property, startToken;
-    assert(state.allowIn, 'callee of new expression always allow in keyword.');
-
+//#CLEAR
+Node parseLeftHandSideExpression() {
+    Node tmpnode, expr, property;
+    TokenStruct startToken;
+    assert(state.allowIn, "callee of new expression always allow in keyword.");
     startToken = lookahead;
-
     expr = matchKeyword('new') ? parseNewExpression() : parsePrimaryExpression();
-
     for (;;) {
         if (match(u"[")) {
             property = parseComputedMember();
-            expr = new WrappingNode(startToken).finishMemberExpression('[', expr, property);
+            tmpnode = new WrappingNode(startToken);
+            tmpnode.finishMemberExpression(u'[', expr, property);
+            expr = tmpnode;
         } else if (match(u".")) {
             property = parseNonComputedMember();
-            expr = new WrappingNode(startToken).finishMemberExpression('.', expr, property);
+            tmpnode = new WrappingNode(startToken);
+            tmpnode.finishMemberExpression(u'.', expr, property);
+            expr = tmpnode;
         } else {
             break;
         }
@@ -2775,9 +2841,9 @@ function parseLeftHandSideExpression() {
 }
 
 // 11.3 Postfix Expressions
-
-function parsePostfixExpression() {
-    var expr;
+//#CLEAR
+Node parsePostfixExpression() {
+    Node expr,tmpnode;
     TokenStruct token, startToken = lookahead;
 
     expr = parseLeftHandSideExpressionAllowCall();
@@ -2786,15 +2852,17 @@ function parsePostfixExpression() {
         if ((match(u"++") || match(u"--")) && !peekLineTerminator()) {
             // 11.3.1, 11.3.2
             if (strict && expr.type == Syntax["Identifier"] && isRestrictedWord(expr.name)) {
-                throwErrorTolerant(NULLTOKEN, Messages["StrictLHSPostfix"]);
+                throwErrorTolerant(NULLTOKEN, Messages["StrictLHSPostfix"],"");
             }
 
             if (!isLeftHandSide(expr)) {
-                throwErrorTolerant(NULLTOKEN, Messages["InvalidLHSInAssignment"]);
+                throwErrorTolerant(NULLTOKEN, Messages["InvalidLHSInAssignment"],"");
             }
 
             token = lex();
-            expr = new WrappingNode(startToken).finishPostfixExpression(token.value, expr);
+            tmpnode = new WrappingNode(startToken);
+            tmpnode.finishPostfixExpression(res_u16(token.value), expr);
+            expr = tmpnode;
         }
     }
 
@@ -2803,9 +2871,10 @@ function parsePostfixExpression() {
 
 // 11.4 Unary Operators
 
-function parseUnaryExpression() {
+Node parseUnaryExpression() {
     TokenStruct token, startToken;
-    var expr;
+    Node expr;
+    u16string exprname;
 
     if (lookahead.type != Token["Punctuator"] && lookahead.type != Token["Keyword"]) {
         expr = parsePostfixExpression();
@@ -2833,7 +2902,7 @@ function parseUnaryExpression() {
         token = lex();
         expr = parseUnaryExpression();
         expr = new WrappingNode(startToken).finishUnaryExpression(token.value, expr); //!
-        if (strict && expr.oper == u"delete" && expr.argument.type == Syntax["Identifier"]) {
+        if (strict && expr.jv["operator"] == u"delete" && expr["argument"]["type"] == Syntax["Identifier"]) {
             throwErrorTolerant(NULLTOKEN, Messages["StrictDelete"], "");
         }
     } else {
@@ -2890,7 +2959,9 @@ int binaryPrecedence(TokenStruct token, bool allowIn) {
 // 11.11 Binary Logical Operators
 
 Node parseBinaryExpression() {
-    var marker, markers, expr, token, prec, stack, right, oper, left, i;
+    var marker, markers;
+    Node tmpnode, expr;
+    TokenStruct token, prec, stack, right, oper, left, i;
 
     marker = lookahead;
     left = parseUnaryExpression();
@@ -2919,7 +2990,8 @@ Node parseBinaryExpression() {
             oper = stack.pop().value;
             left = stack.pop();
             markers.pop();
-            expr = new WrappingNode(markers[markers.length - 1]).finishBinaryExpression(oper, left, right);
+            expr = new WrappingNode(markers[markers.length - 1]);
+            expr.finishBinaryExpression(oper, left, right);
             stack.push(expr);
         }
 
@@ -2937,7 +3009,9 @@ Node parseBinaryExpression() {
     expr = stack[i];
     markers.pop();
     while (i > 1) {
-        expr = new WrappingNode(markers.pop()).finishBinaryExpression(stack[i - 1].value, stack[i - 2], expr);
+        tmpnode = new WrappingNode(markers.pop());
+        tmpnode.finishBinaryExpression(stack[i - 1].value, stack[i - 2], expr);
+        expr = tmpnode;
         i -= 2;
     }
 
@@ -2980,22 +3054,28 @@ function parseConciseBody() {
     return parseAssignmentExpression();
 }
 
-function reinterpretAsCoverFormalsList(expressions) {
+struct ReinterpretOut {
+    TokenStruct firstRestricted;
+    TokenStruct stricted;
+    u16string message;
+    vector< Node > params;
+    vector< Node > defaults;
+    int rest;
+};
+ReinterpretOut reinterpretAsCoverFormalsList(vector< Node > expressions) {
     int i, len, defaultCount;
     var param;
     vector<> params;
     vector<> defaults;
-    var options, rest;
+    ParseParamOpts options; //!todo move this struct to top of code.
+    var rest;
 
     defaultCount = 0;
-    rest = null;
-    options = {
-        paramSet: {}
-    };
+    rest = null; //!
 
-    for (i = 0, len = expressions.length; i < len; i += 1) {
+    for (i = 0, len = expressions.size(); i < len; i += 1) {
         param = expressions[i];
-        if (param.type == Syntax.["Identifier"]) {
+        if (param.type == Syntax["Identifier"]) {
             params.push_back(param);
             defaults.push_back(null);
             validateParam(options, param, param.name);
@@ -3054,11 +3134,13 @@ function reinterpretAsCoverFormalsList(expressions) {
 
     // 11.13 Assignment Operators
 
+
+//#partial
 Node parseAssignmentExpression() {
     int oldParenthesisCount;
     TokenStruct token, startToken;
-    Node expr;
-    var right, list;
+    Node expr, right;
+    ReinterpretOut list; //! type list
 
     oldParenthesisCount = state.parenthesisCount;
 
@@ -3069,15 +3151,15 @@ Node parseAssignmentExpression() {
 
     if (expr == PlaceHolders.ArrowParameterPlaceHolder || match(u"=>")) {
         if (state.parenthesisCount == oldParenthesisCount ||
-                state.parenthesisCount == (oldParenthesisCount + 1)) {
+                state.parenthesisCount == (oldParenthesisCount + 1)) {            
             if (expr.type == Syntax["Identifier"]) {
-                list = reinterpretAsCoverFormalsList([ expr ]);
-            } else if (expr.type == Syntax["AssignmentExpression"]) {
-                list = reinterpretAsCoverFormalsList([ expr ]);
+                list = reinterpretAsCoverFormalsList({ expr }); //!type list
+            } else if (expr.type == Syntax["Assignmentxpression"]) {
+                list = reinterpretAsCoverFormalsList({ expr });
             } else if (expr.type == Syntax["SequenceExpression"]) {
-                list = reinterpretAsCoverFormalsList(expr.expressions);
+                list = reinterpretAsCoverFormalsList(expr.expressions); //! expr.expressions
             } else if (expr == PlaceHolders.ArrowParameterPlaceHolder) {
-                list = reinterpretAsCoverFormalsList([]);
+                list = reinterpretAsCoverFormalsList({}); //! possible to initialize with empty brackets?
             }
             if (list) {
                 return parseArrowFunctionExpression(list, new WrappingNode(startToken));
@@ -3098,74 +3180,76 @@ Node parseAssignmentExpression() {
 
         token = lex();
         right = parseAssignmentExpression();
-        expr = new WrappingNode(startToken).finishAssignmentExpression(token.value, expr, right);
+        expr = new WrappingNode(startToken);
+        expr.finishAssignmentExpression(token, expr, right); 
     }
 
     return expr;
 }
 
-    // 11.14 Comma Operator
+// 11.14 Comma Operator
+//#CLEAR
+Node parseExpression() {
+    Node expr; 
+    TokenStruct startToken = lookahead;
+    vector< Node > expressions;
 
-    function parseExpression() {
-        var expr; 
-        TokenStruct startToken = lookahead;
-        vector<> expressions;
+    expr = parseAssignmentExpression();
 
-        expr = parseAssignmentExpression();
-
-        if (match(u",")) {
-            expressions.push_back(expr);
-
-            while (idx < length) {
-                if (!match(u",")) {
-                    break;
-                }
-                lex();
-                expressions.push(parseAssignmentExpression());
-            }
-
-            expr = new WrappingNode(startToken).finishSequenceExpression(expressions);
-        }
-
-        return expr;
-    }
-
-    // 12.1 Block
-
-    function parseStatementList() {
-        var list = [],
-            statement;
+    if (match(u",")) {
+        expressions.push_back(expr);
 
         while (idx < length) {
-            if (match(u"}")) {
+            if (!match(u",")) {
                 break;
             }
-            statement = parseSourceElement();
-            if (typeof statement === 'undefined') {
-                break;
-            }
-            list.push(statement);
+            lex();
+            expressions.push(parseAssignmentExpression());
         }
 
-        return list;
+        expr = new WrappingNode(startToken);
+        expr.finishSequenceExpression(expressions);
     }
 
-    function parseBlock() {
-        var block, node = new Node();
+    return expr;
+}
 
-        expect(u"{");
+// 12.1 Block
+//#partial
+vector< Node > parseStatementList() {
+    vector< Node > list;
+    Node statement;
 
-        block = parseStatementList();
-
-        expect(u"}");
-
-        return node.finishBlockStatement(block);
+    while (idx < length) {
+        if (match(u"}")) {
+            break;
+        }
+        statement = parseSourceElement();
+        if (statement.isNull) { //! under what conditions would this be null?
+            break;
+        }
+        list.push(statement);
     }
+
+    return list;
+}
+
+//#CLEAR
+Node parseBlock() {
+    vector< Node > block;
+    Node node = new Node();
+
+    expect(u"{");
+    block = parseStatementList();
+    expect(u"}");
+    node.finishBlockStatement(block);
+    return node;
+}
 
 
 // 12.2 Variable Statement
 
-//#clear
+//#CLEAR
 Node parseVariableIdentifier() {
     TokenStruct token;
     Node node = new Node();
@@ -3220,37 +3304,37 @@ Node parseVariableStatement(Node node) {
     vector< abcdef > declarations;
 
     expectKeyword(u"var");
-
     declarations = parseVariableDeclarationList(); //! no arg provided but expects arg
-
     consumeSemicolon();
 
-    return node.finishVariableDeclaration(declarations, 'var');
+    node.finishVariableDeclaration(declarations, "var");
+    return node;
 }
 
-    // kind may be `const` or `let`
-    // Both are experimental and not in the specification yet.
-    // see http://wiki.ecmascript.org/doku.php?id=harmony:const
-    // and http://wiki.ecmascript.org/doku.php?id=harmony:let
-    function parseConstLetDeclaration(kind) {
-        var declarations, node = new Node();
+// kind may be `const` or `let`
+// Both are experimental and not in the specification yet.
+// see http://wiki.ecmascript.org/doku.php?id=harmony:const
+// and http://wiki.ecmascript.org/doku.php?id=harmony:let
 
-        expectKeyword(kind);
+Node parseConstLetDeclaration(kind) {
+    var declarations;
+    Node node = new Node();
 
-        declarations = parseVariableDeclarationList(kind);
-
-        consumeSemicolon();
-
-        return node.finishVariableDeclaration(declarations, kind);
-    }
+    expectKeyword(kind);
+    declarations = parseVariableDeclarationList(kind);
+    consumeSemicolon();
+    node.finishVariableDeclaration(declarations, kind);
+    return node;
+}
 
 // 12.3 Empty Statement
 
-//#clean
+//#CLEAN
 Node parseEmptyStatement() {
-    var node = new Node();
+    Node node = new Node();
     expect(u";");
-    return node.finishEmptyStatement();
+    node.finishEmptyStatement();
+    return node;
 }
 
 // 12.4 Expression Statement
@@ -3266,30 +3350,24 @@ Node parseExpressionStatement(Node node) {
 Node parseIfStatement(Node node) {
     var test;
     Node consequent, alternate;
-
     expectKeyword(u"if");
-
     expect(u"(");
-
     test = parseExpression();
-
     expect(u")");
-
     consequent = parseStatement();
-
     if (matchKeyword('else')) {
         lex();
         alternate = parseStatement();
     } else {
         alternate = NULLTOKEN; //!account for this in finishIfStatetment
     }
-
-    return node.finishIfStatement(test, consequent, alternate);
+    node.finishIfStatement(test, consequent, alternate);
+    return node;
 }
 
 // 12.6 Iteration Statements
 
-function parseDoWhileStatement(node) {
+Node parseDoWhileStatement(node) {
     var body, test, oldInIteration;
 
     expectKeyword(u"do");
@@ -3316,7 +3394,7 @@ function parseDoWhileStatement(node) {
     return node.finishDoWhileStatement(body, test);
 }
 
-function parseWhileStatement(node) {
+Node parseWhileStatement(node) {
     var test, body, oldInIteration;
 
     expectKeyword(u"while");
@@ -3337,7 +3415,7 @@ function parseWhileStatement(node) {
     return node.finishWhileStatement(test, body);
 }
 
-function parseForVariableDeclaration() {
+Node parseForVariableDeclaration() {
     var token, declarations, node = new Node();
 
     token = lex();
@@ -3346,7 +3424,7 @@ function parseForVariableDeclaration() {
     return node.finishVariableDeclaration(declarations, token.value);
 }
 
-function parseForStatement(node) {
+Node parseForStatement(node) {
     var init, test, update, left, right, body, oldInIteration, previousAllowIn = state.allowIn;
 
     init = test = update = null;
@@ -3420,7 +3498,7 @@ function parseForStatement(node) {
 
 // 12.7 The continue statement
 
-function parseContinueStatement(node) {
+Node parseContinueStatement(node) {
     var label = null, key;
 
     expectKeyword(u"continue");
@@ -3464,7 +3542,7 @@ function parseContinueStatement(node) {
 
 // 12.8 The break statement
 
-functionNode parseBreakStatement(node) {
+Node parseBreakStatement(node) {
     u16string label = null;
     var key;
 
@@ -3727,11 +3805,9 @@ Node parseDebuggerStatement(Node node) {
 //#partial
 Node parseStatement() {
     int type = lookahead.type;
-    var   expr,
-        labeledBody,
-        key;
-    u16string tokval;
-    Node node;
+    var   expr;
+    u16string key, tokval;
+    Node node, labeledBody;
 
     if (type == Token["EOF"]) {
         throwUnexpected(lookahead);
@@ -3786,10 +3862,11 @@ Node parseStatement() {
     expr = parseExpression(); //! type?
 
     // 12.12 Labelled Statements
-    if ((expr.type === Syntax["Identifier"]) && match(u":")) {
+    if ((expr.type == Syntax["Identifier"]) && match(u":")) {
         lex();
 
-        key = '$' + expr.name;
+        key = u"$";
+        key.append(expr.name);
         if (has(key, state.labelSet)) {
             throwError(NULLTOKEN, Messages["Redeclaration"], 'Label', expr.name); //! pretty odd call here. 4 args?
         }
@@ -3797,12 +3874,14 @@ Node parseStatement() {
         state.labelSet[key] = true;
         labeledBody = parseStatement();
         delete state.labelSet[key];
-        return node.finishLabeledStatement(expr, labeledBody);
+        node.finishLabeledStatement(expr, labeledBody);
+        return node;
     }
 
     consumeSemicolon();
 
-    return node.finishExpressionStatement(expr);
+    node.finishExpressionStatement(expr);
+    return node;
 }
 
 // 13 Function Definition
@@ -3845,12 +3924,8 @@ Node parseFunctionSourceElements() {
         }
     }
 
-    oldstate.labelSet = state.labelSet;
-    oldstate.inIteration = state.inIteration;
-    oldstate.inSwitch = state.inSwitch;
-    oldstate.inFunctionBody = state.inFunctionBody;
-    oldstate.parenthesisCount = state.parenthesizedCount;
-
+    oldstate = state;
+    
     state.labelSet.clear();
     state.inIteration = false;
     state.inSwitch = false;
@@ -3876,11 +3951,12 @@ Node parseFunctionSourceElements() {
     state.inFunctionBody = oldstate.inFunctionBody;
     state.parenthesisCount = oldstate.parenthesisCount;
 
-    return node.finishBlockStatement(sourceElements);
+    node.finishBlockStatement(sourceElements);
+    return node;
 }
 
-//#clear
-struct ParseParamOpts {
+//#CLEAR
+struct ParseParamsStruct {
     vector< Node > params;
     int defaultCount;
     vector< Node > defaults;
@@ -3890,8 +3966,8 @@ struct ParseParamOpts {
     u16string message;
 };
 
-//#clear
-function validateParam(ParseParamOpts options, TokenStruct param, u16string name) {
+//#CLEAR
+void validateParam(ParseParamOpts options, TokenStruct param, u16string name) {
     u16string key = '$' + name;
     if (strict) {
         if (isRestrictedWord(name)) {
@@ -3917,7 +3993,7 @@ function validateParam(ParseParamOpts options, TokenStruct param, u16string name
     options.paramSet.insert(key);
 }
 
-//#clear
+//#CLEAR
 bool parseParam(ParseParamOpts options) { 
     TokenStruct token; 
     Node param, def;
@@ -3942,7 +4018,7 @@ bool parseParam(ParseParamOpts options) {
     return !match(u")");
 }
 
-//#clear
+//#CLEAR
 struct ParseParamsOut {
     TokenStruct firstRestricted;
     TokenStruct stricted;
@@ -3951,7 +4027,7 @@ struct ParseParamsOut {
     vector< Node > defaults;
 };
 
-//#clear
+//#CLEAR
 function parseParams(TokenStruct firstRestricted) {
     ParseParamOpts options;
     ParseParamsOut out;
