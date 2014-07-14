@@ -411,6 +411,7 @@ struct Expr {
 
 class Node {
 public:
+    
     json_object * jv;
     Loc loc;
     bool isNull;
@@ -426,554 +427,65 @@ public:
     u16string name;//for identifiers
     vector< Node > expressions; //for sequence expressions.
 
-    void s(u16string in) {
-        return toU8string(in);
-    }
-    
-    //#CLEAR
-    Node() { 
-        hasRange = false;
-        jv = json_newmap();
-        isNull = false;
-
-
-        idx = lookahead.start;
-        if (lookahead.type == Token["StringLiteral"]) {
-            lineNumber = lookahead.startLineNumber;
-            lineStart = lookahead.startLineStart;
-        } else {
-            lineNumber = lookahead.lineNumber;
-            lineStart = lookahead.lineStart;
-        }
-        if (extra.range) {
-            hasRange = true;
-            range[0] = idx;
-            range[1] = 0;
-        }
-        if (extra.loc) {
-            hasLoc = true;
-        }
-    }
-    
-    json_object* toJson() {
-        return this->jv;
-    }
-    
-    void jvput(String path, string b) {json_put(jv, path, b); }
-    void jvput(String path, int b) {json_put(jv, path, b); }
-    void jvput(String path, bool b) {json_put(jv, path, b); }
-    void jvput_dbl(String path, string b) {json_put_dbl(jv, path, b); }
-    void jvput_null(String path, int b) {json_put_null(jv, path); }
-
-    void reg(String path, Node &child) {
-        if (child.isNull) { json_put_null(jv, path); }
-        if (child.hasRange) {
-            json_put(child.jv, "range", 
-                     vec2json<int>({child.range[0], child.range[1]}));
-        }
-        if (child.hasLoc) {
-            json_put(child.jv, "loc", loc2json(child.loc));
-        }
-        if (child.regexPaths.size() >= 0) {
-            if (child.regexPaths[0][0] == ".") {
-                regexPaths.push_back({index});
-            }
-            for (int i=0; i<child.regexPaths.size(); i++) {
-                regexPaths.push_back(child.regexPaths[i]);
-                regexPaths.back().push_back(index);
-            }
-            child.regexPaths.clear();
-        }
-
-        json_put(jv, path, child.jv);
-    }
-
-    json_object * nodeVec(String path, vector< Node > & nodes) {
-        json_object * root = json_newarr();
-        for (int i=0; i<nodes.size(); i++) {
-            if (nodes[i].isNull) {
-                json_push_null(root);
-            } else {
-                reg(nodes[i]);
-                json_push(nodes[i].jv);
-            }
-        } 
-        json_put(jv, path, root);
-    }
-    void addType(String in) {
-        type = Syntax[in];
-        json_put(jv, "type", s(type));
-    }
-    json_object* regexPaths2json() {
-        json_object *tmp, *root = json_newarr();
-        for (int i=0; i<regexPaths.size(); i++) {
-            tmp = json_newarr();
-            for (int j=0; j<regexPaths[i].size(); j++) {
-                json_push(tmp, regexPaths[i].back());
-                regexPaths[i].pop_back();
-            }
-            json_push(root, tmp);
-        }
-        return root;
-    }
-    
-    void trailingCommentsIntoJson(const bool leading) {
-        string key;
-        vector<Comment> * commentVec;
-        if (leading) {
-            key = "leadingComments";
-            commentVec = &leadingComments;
-        } else {
-            key = "trailingComments";
-            commentVec = &trailingComments;
-        }
-        if (commentVec.size() > 0) {
-            jvput(key, vec2jsonCallback(commentVec,
-                                              &Comment::toJson));
-        } else {
-            jv.removeKey(key);
-        }
-    }
-    
-    //#CLEAR
-    void processComment() {
-        //# assumes attachComments 
-        //# so that means range is already true.
-
-        vector<Comment> trailingComments;
-                
-        vector< Node * > * bottomRight = &(extra.bottomRightStack);
-        Node * lastChild,
-            * last = bottomRight[bottomRight.length - 1];
-        bool LEADING = true;
-
-
-        if (type == Syntax["Program"]) {  
-            if (json_object_array_length(json_require(jv, "body")) > 0) {
-                return;
-            }
-        }
-
-        if (extra.trailingComments.size() > 0) {
-            if (extra.trailingComments[0].range[0] >= this->range[1].asInt()) {
-                trailingComments = extra.trailingComments;
-                extra.trailingComments.clear();
-            } else {
-                extra.trailingComments.clear(); 
-                //# originally first clause had =[] and this has .length = 0
-                //# don't think there's an effective difference thoug
-            }
-        } else {
-            if (!(last->isNull) && 
-                last->trailingComments.size() > 0 && 
-                last->trailingComments[0].range[0] >= this->range[1].asInt()) {
-                trailingComments = last->trailingComments;
-                last->trailingComments.clear();
-                last->commentsIntoJson(! LEADING);
-                //delete last.trailingComments; 
-                //? maybe have a boolean to say no trailing comments? length will prob. be workable.
-            }
-        }
-
-        // Eating the stack.
-        if (!(last->isNull)) {
-            while ((!(last->isNull)) && last->range[0] >= this->range[0].asInt()) {
-                lastChild = last;
-                last = bottomRight->pop();
-            }
-        }
-
-        if (!(lastChild->isNull)) { 
-            if (lastChild->leadingComments.size() > 0 &&
-                lastChild->leadingComments[lastChild->leadingComments.size() - 1].range[1] <= this->range[0].asInt()) {
-                this->leadingComments = lastChild->leadingComments;
-                lastChild->leadingComments.clear();
-                lastChild->commentsIntoJson(LEADING);
-                this->commentsIntoJson(LEADING);
-            }
-        } else if (extra.leadingComments.size() > 0 && 
-                   extra.leadingComments[extra.leadingComments.size() - 1].range[1] <= this->range[0].asInt()) {
-            this->leadingComments = extra.leadingComments;
-            extra.leadingComments.clear();
-            this->commentsIntoJson(LEADING);
-        }
-
-        if (trailingComments.size() > 0) {
-            this.trailingComments = trailingComments;
-            this->commentsIntoJson(! LEADING);
-        }
-
-        bottomRight->push_back(this);
-    }
-
-    //#CLEAR
-    void finish() {
-        if (extra.range) {
-            this->range[1] = idx; 
-        }
-        if (extra.loc) {
-            Position newpos;
-            loc.end = newpos;
-            if (extra.hasSource) {
-                loc.source = = extra.source; 
-            }
-        }
-
-        if (extra.attachComment) {
-            this->processComment();
-        }
-    }
-
-    //#CLEAR
-    void finishArrayExpression(vector< Node >& elements) {
-        addType("ArrayExpression");
-        nodeVec("elements", elements);
-        this->finish();
-    }
-
-    void finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression) {
-        addType("ArrowFunctionExpression");
-        
-        jvput_null("id");
-        nodeVec("params", params);
-        nodeVec("defaults", defaults);
-        reg("body", body);
-        jvput_null("rest");
-        jvput("generator", false);
-        jvput("expression", expression);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishAssignmentExpression(u16string oper, TokenStruct left, Node& right) {
-        addType("AssignmentExpression");
-        jvput("operator", s(oper));
-        reg("left", left);
-        reg("right", right);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishBinaryExpression(u16string oper, Node& left, Node& right) {
-        addType((oper == u"||" || oper == u"&&") ? "LogicalExpression" : "BinaryExpression");
-        jvput("operator", s(oper));
-        reg("left", left); 
-        reg("right", right);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishBlockStatement(vector< Node >& body) {
-        addType("BlockStatement");
-        nodeVec("body", body);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishBreakStatement(Node& label) {
-        addType("BreakStatement");
-        reg("label", label);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishCallExpression(Node& callee, Vector< Node >& args) {
-        addType("CallExpression");
-        reg("callee", callee);
-        nodeVec("arguments", args);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishCatchClause(Node& param, Node& body) {
-        addType("CatchClause");
-        reg("param", param);
-        reg("body", body);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishConditionalExpression(Node& test, Node& consequent, Node& alternate) {
-        addType("ConditionalExpression");
-        reg("test", test);
-        reg("consequent", consequent);
-        reg("alternate", alternate);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishContinueStatement(Node& label) {
-        addType("ContinueStatement");
-        reg("label", label);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishDebuggerStatement() {
-        addType("DebuggerStatement");
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishDoWhileStatement(Node& body, Node& test) {
-        addType("DoWhileStatement");
-        reg("body", body);
-        reg("test", test);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishEmptyStatement() {
-        addType("EmptyStatement");
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishExpressionStatement(Node expression) {
-        addType("ExpressionStatement");
-        reg("expression", expression);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishForStatement(Node& init, Node& test, Node& update, Node& body) {
-        addType("ForStatement");
-        reg("init", init);
-        reg("test", test);
-        reg("update", update);
-        reg("body", body);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishForInStatement(Node& left, Node& right, Node& body) {
-        addType("ForInStatement");
-        reg("left", left);
-        reg("right", right);
-        reg("body", body);
-        jvput("each", false);
-        this->finish();
-    }
-
-    //#CLEAR
+    void s(u16string in);
+    Node() {}
+    json_object* toJson();
+    void jvput(String path, string b);
+    void jvput(String path, int b); 
+    void jvput(String path, bool b);
+    void jvput_dbl(String path, string b);
+    void jvput_null(String path, int b); 
+    void reg(String path, Node &child);
+    json_object * nodeVec(String path, vector< Node > & nodes);
+    void addType(String in);
+    json_object* regexPaths2json();
+    void trailingCommentsIntoJson(const bool leading);
+    void processComment();
+    void finish();
+    void finishArrayExpression(vector< Node >& elements);
+    void finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression);
+    void finishAssignmentExpression(u16string oper, TokenStruct left, Node& right);
+    void finishBinaryExpression(u16string oper, Node& left, Node& right);
+    void finishBlockStatement(vector< Node >& body);
+    void finishBreakStatement(Node& label);
+    void finishCallExpression(Node& callee, Vector< Node >& args);
+    void finishCatchClause(Node& param, Node& body);
+    void finishConditionalExpression(Node& test, Node& consequent, Node& alternate);
+    void finishContinueStatement(Node& label);
+    void finishDebuggerStatement();
+    void finishDoWhileStatement(Node& body, Node& test);
+    void finishEmptyStatement();
+    void finishExpressionStatement(Node expression);
+    void finishForStatement(Node& init, Node& test, Node& update, Node& body);
+    void finishForInStatement(Node& left, Node& right, Node& body);
     void finishFunctionDeclaration(Node& id, vector< Node >& params, 
-                                   vector< Node >& defaults, Node& body) {
-        addType("FunctionDeclaration");
-        reg("id", id);
-        vecNode("params", params);
-        vecNode("defaults", defaults);
-        reg("body", body);
-        jvput_null("rest");
-        jvput("generator", false);
-        jvput("expression", false);
-        this->finish();
-    }
-
-    //#CLEAR
+                                   vector< Node >& defaults, Node& body);
     void finishFunctionExpression(Node& id, vector< Node >& params, 
-                                  vector< Node >& defaults, Node& body) {
-        reg(body);
-        addType("FunctionExpression");
-        reg("id", id);
-        vecNode("params", params);
-        vecNode("defaults", defaults);
-        reg("body", body);
-        jvput_null("rest");
-        jvput("generator", false);
-        jvput("expression", false);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishIdentifier(u16string name) {
-        addType("Identifier");
-        this->name = name;
-        jvput("name", s(name));
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishIfStatement(Node& test, Node& consequent, Node& alternate) { 
-        addType("IfStatement");
-        reg("test", test);
-        reg("consequent", consequent);
-        reg("alternate", alternate);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishLabeledStatement(Node label, Node body) {
-        addType("LabeledStatement");
-        reg("label", label);
-        reg("body", body);
-        this->finish();
-    }
-
-    //#CLEAR ?maybe check against js to make sure we're not missing anything.
-    void finishLiteral(TokenStruct token) {
-        addType("Literal");
-        if (token.literaltype == LiteralType["String"]) {
-            jvput("value", s(token.strvalue));
-        } else if (token.literaltype == LiteralType["Int"]) {
-            jvput_dbl("value", s(token.strvalue));
-        } else if (token.literaltype == LiteralType["Double"]) {
-            jvput_dbl("value", s(token.strvalue));
-        } else if (token.literaltype == LiteralType["Bool"]) {
-            jvput("value", token.bvalue);
-        } else if (token.literaltype == LiteralType["Null"]) {
-            jvput_null("value");
-        } else if (token.literaltype == LiteralType["Regexp"]) {
-            json_put(jv, "value", vec2json<string>({s(token.strvalue), s(token.flags)}));
-            regexPaths.push(".");
-        }
-        jvput("raw", s(slice(sourceraw, token.start, token.end)));
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishMemberExpression(char16_t accessor, Node& object, Node& property) {
-        addType("MemberExpression");
-        jvput("computed", (accessor == u'['));
-        reg("object", object);
-        reg("property", property);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishNewExpression(Node& callee, vector<Node>& args) {
-        addType("NewExpression");
-        reg("callee", callee);
-        nodeVec("arguments", args);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishObjectExpression(vector<Node>& properties) {
-        addType("ObjectExpression");
-        nodeVec("properties", properties);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishPostfixExpression(u16string oper, Node& argument) {
-        addType("UpdateExpression");
-        jvput("oper", s(oper));
-        reg("argument", argument);
-        jvput("prefix", false);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishProgram(vector< Node >& body) {
-        addType("Program");
-        nodeVec("body", body);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishProperty(u16string kind, Node& key, Node& value) {
-        addType("Property");
-        reg("key", key);
-        reg("value", value);
-        jvput("kind", s(kind));
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishReturnStatement(Node& argument) {
-        addType("ReturnStatement");
-        reg("argument", argument);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishSequenceExpression(vector< Node >& expressions) {
-        addType("SequenceExpression");
-        this->expressions = expressions;
-        nodeVec("expressions", expressions);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishSwitchCase(Node& test, vector< Node >& consequent) {
-        addType("SwitchCase");
-        reg("test", test);
-        nodeVec("consequent", consequent);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishSwitchStatement(Node& discriminant, vector < Node >& cases) {
-        addType("SwitchStatement");
-        reg("discriminant", discriminant);
-        nodeVec("cases", cases);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishThisExpression() {
-        addType("ThisExpression");
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishThrowStatement(Node& argument) {
-        addType("ThrowStatement");
-        reg("argument", argument);
-        this->finish();
-    }
-
-    //#CLEAR
+                                  vector< Node >& defaults, Node& body);
+    void finishIdentifier(u16string name);
+    void finishIfStatement(Node& test, Node& consequent, Node& alternate); 
+    void finishLabeledStatement(Node label, Node body);
+    void finishLiteral(TokenStruct token);
+    void finishMemberExpression(char16_t accessor, Node& object, Node& property);
+    void finishNewExpression(Node& callee, vector<Node>& args);
+    void finishObjectExpression(vector<Node>& properties);
+    void finishPostfixExpression(u16string oper, Node& argument);
+    void finishProgram(vector< Node >& body);
+    void finishProperty(u16string kind, Node& key, Node& value);
+    void finishReturnStatement(Node& argument);
+    void finishSequenceExpression(vector< Node >& expressions);
+    void finishSwitchCase(Node& test, vector< Node >& consequent);
+    void finishSwitchStatement(Node& discriminant, vector < Node >& cases);
+    void finishThisExpression();
+    void finishThrowStatement(Node& argument);
     void finishTryStatement(Node& block, vector<Node>& guardedHandlers, 
-                            vector<Node>& handlers, Node& finalizer) {
-        addType("TryStatement");
-        reg("block", block);
-        nodeVec("guardedHandlers", guradedHandlers);
-        nodeVec("handlers", handlers);
-        reg("finalizer", finalizer);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishUnaryExpression(u16string oper, Node& argument) {
-        addType((oper == u"++" || oper == u"--") ? "UpdateExpression" : "UnaryExpression");
-        jvput("operator", s(oper));
-        reg("argument", argument);
-        jvput("prefix", true);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishVariableDeclaration(List< Node >& declarations, u16string kind) {
-        addType("VariableDeclaration");
-        nodeVec("declarations", declarations);
-        jvput("kind", s(kind));
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishVariableDeclarator(Node& id, Node& init) {
-        addType("VariableDeclarator");
-        reg("id", id);
-        reg("init", init);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishWhileStatement(Node& test, Node& body) {
-        addType("WhileStatement");
-        reg("test", test);
-        reg("body", body);
-        this->finish();
-    }
-
-    //#CLEAR
-    void finishWithStatement(Node& object, Node& body) {
-        addType("WithStatement");
-        reg("object", object);
-        reg("body", body);
-        this->finish();
-    }
+                            vector<Node>& handlers, Node& finalizer);
+    void finishUnaryExpression(u16string oper, Node& argument);
+    void finishVariableDeclaration(List< Node >& declarations, u16string kind);
+    void finishVariableDeclarator(Node& id, Node& init);
+    void finishWhileStatement(Node& test, Node& body);
+    void finishWithStatement(Node& object, Node& body);
+    
 };
 
 
@@ -2566,572 +2078,552 @@ json_object * locToJson(Loc l) {
 //Loc 
 
 
-class Node {
-public:
-    json_object * jv;
-    Loc loc;
-    bool isNull;
-    NodeFinish nf;
-    bool hasLoc;
-    bool hasRange;
-    int range[2];
+    
+//#CLEAR
+Node::Node() { 
+    hasRange = false;
+    jv = json_newmap();
+    isNull = false;
+
+
+    idx = lookahead.start;
+    if (lookahead.type == Token["StringLiteral"]) {
+        lineNumber = lookahead.startLineNumber;
+        lineStart = lookahead.startLineStart;
+    } else {
+        lineNumber = lookahead.lineNumber;
+        lineStart = lookahead.lineStart;
+    }
+    if (extra.range) {
+        hasRange = true;
+        range[0] = idx;
+        range[1] = 0;
+    }
+    if (extra.loc) {
+        hasLoc = true;
+    }
+}
+
+json_object* Node::toJson() {
+    return this->jv;
+}
+
+void Node::jvput(String path, string b) {json_put(jv, path, b); }
+void Node::jvput(String path, int b) {json_put(jv, path, b); }
+void Node::jvput(String path, bool b) {json_put(jv, path, b); }
+void Node::jvput_dbl(String path, string b) {json_put_dbl(jv, path, b); }
+void Node::jvput_null(String path, int b) {json_put_null(jv, path); }
+
+void Node::reg(String path, Node &child) {
+    if (child.isNull) { json_put_null(jv, path); }
+    if (child.hasRange) {
+        json_put(child.jv, "range", 
+                 vec2json<int>({child.range[0], child.range[1]}));
+    }
+    if (child.hasLoc) {
+        json_put(child.jv, "loc", loc2json(child.loc));
+    }
+    if (child.regexPaths.size() >= 0) {
+        if (child.regexPaths[0][0] == ".") {
+            regexPaths.push_back({index});
+        }
+        for (int i=0; i<child.regexPaths.size(); i++) {
+            regexPaths.push_back(child.regexPaths[i]);
+            regexPaths.back().push_back(index);
+        }
+        child.regexPaths.clear();
+    }
+
+    json_put(jv, path, child.jv);
+}
+
+json_object * Node::nodeVec(String path, vector< Node > & nodes) {
+    json_object * root = json_newarr();
+    for (int i=0; i<nodes.size(); i++) {
+        if (nodes[i].isNull) {
+            json_push_null(root);
+        } else {
+            reg(nodes[i]);
+            json_push(nodes[i].jv);
+        }
+    } 
+    json_put(jv, path, root);
+}
+void Node::addType(String in) {
+    type = Syntax[in];
+    json_put(jv, "type", s(type));
+}
+json_object* Node::regexPaths2json() {
+    json_object *tmp, *root = json_newarr();
+    for (int i=0; i<regexPaths.size(); i++) {
+        tmp = json_newarr();
+        for (int j=0; j<regexPaths[i].size(); j++) {
+            json_push(tmp, regexPaths[i].back());
+            regexPaths[i].pop_back();
+        }
+        json_push(root, tmp);
+    }
+    return root;
+}
+
+void Node::trailingCommentsIntoJson(const bool leading) {
+    string key;
+    vector<Comment> * commentVec;
+    if (leading) {
+        key = "leadingComments";
+        commentVec = &leadingComments;
+    } else {
+        key = "trailingComments";
+        commentVec = &trailingComments;
+    }
+    if (commentVec.size() > 0) {
+        jvput(key, vec2jsonCallback(commentVec,
+                                          &Comment::toJson));
+    } else {
+        jv.removeKey(key);
+    }
+}
+
+//#CLEAR
+void Node::processComment() {
+    //# assumes attachComments 
+    //# so that means range is already true.
+
     vector<Comment> trailingComments;
-    vector<Comment> leadingComments;
-    vector< vector<string> > regexPaths; //lin only. obv.
 
-    u16string type;
-    u16string name;//for identifiers
-    vector< Node > expressions; //for sequence expressions.
+    vector< Node * > * bottomRight = &(extra.bottomRightStack);
+    Node * lastChild,
+        * last = bottomRight[bottomRight.length - 1];
+    bool LEADING = true;
 
-    void s(u16string in) {
-        return toU8string(in);
+
+    if (type == Syntax["Program"]) {  
+        if (json_object_array_length(json_require(jv, "body")) > 0) {
+            return;
+        }
     }
-    
-    //#CLEAR
-    Node() { 
-        hasRange = false;
-        jv = json_newmap();
-        isNull = false;
 
-
-        idx = lookahead.start;
-        if (lookahead.type == Token["StringLiteral"]) {
-            lineNumber = lookahead.startLineNumber;
-            lineStart = lookahead.startLineStart;
+    if (extra.trailingComments.size() > 0) {
+        if (extra.trailingComments[0].range[0] >= this->range[1].asInt()) {
+            trailingComments = extra.trailingComments;
+            extra.trailingComments.clear();
         } else {
-            lineNumber = lookahead.lineNumber;
-            lineStart = lookahead.lineStart;
+            extra.trailingComments.clear(); 
+            //# originally first clause had =[] and this has .length = 0
+            //# don't think there's an effective difference thoug
         }
-        if (extra.range) {
-            hasRange = true;
-            range[0] = idx;
-            range[1] = 0;
-        }
-        if (extra.loc) {
-            hasLoc = true;
-        }
-    }
-    
-    json_object* toJson() {
-        return this->jv;
-    }
-    
-    void jvput(String path, string b) {json_put(jv, path, b); }
-    void jvput(String path, int b) {json_put(jv, path, b); }
-    void jvput(String path, bool b) {json_put(jv, path, b); }
-    void jvput_dbl(String path, string b) {json_put_dbl(jv, path, b); }
-    void jvput_null(String path, int b) {json_put_null(jv, path); }
-
-    void reg(String path, Node &child) {
-        if (child.isNull) { json_put_null(jv, path); }
-        if (child.hasRange) {
-            json_put(child.jv, "range", 
-                     vec2json<int>({child.range[0], child.range[1]}));
-        }
-        if (child.hasLoc) {
-            json_put(child.jv, "loc", loc2json(child.loc));
-        }
-        if (child.regexPaths.size() >= 0) {
-            if (child.regexPaths[0][0] == ".") {
-                regexPaths.push_back({index});
-            }
-            for (int i=0; i<child.regexPaths.size(); i++) {
-                regexPaths.push_back(child.regexPaths[i]);
-                regexPaths.back().push_back(index);
-            }
-            child.regexPaths.clear();
-        }
-
-        json_put(jv, path, child.jv);
-    }
-
-    json_object * nodeVec(String path, vector< Node > & nodes) {
-        json_object * root = json_newarr();
-        for (int i=0; i<nodes.size(); i++) {
-            if (nodes[i].isNull) {
-                json_push_null(root);
-            } else {
-                reg(nodes[i]);
-                json_push(nodes[i].jv);
-            }
-        } 
-        json_put(jv, path, root);
-    }
-    void addType(String in) {
-        type = Syntax[in];
-        json_put(jv, "type", s(type));
-    }
-    json_object* regexPaths2json() {
-        json_object *tmp, *root = json_newarr();
-        for (int i=0; i<regexPaths.size(); i++) {
-            tmp = json_newarr();
-            for (int j=0; j<regexPaths[i].size(); j++) {
-                json_push(tmp, regexPaths[i].back());
-                regexPaths[i].pop_back();
-            }
-            json_push(root, tmp);
-        }
-        return root;
-    }
-    
-    void trailingCommentsIntoJson(const bool leading) {
-        string key;
-        vector<Comment> * commentVec;
-        if (leading) {
-            key = "leadingComments";
-            commentVec = &leadingComments;
-        } else {
-            key = "trailingComments";
-            commentVec = &trailingComments;
-        }
-        if (commentVec.size() > 0) {
-            jvput(key, vec2jsonCallback(commentVec,
-                                              &Comment::toJson));
-        } else {
-            jv.removeKey(key);
+    } else {
+        if (!(last->isNull) && 
+            last->trailingComments.size() > 0 && 
+            last->trailingComments[0].range[0] >= this->range[1].asInt()) {
+            trailingComments = last->trailingComments;
+            last->trailingComments.clear();
+            last->commentsIntoJson(! LEADING);
+            //delete last.trailingComments; 
+            //? maybe have a boolean to say no trailing comments? length will prob. be workable.
         }
     }
-    
-    //#CLEAR
-    void processComment() {
-        //# assumes attachComments 
-        //# so that means range is already true.
 
-        vector<Comment> trailingComments;
-                
-        vector< Node * > * bottomRight = &(extra.bottomRightStack);
-        Node * lastChild,
-            * last = bottomRight[bottomRight.length - 1];
-        bool LEADING = true;
-
-
-        if (type == Syntax["Program"]) {  
-            if (json_object_array_length(json_require(jv, "body")) > 0) {
-                return;
-            }
+    // Eating the stack.
+    if (!(last->isNull)) {
+        while ((!(last->isNull)) && last->range[0] >= this->range[0].asInt()) {
+            lastChild = last;
+            last = bottomRight->pop();
         }
+    }
 
-        if (extra.trailingComments.size() > 0) {
-            if (extra.trailingComments[0].range[0] >= this->range[1].asInt()) {
-                trailingComments = extra.trailingComments;
-                extra.trailingComments.clear();
-            } else {
-                extra.trailingComments.clear(); 
-                //# originally first clause had =[] and this has .length = 0
-                //# don't think there's an effective difference thoug
-            }
-        } else {
-            if (!(last->isNull) && 
-                last->trailingComments.size() > 0 && 
-                last->trailingComments[0].range[0] >= this->range[1].asInt()) {
-                trailingComments = last->trailingComments;
-                last->trailingComments.clear();
-                last->commentsIntoJson(! LEADING);
-                //delete last.trailingComments; 
-                //? maybe have a boolean to say no trailing comments? length will prob. be workable.
-            }
-        }
-
-        // Eating the stack.
-        if (!(last->isNull)) {
-            while ((!(last->isNull)) && last->range[0] >= this->range[0].asInt()) {
-                lastChild = last;
-                last = bottomRight->pop();
-            }
-        }
-
-        if (!(lastChild->isNull)) { 
-            if (lastChild->leadingComments.size() > 0 &&
-                lastChild->leadingComments[lastChild->leadingComments.size() - 1].range[1] <= this->range[0].asInt()) {
-                this->leadingComments = lastChild->leadingComments;
-                lastChild->leadingComments.clear();
-                lastChild->commentsIntoJson(LEADING);
-                this->commentsIntoJson(LEADING);
-            }
-        } else if (extra.leadingComments.size() > 0 && 
-                   extra.leadingComments[extra.leadingComments.size() - 1].range[1] <= this->range[0].asInt()) {
-            this->leadingComments = extra.leadingComments;
-            extra.leadingComments.clear();
+    if (!(lastChild->isNull)) { 
+        if (lastChild->leadingComments.size() > 0 &&
+            lastChild->leadingComments[lastChild->leadingComments.size() - 1].range[1] <= this->range[0].asInt()) {
+            this->leadingComments = lastChild->leadingComments;
+            lastChild->leadingComments.clear();
+            lastChild->commentsIntoJson(LEADING);
             this->commentsIntoJson(LEADING);
         }
+    } else if (extra.leadingComments.size() > 0 && 
+               extra.leadingComments[extra.leadingComments.size() - 1].range[1] <= this->range[0].asInt()) {
+        this->leadingComments = extra.leadingComments;
+        extra.leadingComments.clear();
+        this->commentsIntoJson(LEADING);
+    }
 
-        if (trailingComments.size() > 0) {
-            this.trailingComments = trailingComments;
-            this->commentsIntoJson(! LEADING);
+    if (trailingComments.size() > 0) {
+        this.trailingComments = trailingComments;
+        this->commentsIntoJson(! LEADING);
+    }
+
+    bottomRight->push_back(this);
+}
+
+//#CLEAR
+void Node::finish() {
+    if (extra.range) {
+        this->range[1] = idx; 
+    }
+    if (extra.loc) {
+        Position newpos;
+        loc.end = newpos;
+        if (extra.hasSource) {
+            loc.source = = extra.source; 
         }
-
-        bottomRight->push_back(this);
     }
 
-    //#CLEAR
-    void finish() {
-        if (extra.range) {
-            this->range[1] = idx; 
-        }
-        if (extra.loc) {
-            Position newpos;
-            loc.end = newpos;
-            if (extra.hasSource) {
-                loc.source = = extra.source; 
-            }
-        }
-
-        if (extra.attachComment) {
-            this->processComment();
-        }
+    if (extra.attachComment) {
+        this->processComment();
     }
+}
 
-    //#CLEAR
-    void finishArrayExpression(vector< Node >& elements) {
-        addType("ArrayExpression");
-        nodeVec("elements", elements);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishArrayExpression(vector< Node >& elements) {
+    addType("ArrayExpression");
+    nodeVec("elements", elements);
+    this->finish();
+}
 
-    void finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression) {
-        addType("ArrowFunctionExpression");
-        
-        jvput_null("id");
-        nodeVec("params", params);
-        nodeVec("defaults", defaults);
-        reg("body", body);
-        jvput_null("rest");
-        jvput("generator", false);
-        jvput("expression", expression);
-        this->finish();
-    }
+void Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression) {
+    addType("ArrowFunctionExpression");
 
-    //#CLEAR
-    void finishAssignmentExpression(u16string oper, TokenStruct left, Node& right) {
-        addType("AssignmentExpression");
-        jvput("operator", s(oper));
-        reg("left", left);
-        reg("right", right);
-        this->finish();
-    }
+    jvput_null("id");
+    nodeVec("params", params);
+    nodeVec("defaults", defaults);
+    reg("body", body);
+    jvput_null("rest");
+    jvput("generator", false);
+    jvput("expression", expression);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishBinaryExpression(u16string oper, Node& left, Node& right) {
-        addType((oper == u"||" || oper == u"&&") ? "LogicalExpression" : "BinaryExpression");
-        jvput("operator", s(oper));
-        reg("left", left); 
-        reg("right", right);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishAssignmentExpression(u16string oper, TokenStruct left, Node& right) {
+    addType("AssignmentExpression");
+    jvput("operator", s(oper));
+    reg("left", left);
+    reg("right", right);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishBlockStatement(vector< Node >& body) {
-        addType("BlockStatement");
-        nodeVec("body", body);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishBinaryExpression(u16string oper, Node& left, Node& right) {
+    addType((oper == u"||" || oper == u"&&") ? "LogicalExpression" : "BinaryExpression");
+    jvput("operator", s(oper));
+    reg("left", left); 
+    reg("right", right);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishBreakStatement(Node& label) {
-        addType("BreakStatement");
-        reg("label", label);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishBlockStatement(vector< Node >& body) {
+    addType("BlockStatement");
+    nodeVec("body", body);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishCallExpression(Node& callee, Vector< Node >& args) {
-        addType("CallExpression");
-        reg("callee", callee);
-        nodeVec("arguments", args);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishBreakStatement(Node& label) {
+    addType("BreakStatement");
+    reg("label", label);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishCatchClause(Node& param, Node& body) {
-        addType("CatchClause");
-        reg("param", param);
-        reg("body", body);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishCallExpression(Node& callee, Vector< Node >& args) {
+    addType("CallExpression");
+    reg("callee", callee);
+    nodeVec("arguments", args);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishConditionalExpression(Node& test, Node& consequent, Node& alternate) {
-        addType("ConditionalExpression");
-        reg("test", test);
-        reg("consequent", consequent);
-        reg("alternate", alternate);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishCatchClause(Node& param, Node& body) {
+    addType("CatchClause");
+    reg("param", param);
+    reg("body", body);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishContinueStatement(Node& label) {
-        addType("ContinueStatement");
-        reg("label", label);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishConditionalExpression(Node& test, Node& consequent, Node& alternate) {
+    addType("ConditionalExpression");
+    reg("test", test);
+    reg("consequent", consequent);
+    reg("alternate", alternate);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishDebuggerStatement() {
-        addType("DebuggerStatement");
-        this->finish();
-    }
+//#CLEAR
+void Node::finishContinueStatement(Node& label) {
+    addType("ContinueStatement");
+    reg("label", label);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishDoWhileStatement(Node& body, Node& test) {
-        addType("DoWhileStatement");
-        reg("body", body);
-        reg("test", test);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishDebuggerStatement() {
+    addType("DebuggerStatement");
+    this->finish();
+}
 
-    //#CLEAR
-    void finishEmptyStatement() {
-        addType("EmptyStatement");
-        this->finish();
-    }
+//#CLEAR
+void Node::finishDoWhileStatement(Node& body, Node& test) {
+    addType("DoWhileStatement");
+    reg("body", body);
+    reg("test", test);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishExpressionStatement(Node expression) {
-        addType("ExpressionStatement");
-        reg("expression", expression);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishEmptyStatement() {
+    addType("EmptyStatement");
+    this->finish();
+}
 
-    //#CLEAR
-    void finishForStatement(Node& init, Node& test, Node& update, Node& body) {
-        addType("ForStatement");
-        reg("init", init);
-        reg("test", test);
-        reg("update", update);
-        reg("body", body);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishExpressionStatement(Node expression) {
+    addType("ExpressionStatement");
+    reg("expression", expression);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishForInStatement(Node& left, Node& right, Node& body) {
-        addType("ForInStatement");
-        reg("left", left);
-        reg("right", right);
-        reg("body", body);
-        jvput("each", false);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishForStatement(Node& init, Node& test, Node& update, Node& body) {
+    addType("ForStatement");
+    reg("init", init);
+    reg("test", test);
+    reg("update", update);
+    reg("body", body);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishFunctionDeclaration(Node& id, vector< Node >& params, 
-                                   vector< Node >& defaults, Node& body) {
-        addType("FunctionDeclaration");
-        reg("id", id);
-        vecNode("params", params);
-        vecNode("defaults", defaults);
-        reg("body", body);
-        jvput_null("rest");
-        jvput("generator", false);
-        jvput("expression", false);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishForInStatement(Node& left, Node& right, Node& body) {
+    addType("ForInStatement");
+    reg("left", left);
+    reg("right", right);
+    reg("body", body);
+    jvput("each", false);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishFunctionExpression(Node& id, vector< Node >& params, 
-                                  vector< Node >& defaults, Node& body) {
-        reg(body);
-        addType("FunctionExpression");
-        reg("id", id);
-        vecNode("params", params);
-        vecNode("defaults", defaults);
-        reg("body", body);
-        jvput_null("rest");
-        jvput("generator", false);
-        jvput("expression", false);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishFunctionDeclaration(Node& id, vector< Node >& params, 
+                               vector< Node >& defaults, Node& body) {
+    addType("FunctionDeclaration");
+    reg("id", id);
+    vecNode("params", params);
+    vecNode("defaults", defaults);
+    reg("body", body);
+    jvput_null("rest");
+    jvput("generator", false);
+    jvput("expression", false);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishIdentifier(u16string name) {
-        addType("Identifier");
-        this->name = name;
-        jvput("name", s(name));
-        this->finish();
-    }
+//#CLEAR
+void Node::finishFunctionExpression(Node& id, vector< Node >& params, 
+                              vector< Node >& defaults, Node& body) {
+    reg(body);
+    addType("FunctionExpression");
+    reg("id", id);
+    vecNode("params", params);
+    vecNode("defaults", defaults);
+    reg("body", body);
+    jvput_null("rest");
+    jvput("generator", false);
+    jvput("expression", false);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishIfStatement(Node& test, Node& consequent, Node& alternate) { 
-        addType("IfStatement");
-        reg("test", test);
-        reg("consequent", consequent);
-        reg("alternate", alternate);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishIdentifier(u16string name) {
+    addType("Identifier");
+    this->name = name;
+    jvput("name", s(name));
+    this->finish();
+}
 
-    //#CLEAR
-    void finishLabeledStatement(Node label, Node body) {
-        addType("LabeledStatement");
-        reg("label", label);
-        reg("body", body);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishIfStatement(Node& test, Node& consequent, Node& alternate) { 
+    addType("IfStatement");
+    reg("test", test);
+    reg("consequent", consequent);
+    reg("alternate", alternate);
+    this->finish();
+}
 
-    //#CLEAR ?maybe check against js to make sure we're not missing anything.
-    void finishLiteral(TokenStruct token) {
-        addType("Literal");
-        if (token.literaltype == LiteralType["String"]) {
-            jvput("value", s(token.strvalue));
-        } else if (token.literaltype == LiteralType["Int"]) {
-            jvput_dbl("value", s(token.strvalue));
-        } else if (token.literaltype == LiteralType["Double"]) {
-            jvput_dbl("value", s(token.strvalue));
-        } else if (token.literaltype == LiteralType["Bool"]) {
-            jvput("value", token.bvalue);
-        } else if (token.literaltype == LiteralType["Null"]) {
-            jvput_null("value");
-        } else if (token.literaltype == LiteralType["Regexp"]) {
-            json_put(jv, "value", vec2json<string>({s(token.strvalue), s(token.flags)}));
-            regexPaths.push(".");
-        }
-        jvput("raw", s(slice(sourceraw, token.start, token.end)));
-        this->finish();
-    }
+//#CLEAR
+void Node::finishLabeledStatement(Node label, Node body) {
+    addType("LabeledStatement");
+    reg("label", label);
+    reg("body", body);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishMemberExpression(char16_t accessor, Node& object, Node& property) {
-        addType("MemberExpression");
-        jvput("computed", (accessor == u'['));
-        reg("object", object);
-        reg("property", property);
-        this->finish();
+//#CLEAR ?maybe check against js to make sure we're not missing anything.
+void Node::finishLiteral(TokenStruct token) {
+    addType("Literal");
+    if (token.literaltype == LiteralType["String"]) {
+        jvput("value", s(token.strvalue));
+    } else if (token.literaltype == LiteralType["Int"]) {
+        jvput_dbl("value", s(token.strvalue));
+    } else if (token.literaltype == LiteralType["Double"]) {
+        jvput_dbl("value", s(token.strvalue));
+    } else if (token.literaltype == LiteralType["Bool"]) {
+        jvput("value", token.bvalue);
+    } else if (token.literaltype == LiteralType["Null"]) {
+        jvput_null("value");
+    } else if (token.literaltype == LiteralType["Regexp"]) {
+        json_put(jv, "value", vec2json<string>({s(token.strvalue), s(token.flags)}));
+        regexPaths.push(".");
     }
+    jvput("raw", s(slice(sourceraw, token.start, token.end)));
+    this->finish();
+}
 
-    //#CLEAR
-    void finishNewExpression(Node& callee, vector<Node>& args) {
-        addType("NewExpression");
-        reg("callee", callee);
-        nodeVec("arguments", args);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishMemberExpression(char16_t accessor, Node& object, Node& property) {
+    addType("MemberExpression");
+    jvput("computed", (accessor == u'['));
+    reg("object", object);
+    reg("property", property);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishObjectExpression(vector<Node>& properties) {
-        addType("ObjectExpression");
-        nodeVec("properties", properties);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishNewExpression(Node& callee, vector<Node>& args) {
+    addType("NewExpression");
+    reg("callee", callee);
+    nodeVec("arguments", args);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishPostfixExpression(u16string oper, Node& argument) {
-        addType("UpdateExpression");
-        jvput("oper", s(oper));
-        reg("argument", argument);
-        jvput("prefix", false);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishObjectExpression(vector<Node>& properties) {
+    addType("ObjectExpression");
+    nodeVec("properties", properties);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishProgram(vector< Node >& body) {
-        addType("Program");
-        nodeVec("body", body);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishPostfixExpression(u16string oper, Node& argument) {
+    addType("UpdateExpression");
+    jvput("oper", s(oper));
+    reg("argument", argument);
+    jvput("prefix", false);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishProperty(u16string kind, Node& key, Node& value) {
-        addType("Property");
-        reg("key", key);
-        reg("value", value);
-        jvput("kind", s(kind));
-        this->finish();
-    }
+//#CLEAR
+void Node::finishProgram(vector< Node >& body) {
+    addType("Program");
+    nodeVec("body", body);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishReturnStatement(Node& argument) {
-        addType("ReturnStatement");
-        reg("argument", argument);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishProperty(u16string kind, Node& key, Node& value) {
+    addType("Property");
+    reg("key", key);
+    reg("value", value);
+    jvput("kind", s(kind));
+    this->finish();
+}
 
-    //#CLEAR
-    void finishSequenceExpression(vector< Node >& expressions) {
-        addType("SequenceExpression");
-        this->expressions = expressions;
-        nodeVec("expressions", expressions);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishReturnStatement(Node& argument) {
+    addType("ReturnStatement");
+    reg("argument", argument);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishSwitchCase(Node& test, vector< Node >& consequent) {
-        addType("SwitchCase");
-        reg("test", test);
-        nodeVec("consequent", consequent);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishSequenceExpression(vector< Node >& expressions) {
+    addType("SequenceExpression");
+    this->expressions = expressions;
+    nodeVec("expressions", expressions);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishSwitchStatement(Node& discriminant, vector < Node >& cases) {
-        addType("SwitchStatement");
-        reg("discriminant", discriminant);
-        nodeVec("cases", cases);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishSwitchCase(Node& test, vector< Node >& consequent) {
+    addType("SwitchCase");
+    reg("test", test);
+    nodeVec("consequent", consequent);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishThisExpression() {
-        addType("ThisExpression");
-        this->finish();
-    }
+//#CLEAR
+void Node::finishSwitchStatement(Node& discriminant, vector < Node >& cases) {
+    addType("SwitchStatement");
+    reg("discriminant", discriminant);
+    nodeVec("cases", cases);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishThrowStatement(Node& argument) {
-        addType("ThrowStatement");
-        reg("argument", argument);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishThisExpression() {
+    addType("ThisExpression");
+    this->finish();
+}
 
-    //#CLEAR
-    void finishTryStatement(Node& block, vector<Node>& guardedHandlers, 
-                            vector<Node>& handlers, Node& finalizer) {
-        addType("TryStatement");
-        reg("block", block);
-        nodeVec("guardedHandlers", guradedHandlers);
-        nodeVec("handlers", handlers);
-        reg("finalizer", finalizer);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishThrowStatement(Node& argument) {
+    addType("ThrowStatement");
+    reg("argument", argument);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishUnaryExpression(u16string oper, Node& argument) {
-        addType((oper == u"++" || oper == u"--") ? "UpdateExpression" : "UnaryExpression");
-        jvput("operator", s(oper));
-        reg("argument", argument);
-        jvput("prefix", true);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishTryStatement(Node& block, vector<Node>& guardedHandlers, 
+                        vector<Node>& handlers, Node& finalizer) {
+    addType("TryStatement");
+    reg("block", block);
+    nodeVec("guardedHandlers", guradedHandlers);
+    nodeVec("handlers", handlers);
+    reg("finalizer", finalizer);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishVariableDeclaration(List< Node >& declarations, u16string kind) {
-        addType("VariableDeclaration");
-        nodeVec("declarations", declarations);
-        jvput("kind", s(kind));
-        this->finish();
-    }
+//#CLEAR
+void Node::finishUnaryExpression(u16string oper, Node& argument) {
+    addType((oper == u"++" || oper == u"--") ? "UpdateExpression" : "UnaryExpression");
+    jvput("operator", s(oper));
+    reg("argument", argument);
+    jvput("prefix", true);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishVariableDeclarator(Node& id, Node& init) {
-        addType("VariableDeclarator");
-        reg("id", id);
-        reg("init", init);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishVariableDeclaration(List< Node >& declarations, u16string kind) {
+    addType("VariableDeclaration");
+    nodeVec("declarations", declarations);
+    jvput("kind", s(kind));
+    this->finish();
+}
 
-    //#CLEAR
-    void finishWhileStatement(Node& test, Node& body) {
-        addType("WhileStatement");
-        reg("test", test);
-        reg("body", body);
-        this->finish();
-    }
+//#CLEAR
+void Node::finishVariableDeclarator(Node& id, Node& init) {
+    addType("VariableDeclarator");
+    reg("id", id);
+    reg("init", init);
+    this->finish();
+}
 
-    //#CLEAR
-    void finishWithStatement(Node& object, Node& body) {
-        addType("WithStatement");
-        reg("object", object);
-        reg("body", body);
-        this->finish();
-    }
-};
+//#CLEAR
+void Node::finishWhileStatement(Node& test, Node& body) {
+    addType("WhileStatement");
+    reg("test", test);
+    reg("body", body);
+    this->finish();
+}
+
+//#CLEAR
+void Node::finishWithStatement(Node& object, Node& body) {
+    addType("WithStatement");
+    reg("object", object);
+    reg("body", body);
+    this->finish();
+}
+
 
 class WrappingNode : public Node {
 public:
@@ -3182,16 +2674,18 @@ void throwToJS(ExError err) {
 }
 
 
-void genExError(TokenStruct token, u16string messageFormat, vector<string> otherMsg) {
+void genExError(TokenStruct token, u16string messageFormat, vector<string> args) {
     ExError error;
-    var args = Array.prototype.slice.call(arguments, 2),
-        msg = messageFormat.replace(
-            /%(\d)/g,
-            function (whole, idx) {
-               assert(idx < otherMsg.size(), 'Message reference must be in range');
-                return args[idx];
-            }
-        );
+    u16string searchkey, searchresult, msg = messageFormat;
+    for (int i=0; i<args.size(); i++) {
+        searchkey=u"%";
+        searchkey.append(to_string(i));
+        searchresult = msg.find(searchkey);
+        assert(searchresult != u16string::npos, 
+            "args to genExError exceeded substitutable values in message format");
+        msg.erase(searchresult, 2);
+        msg.insert(searchresult, args[i]);
+    }
 
     if (token.lineNumber != -1) {
         error.idx = token.start;
