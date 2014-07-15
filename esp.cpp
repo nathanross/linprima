@@ -8,6 +8,7 @@
 #include <regex>
 #include <functional>
 #include <unordered_set>
+#include <memory>
 #include <exception>
 
 #include "json-c/json.h"
@@ -44,35 +45,35 @@ extern int doubleSerializer(struct json_object *jso, struct printbuf *pb, int le
     return 0;
 }
 
-typedef json_object_new_double json_newint;
-typedef json_object_new_string json_newstr;
-typedef json_object_new_boolean json_newbool;
-typedef json_object_new_object json_newmap;
-typedef json_object_new_array json_newarr;
+inline json_object* json_newint(int in) { return json_object_new_double(in); };
+inline json_object* json_newstr(string in) { return  json_object_new_string(in.data()); };
+inline json_object* json_newbool(bool in) { return json_object_new_boolean(in?1:0); };
+inline json_object* json_newmap() { return json_object_new_object(); };
+inline json_object* json_newarr() { return json_object_new_array(); };
 
-json_object * json_newdbl(char * in) {
-    json_object * tmp = json_object_create_string(in);
+json_object * json_newdbl(const char * in) {
+    json_object * tmp = json_object_new_string(in);
     json_object_set_serializer(tmp, doubleSerializer, 0x0, json_object_free_userdata);
     return tmp;
 }
 
-json_object* json_put_dbl(json_object *a, char *b, string c) {  
-    json_object *tmp = json_object_new_string(c);
-    json_object_object_add(a, b, json_object_new_double(c));
+json_object* json_put_dbl(json_object *a, const char *b, string c) {  
+    json_object *tmp = json_object_new_string(c.data());
+    json_object_object_add(a, b, tmp);
     json_object_set_serializer(tmp, doubleSerializer, 0x0, json_object_free_userdata);
     return tmp;
 }
-inline json_object* json_put_dbl(json_object *a, char *b, u16string c) { return json_put_dbl(a,b,toU8string(c)); }
+inline json_object* json_put_dbl(json_object *a, const char *b, u16string c) { return json_put_dbl(a,b,toU8string(c)); }
 
 json_object* json_push_dbl(json_object *a, string c) {  
-    json_object *tmp = json_object_new_string(c);
-    json_object_array_add(a, json_object_new_double(c));
+    json_object *tmp = json_object_new_string(c.data());
+    json_object_array_add(a, tmp);
     json_object_set_serializer(tmp, doubleSerializer, 0x0, json_object_free_userdata);
     return tmp;
 }
-inline json_object* json_push_dbl(json_object *a, char *b, u16string c) { return json_push_dbl(a,toU8string(c)); }
+inline json_object* json_push_dbl(json_object *a, const char *b, u16string c) { return json_push_dbl(a,toU8string(c)); }
 
-json_object* json_put_newmap(json_object *a, char *b) {
+json_object* json_put_newmap(json_object *a, const char *b) {
     json_object *tmp = json_object_new_object();
     json_object_object_add(a, b, tmp);
     return tmp;
@@ -82,18 +83,18 @@ json_object* json_push_newmap(json_object *a) {
     json_object_array_add(a, tmp);
     return tmp;
 }
-json_object* json_put_newarr(json_object *a, char *b) {
+json_object* json_put_newarr(json_object *a, const char *b) {
     json_object *tmp = json_object_new_array();
     json_object_object_add(a, b, tmp);
     return tmp;
 }
 json_object* json_push_newarr(json_object *a) {
     json_object *tmp = json_object_new_array();
-    json_object_object_add(a, tmp);
+    json_object_array_add(a, tmp);
     return tmp;
 }
 
-void json_put_null(json_object *a, char *b) {
+void json_put_null(json_object *a, const char *b) {
     json_object_object_add(a, b, NULL);
 }
 void json_push_null(json_object *a) {
@@ -102,49 +103,49 @@ void json_push_null(json_object *a) {
 
 //we keep int separate in case we want to implement a separate call method for double
 //it allows to keep easy to track which calls we'll actually have to change.
-json_object* json_put(json_object * a, char* b, string c) {  
-    json_object *tmp = json_object_new_string(c);
+json_object* json_put(json_object * a, const char* b, string c) {  
+    json_object *tmp = json_object_new_string(c.data());
     json_object_object_add(a, b, tmp);
     return tmp;
 }
-inline json_object* json_put(json_object *a, char *b, u16string c) { return json_put(a,b,toU8string(c)); }
-explicit json_object* json_put(json_object *a, char *b, int c) {  
+inline json_object* json_put(json_object *a, const char *b, u16string c) { return json_put(a,b,toU8string(c)); }
+json_object* json_put(json_object *a, const char *b, int c) {  
     json_object *tmp = json_object_new_double(c);
     json_object_object_add(a, b, tmp);
     return tmp;
 }
-explicit json_object* json_put(json_object *a, char*b, bool c) {  
+json_object* json_put(json_object *a, const char *b, bool c) {  
     json_object *tmp = json_object_new_boolean(c?1:0);
     json_object_object_add(a, b, tmp);
     return tmp;
 }
-json_object* json_put(json_object *a, char *b, json_object* c) {  
+json_object* json_put(json_object *a, const char *b, json_object* c) {  
     json_object_object_add(a, b, c);
     return c;
 }
 
-json_object* json_push(json_object *a, char *b, string c) {  
-    json_object *tmp = json_object_new_string(c);
+json_object* json_push(json_object *a, string c) {  
+    json_object *tmp = json_object_new_string(c.data());
     json_object_array_add(a, tmp);
     return tmp;
 }
-inline json_object* json_push(json_object *a, char *b, u16string c) { return json_push(a,toU8string(c)); }
-explicit json_object* json_push(json_object *a, int c) {  
+inline json_object* json_push(json_object *a, u16string c) { return json_push(a,toU8string(c)); }
+json_object* json_push(json_object *a, int c) {  
     json_object *tmp = json_object_new_double(c);
     json_object_array_add(a, tmp);
     return tmp;
 }
-explicit json_object* json_push(json_object *a, bool c) {  
+json_object* json_push(json_object *a, bool c) {  
     json_object *tmp = json_object_new_boolean(c?1:0);
     json_object_array_add(a, tmp);
     return tmp;
 }
 json_object* json_push(json_object *a, json_object *c) {  
-    json_object_array_add(a, b, c);
+    json_object_array_add(a, c);
     return c;
 }
 
-json_object* json_find(json_object *a, char* eqkey) {
+json_object* json_find(json_object *a, const char* eqkey) {
     json_object * result;
     json_object_object_foreach(a, key, val) {
         if (strcmp(key, eqkey) == 0) {
@@ -154,8 +155,8 @@ json_object* json_find(json_object *a, char* eqkey) {
     return nullptr;
 }
 
-json_object* json_require(json_object *a, char* eqkey) {
-    json_object * out = json_find_safe(a, eqkey);
+json_object* json_require(json_object *a, const char* eqkey) {
+    json_object * out = json_find(a, eqkey);
     if (out == nullptr) {
         string errormsg = "json_find failed to find key : ";
         errormsg.append(string(eqkey));
@@ -178,8 +179,8 @@ void json_arrput(json_object* a, int idx, json_object *c){
     json_object_array_put_idx(a, idx, c);
 }
 
-void json_del(json_object *a, char* key) {
-    if (json_find(key) != nullptr) {
+void json_del(json_object *a, const char* key) {
+    if (json_find(a, key) != nullptr) {
         json_object_object_del(a, key);
     }
 }
@@ -196,7 +197,7 @@ json_object* vec2json(vector<T> in) { //only practically valid for vectors of in
 }
 
 template <typename T>
-json_object* vec2jsonCallback(vector<T> in                                                                                           
+json_object* vec2jsonCallback(vector<T> in,                                                                                           
                               function<json_object*(T&)> const& f) {
     json_object * arr = json_object_new_array();
     for (int i=0; i<in.size(); i++) {
@@ -222,9 +223,9 @@ u16string res_u16(void* pos) {
     return *((u16string *) pos);
 }
 
-u16string slice(char16_t *arr, int start, int end) {
+u16string slice(const char16_t *arr, int start, int end) {
     //start inclusive, end exclusive, just like js
-    char16_t * startptr = arr + start;
+    const char16_t * startptr = arr + start;
     int size = sizeof(startptr[0]); //in case need to generalize this func.
     return u16string(startptr, (end-start)*size);
 }
@@ -288,6 +289,7 @@ struct RegexHalf {
 struct Position {
     int line;
     int column;
+
     Position() {
         line = lineNumber;
         column = idx - lineStart;
@@ -298,12 +300,37 @@ struct Loc {
     //aka SourceLocation
     Position start;
     Position end;
+    bool hasSource;
+    string source;
     
     Loc() {
         this->end.line = -1;
         this->end.column = -1;
+        this->hasSource = false;
+        this->source = "";
     }
 };
+
+//#CLEAR 
+json_object * posToJson(Position p) {
+    json_object * root = json_newmap();
+    json_put(root, "line", p.line);
+    json_put(root, "column", p.column);
+    return root;
+}
+
+json_object * locToJson(Loc l) {
+    json_object * root = json_newmap();
+    json_put(root, "start", posToJson(l.start));
+    if (l.end.line != -1) {
+        json_put(root, "end", posToJson(l.end));
+
+    }
+    if (l.hasSource) {
+        json_put(root, "source", l.source.data());
+    }
+    return root;
+}
 
 struct Comment {
     u16string type;
@@ -316,6 +343,16 @@ struct Comment {
         this->range[0] = -1;
         this->range[1] = -1;
     }
+    json_object * toJson() {
+        json_object *root = json_newmap(), *rangearr = json_newarr();
+        json_put(root, "type", toU8string(this->type));
+        json_put(root, "value", toU8string(this->value));
+        json_push(rangearr, this->range[0]);
+        json_push(rangearr, this->range[1]);
+        json_put(root, "range", rangearr);
+        json_put(root, "loc", locToJson(this->loc));
+        return root;
+    }
 };
 
 //# called ExError to prevent forseeable 
@@ -323,15 +360,15 @@ struct Comment {
 class ExError {
 public:
 
-    string description;
+    u16string description;
     int index;
     int lineNumber;
     int column;
     ExError() {
     }
     json_object * toJson() {
-        json_object * root = json_object_new_object();
-        json_put(root, "description", description);
+        json_object * root = json_newmap();
+        json_put(root, "description", toU8string(description));
         json_put(root, "index", this->index);
         json_put(root, "lineNumber", this->lineNumber);
         json_put(root, "column", this->column);
@@ -395,18 +432,17 @@ struct TokenRecord {
         range[0] = -1;
         range[1] = -1;
     }
+    json_object * toJson() {
+        json_object *root = json_newmap(), *rangearr = json_newarr();
+        json_put(root, "type", toU8string(this->typestring));
+        json_put(root, "value", toU8string(this->valuestring));
+        json_push(rangearr, this->range[0]);
+        json_push(rangearr, this->range[1]);
+        json_put(root, "range", rangearr);
+        json_put(root, "loc", locToJson(this->loc));
+        return root;
+    }
 };
-
-
-/*struct Argument {
-    u16string type;
-};
-
-struct Expr {
-    u16string oper;
-    u16string name;
-    Argument argument;
-    };*/
 
 
 class Node {
@@ -415,7 +451,6 @@ public:
     json_object * jv;
     Loc loc;
     bool isNull;
-    NodeFinish nf;
     bool hasLoc;
     bool hasRange;
     int range[2];
@@ -426,29 +461,32 @@ public:
     u16string type;
     u16string name;//for identifiers
     vector< Node > expressions; //for sequence expressions.
+    shared_ptr<Node> left; //for assignment+reinterpretAsCover...
+    shared_ptr<Node> right; //same
 
-    void s(u16string in);
-    Node() {}
+    string s(u16string in);
+    Node();
     json_object* toJson();
-    void jvput(String path, string b);
-    void jvput(String path, int b); 
-    void jvput(String path, bool b);
-    void jvput_dbl(String path, string b);
-    void jvput_null(String path, int b); 
-    void reg(String path, Node &child);
-    json_object * nodeVec(String path, vector< Node > & nodes);
-    void addType(String in);
+    void jvput(string path, string b);
+    void jvput(string path, int b); 
+    void jvput(string path, bool b);
+    void jvput_dbl(string path, string b);
+    void jvput_null(string path); 
+    void regNoadd(vector<string> paths, Node&child);
+    void reg(string path, Node& child);
+    void nodeVec(string path, vector<Node>& nodes);
+    void addType(string in);
     json_object* regexPaths2json();
-    void trailingCommentsIntoJson(const bool leading);
+    void commentsIntoJson(const bool leading);
     void processComment();
     void finish();
     void finishArrayExpression(vector< Node >& elements);
     void finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression);
-    void finishAssignmentExpression(u16string oper, TokenStruct left, Node& right);
+    void finishAssignmentExpression(u16string oper, Node& left, Node& right);
     void finishBinaryExpression(u16string oper, Node& left, Node& right);
     void finishBlockStatement(vector< Node >& body);
     void finishBreakStatement(Node& label);
-    void finishCallExpression(Node& callee, Vector< Node >& args);
+    void finishCallExpression(Node& callee, vector< Node >& args);
     void finishCatchClause(Node& param, Node& body);
     void finishConditionalExpression(Node& test, Node& consequent, Node& alternate);
     void finishContinueStatement(Node& label);
@@ -470,18 +508,18 @@ public:
     void finishNewExpression(Node& callee, vector<Node>& args);
     void finishObjectExpression(vector<Node>& properties);
     void finishPostfixExpression(u16string oper, Node& argument);
-    void finishProgram(vector< Node >& body);
+    void finishProgram(vector<Node>& body);
     void finishProperty(u16string kind, Node& key, Node& value);
     void finishReturnStatement(Node& argument);
-    void finishSequenceExpression(vector< Node >& expressions);
-    void finishSwitchCase(Node& test, vector< Node >& consequent);
-    void finishSwitchStatement(Node& discriminant, vector < Node >& cases);
+    void finishSequenceExpression(vector<Node>& expressions);
+    void finishSwitchCase(Node& test, vector<Node>& consequent);
+    void finishSwitchStatement(Node& discriminant, vector<Node>& cases);
     void finishThisExpression();
     void finishThrowStatement(Node& argument);
     void finishTryStatement(Node& block, vector<Node>& guardedHandlers, 
                             vector<Node>& handlers, Node& finalizer);
     void finishUnaryExpression(u16string oper, Node& argument);
-    void finishVariableDeclaration(List< Node >& declarations, u16string kind);
+    void finishVariableDeclaration(vector<Node>& declarations, u16string kind);
     void finishVariableDeclarator(Node& id, Node& init);
     void finishWhileStatement(Node& test, Node& body);
     void finishWithStatement(Node& object, Node& body);
@@ -518,7 +556,7 @@ struct ExtraStruct {
     bool attachComment;
     vector<Comment> leadingComments;
     vector<Comment> trailingComments;
-    vector< void * > bottomRightStack; //! todo Node header text.
+    vector< Node * > bottomRightStack; //! todo Node header text.
 
     ExtraStruct() {
         tokenize = false;
@@ -562,7 +600,7 @@ struct OptionsStruct {
         hasSource = false;
     }
     bool json_getbool(json_object* in, string key, bool defaultVal) {
-        json_object* tmp = json_find(in, key);
+        json_object* tmp = json_find(in, key.data());
         if (tmp == nullptr) { return defaultVal; }
         return (bool) json_object_get_boolean(tmp);
     }
@@ -574,7 +612,7 @@ struct OptionsStruct {
         comment = json_getbool(in, "comment", false);
         tolerant = json_getbool(in, "tolerant", false);
         tokens = json_getbool(in, "tokens", false);
-        tmp = json_find(in, key);        
+        tmp = json_find(in, "source");        
         hasSource = (tmp != nullptr);
         if (hasSource) 
             { source = json_object_get_string(tmp); }
@@ -600,6 +638,9 @@ struct ParseParamsOut {
     u16string message;
     vector< Node > params;
     vector< Node > defaults;
+    ParseParamsOut() {
+        message=u"";
+    }
 };
 
 
@@ -616,11 +657,13 @@ struct ReinterpretOptions {
 struct ReinterpretOut {
     Node firstRestricted;
     Node stricted;
+    bool isNull;
     u16string message;
     vector< Node > params;
     vector< Node > defaults;
     void* rest; //seems to be a dummy var?
     ReinterpretOut() {
+        isNull=false;
         firstRestricted = NULLNODE;
         stricted = NULLNODE;
     }
@@ -657,8 +700,10 @@ public:
 //---- ----------  -----------------------------
 // signatures (temporary until we set up a header file):
 
-void throwError(TokenStruct token, u16string messageFormat, string otherMsg);
-void throwErrorTolerant(TokenStruct token, u16string messageFormat, string otherMsg);
+void throwError(TokenStruct token, u16string messageFormat, 
+                vector<u16string> args);
+void throwErrorTolerant(TokenStruct token, u16string messageFormat, 
+                        vector<u16string> args);
 void throwUnexpected(TokenStruct token);
 
 
@@ -669,7 +714,7 @@ ExtraStruct extra;
 StateStruct state;
 TokenStruct lookahead;
 
-char16_t * sourceraw;
+const char16_t * sourceraw;
 char16_t source(int idx) { return *(sourceraw + idx); }
 
 map<string, int> LiteralType = {
@@ -764,8 +809,8 @@ map<string, u16string> Syntax = {
 };
 
 map<string, Node> PlaceHolders { 
-    {"ArrowParameterPlaceHolder" : Node()} 
-} 
+    {"ArrowParameterPlaceHolder", Node()} 
+};
 //map<string, int> 
 
 
@@ -835,7 +880,7 @@ void initglobals() {
  // Do NOT use this to enforce a certain condition on any user input.
 
 void assert(bool condition, string message) { 
-     /* istanbul ignore if */
+    
     if (!condition) {
         throw std::runtime_error(message);
     }
@@ -1006,12 +1051,6 @@ u16string dummy(char16_t in){
 }
 
 
-int main() {
-    u16string banana = dummy(u'g');
-    std::cout << toU8string(banana) << std::endl;
-    return 0;
-}
-
 //#CLEAR+
 void skipSingleLineComment(const int offset) {
     int start;
@@ -1077,7 +1116,7 @@ void skipMultiLineComment() {
             ++idx;
             lineStart = idx;
             if (idx >= length) {
-                throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+                throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
             }
         } else if (ch == 0x2A) {
             // Block comment ends with ''.
@@ -1098,7 +1137,7 @@ void skipMultiLineComment() {
         }
     }
 
-    throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+    throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
 }
 
 //#CLEAR+
@@ -1187,7 +1226,7 @@ u16string scanUnicodeCodePointEscape() {
 
     // At least, one hex digit is required.
     if (ch == u'}') {
-        throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+        throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
 
     while (idx < length) {
@@ -1199,7 +1238,7 @@ u16string scanUnicodeCodePointEscape() {
     }
 
     if (code > 0x10FFFF || ch != u'}') {
-        throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+        throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
 
     // UTF-16 Encoding
@@ -1222,12 +1261,12 @@ u16string getEscapedIdentifier() {
     // '\u' (U+005C, U+0075) denotes an escaped character.
     if (ch == 0x5C) {
         if (source(idx) != 0x75) {
-            throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+            throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
         }
         ++idx;
         ch = scanHexEscape(u'u');
         if (!ch || ch == u'\\' || !isIdentifierStart(ch)) { //!! what does !ch mean in this context?
-            throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+            throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
         }
         id = u16string({ch});
     }
@@ -1244,12 +1283,12 @@ u16string getEscapedIdentifier() {
         if (ch == 0x5C) {
             id = id.substr(0, id.length() - 1);
             if (source(idx) != 0x75) {
-                throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+                throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
             }
             ++idx;
             ch = scanHexEscape(u'u');
             if (!ch || ch == u'\\' || !isIdentifierPart(ch)) {
-                throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+                throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
             }
             append(id, ch);
         }
@@ -1432,7 +1471,7 @@ TokenStruct scanPunctuator() {
         return t;
     }
 
-    throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+    throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     return t; //?! returning this empty on error is not in source behavior. need to make sure it's handled gracefully.
 }
     // 7.8.3 Numeric Literals
@@ -1450,11 +1489,11 @@ TokenStruct scanHexLiteral(const int start) {
     }
 
     if (number.length() == 0) {
-        throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+        throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
 
     if (isIdentifierStart(source(idx))) {
-        throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+        throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
    
     t.type = Token["NumericLiteral"];
@@ -1483,7 +1522,7 @@ TokenStruct scanOctalLiteral(const int start) {
     }
     
     if (isIdentifierStart(source(idx)) || isDecimalDigit(source(idx))) {
-        throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+        throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
 
     t.type = Token["NumericLiteral"];
@@ -1527,7 +1566,7 @@ TokenStruct scanNumericLiteral() {
             }
             // decimal number starts with '0' such as '09' is illegal.
             if (ch && isDecimalDigit(ch)) {
-                throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"}); 
+                throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"}); 
             }
         }
 
@@ -1557,12 +1596,12 @@ TokenStruct scanNumericLiteral() {
                 append(number, source(idx++));
             }
         } else {
-            throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+            throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
         }
     }
 
     if (isIdentifierStart(source(idx))) {
-        throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+        throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
     
     t.type = Token["NumericLiteral"];
@@ -1675,7 +1714,7 @@ TokenStruct scanStringLiteral() {
     }
 
     if (quote != NULL_CHAR16) {
-        throwError(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+        throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
     
     t.type = Token["StringLiteral"];
@@ -1773,10 +1812,10 @@ RegexHalf scanRegExpFlags() {
                     str.append(u"\\u");
                 }
 
-                throwErrorTolerant(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+                throwErrorTolerant(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
             } else {
                 append(str, u'\\');
-                throwErrorTolerant(NULLTOKEN, Messages["UnexpectedToken"], {"ILLEGAL"});
+                throwErrorTolerant(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
             }
         } else {
             append(flags, ch);
@@ -1992,7 +2031,7 @@ TokenStruct advance() {
     }
 
     // Slash (/) U+002F can also start a regex.
-    if (extra.tokenize && ch === 0x2F) {
+    if (extra.tokenize && ch == 0x2F) {
         return advanceSlash();
     }
 
@@ -2008,7 +2047,7 @@ TokenStruct collectToken() {
 
     skipComment();
     loc.start.line = lineNumber;
-    loc.start.column = idx - ineStart;
+    loc.start.column = idx - lineStart;
 
     token = advance();
     loc.end.line = lineNumber;
@@ -2033,7 +2072,7 @@ TokenStruct lex() {
     lineNumber = token.lineNumber;
     lineStart = token.lineStart;
 
-    lookahead = (tokenTracking) ? collectToken() : advance(); 
+    lookahead = (extra.tokenTracking) ? collectToken() : advance(); 
 
     idx = token.end;
     lineNumber = token.lineNumber;
@@ -2048,7 +2087,7 @@ void peek() {
     pos = idx;
     line = lineNumber;
     start = lineStart;
-    lookahead = (tokenTracking) ? collectToken() : advance(); 
+    lookahead = (extra.tokenTracking) ? collectToken() : advance(); 
     idx = pos;
     lineNumber = line;
     lineStart = start;
@@ -2056,23 +2095,7 @@ void peek() {
 
 //# Position and SourceLocation are defined as structs near the top.
 
-//#CLEAR 
-json_object * posToJson(Position p) {
-    json_object * root = json_newmap();
-    json_put(root, "line", p.line);
-    json_put(root, "column", p.column);
-    return root;
-}
 
-json_object * locToJson(Loc l) {
-    json_object * root = json_newmap();
-    json_put(root, "start", posToJson(l.start));
-    if (l.end.line != -1) {
-        json_put(root, "end", posToJson(l.end));
-
-    }
-    return root;
-}
 
 //#CLEAR
 //Loc 
@@ -2108,48 +2131,60 @@ json_object* Node::toJson() {
     return this->jv;
 }
 
-void Node::jvput(String path, string b) {json_put(jv, path, b); }
-void Node::jvput(String path, int b) {json_put(jv, path, b); }
-void Node::jvput(String path, bool b) {json_put(jv, path, b); }
-void Node::jvput_dbl(String path, string b) {json_put_dbl(jv, path, b); }
-void Node::jvput_null(String path, int b) {json_put_null(jv, path); }
+string Node::s(u16string in) { return toU8string(in); }
 
-void Node::reg(String path, Node &child) {
-    if (child.isNull) { json_put_null(jv, path); }
+void Node::jvput(string path, string b) {json_put(jv, path.data(), b); }
+void Node::jvput(string path, int b) {json_put(jv, path.data(), b); }
+void Node::jvput(string path, bool b) {json_put(jv, path.data(), b); }
+void Node::jvput_dbl(string path, string b) {json_put_dbl(jv, path.data(), b); }
+void Node::jvput_null(string path) { json_put_null(jv, path.data()); }
+
+//# different name to prevent easy bug of forgetting the string.
+void Node::regNoadd(vector<string> paths, Node &child) {
+    if (child.isNull) { 
+        child.jv = NULL;
+        return;
+    }
     if (child.hasRange) {
         json_put(child.jv, "range", 
                  vec2json<int>({child.range[0], child.range[1]}));
     }
     if (child.hasLoc) {
-        json_put(child.jv, "loc", loc2json(child.loc));
+        json_put(child.jv, "loc", locToJson(child.loc));
     }
-    if (child.regexPaths.size() >= 0) {
+    if (child.regexPaths.size() > 0) {
         if (child.regexPaths[0][0] == ".") {
-            regexPaths.push_back({index});
-        }
-        for (int i=0; i<child.regexPaths.size(); i++) {
-            regexPaths.push_back(child.regexPaths[i]);
-            regexPaths.back().push_back(index);
+            regexPaths.push_back(paths);
+        } else {
+            for (int i=0; i<child.regexPaths.size(); i++) {
+                regexPaths.push_back(child.regexPaths[i]);
+                for (int j=0; j<paths.size(); j++) {
+                    regexPaths.back().push_back(paths[j]);
+                }
+            }
         }
         child.regexPaths.clear();
     }
-
-    json_put(jv, path, child.jv);
 }
 
-json_object * Node::nodeVec(String path, vector< Node > & nodes) {
+void Node::reg(string path, Node &child) {
+    regNoadd({path}, child);
+    json_put(jv, path.data(), child.jv);
+}
+
+void Node::nodeVec(string path, vector< Node > & nodes) {
     json_object * root = json_newarr();
     for (int i=0; i<nodes.size(); i++) {
         if (nodes[i].isNull) {
             json_push_null(root);
         } else {
-            reg(nodes[i]);
-            json_push(nodes[i].jv);
+            regNoadd({path, to_string(i)}, nodes[i]);
+            json_push(root, nodes[i].jv);
         }
     } 
-    json_put(jv, path, root);
+    json_put(jv, path.data(), root);
 }
-void Node::addType(String in) {
+void Node::addType(string in) {
     type = Syntax[in];
     json_put(jv, "type", s(type));
 }
@@ -2166,7 +2201,7 @@ json_object* Node::regexPaths2json() {
     return root;
 }
 
-void Node::trailingCommentsIntoJson(const bool leading) {
+void Node::commentsIntoJson(const bool leading) {
     string key;
     vector<Comment> * commentVec;
     if (leading) {
@@ -2176,11 +2211,11 @@ void Node::trailingCommentsIntoJson(const bool leading) {
         key = "trailingComments";
         commentVec = &trailingComments;
     }
-    if (commentVec.size() > 0) {
-        jvput(key, vec2jsonCallback(commentVec,
+    if (commentVec->size() > 0) {
+        jvput(key, vec2jsonCallback<Comment>(*commentVec,
                                           &Comment::toJson));
     } else {
-        jv.removeKey(key);
+        json_del(jv, key.data());
     }
 }
 
@@ -2193,7 +2228,7 @@ void Node::processComment() {
 
     vector< Node * > * bottomRight = &(extra.bottomRightStack);
     Node * lastChild,
-        * last = bottomRight[bottomRight.length - 1];
+        * last = bottomRight->at(bottomRight->size() - 1);
     bool LEADING = true;
 
 
@@ -2204,7 +2239,7 @@ void Node::processComment() {
     }
 
     if (extra.trailingComments.size() > 0) {
-        if (extra.trailingComments[0].range[0] >= this->range[1].asInt()) {
+        if (extra.trailingComments[0].range[0] >= this->range[1]) {
             trailingComments = extra.trailingComments;
             extra.trailingComments.clear();
         } else {
@@ -2215,7 +2250,7 @@ void Node::processComment() {
     } else {
         if (!(last->isNull) && 
             last->trailingComments.size() > 0 && 
-            last->trailingComments[0].range[0] >= this->range[1].asInt()) {
+            last->trailingComments[0].range[0] >= this->range[1]) {
             trailingComments = last->trailingComments;
             last->trailingComments.clear();
             last->commentsIntoJson(! LEADING);
@@ -2226,29 +2261,30 @@ void Node::processComment() {
 
     // Eating the stack.
     if (!(last->isNull)) {
-        while ((!(last->isNull)) && last->range[0] >= this->range[0].asInt()) {
+        while ((!(last->isNull)) && last->range[0] >= this->range[0]) {
             lastChild = last;
-            last = bottomRight->pop();
+            last = bottomRight->back();
+            bottomRight->pop_back();
         }
     }
 
     if (!(lastChild->isNull)) { 
         if (lastChild->leadingComments.size() > 0 &&
-            lastChild->leadingComments[lastChild->leadingComments.size() - 1].range[1] <= this->range[0].asInt()) {
+            lastChild->leadingComments[lastChild->leadingComments.size() - 1].range[1] <= this->range[0]) {
             this->leadingComments = lastChild->leadingComments;
             lastChild->leadingComments.clear();
             lastChild->commentsIntoJson(LEADING);
             this->commentsIntoJson(LEADING);
         }
     } else if (extra.leadingComments.size() > 0 && 
-               extra.leadingComments[extra.leadingComments.size() - 1].range[1] <= this->range[0].asInt()) {
+               extra.leadingComments[extra.leadingComments.size() - 1].range[1] <= this->range[0]) {
         this->leadingComments = extra.leadingComments;
         extra.leadingComments.clear();
         this->commentsIntoJson(LEADING);
     }
 
     if (trailingComments.size() > 0) {
-        this.trailingComments = trailingComments;
+        this->trailingComments = trailingComments;
         this->commentsIntoJson(! LEADING);
     }
 
@@ -2264,7 +2300,8 @@ void Node::finish() {
         Position newpos;
         loc.end = newpos;
         if (extra.hasSource) {
-            loc.source = = extra.source; 
+            loc.source = extra.source; 
+            loc.hasSource = true;
         }
     }
 
@@ -2294,11 +2331,19 @@ void Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >&
 }
 
 //#CLEAR
-void Node::finishAssignmentExpression(u16string oper, TokenStruct left, Node& right) {
+void Node::finishAssignmentExpression(u16string oper, Node& left, Node& right) {
     addType("AssignmentExpression");
     jvput("operator", s(oper));
     reg("left", left);
+    Node * tmpleft = new Node();
+    *tmpleft = left;
+    shared_ptr<Node> tmpleftshared (tmpleft);
+    this->left = tmpleftshared; 
     reg("right", right);
+    Node * tmpright = new Node();
+    *tmpright = right;
+    shared_ptr<Node> tmprightshared (tmpright);
+    this->right = tmprightshared; 
     this->finish();
 }
 
@@ -2326,7 +2371,7 @@ void Node::finishBreakStatement(Node& label) {
 }
 
 //#CLEAR
-void Node::finishCallExpression(Node& callee, Vector< Node >& args) {
+void Node::finishCallExpression(Node& callee, vector< Node >& args) {
     addType("CallExpression");
     reg("callee", callee);
     nodeVec("arguments", args);
@@ -2409,8 +2454,8 @@ void Node::finishFunctionDeclaration(Node& id, vector< Node >& params,
                                vector< Node >& defaults, Node& body) {
     addType("FunctionDeclaration");
     reg("id", id);
-    vecNode("params", params);
-    vecNode("defaults", defaults);
+    nodeVec("params", params);
+    nodeVec("defaults", defaults);
     reg("body", body);
     jvput_null("rest");
     jvput("generator", false);
@@ -2421,11 +2466,10 @@ void Node::finishFunctionDeclaration(Node& id, vector< Node >& params,
 //#CLEAR
 void Node::finishFunctionExpression(Node& id, vector< Node >& params, 
                               vector< Node >& defaults, Node& body) {
-    reg(body);
     addType("FunctionExpression");
     reg("id", id);
-    vecNode("params", params);
-    vecNode("defaults", defaults);
+    nodeVec("params", params);
+    nodeVec("defaults", defaults);
     reg("body", body);
     jvput_null("rest");
     jvput("generator", false);
@@ -2473,7 +2517,7 @@ void Node::finishLiteral(TokenStruct token) {
         jvput_null("value");
     } else if (token.literaltype == LiteralType["Regexp"]) {
         json_put(jv, "value", vec2json<string>({s(token.strvalue), s(token.flags)}));
-        regexPaths.push(".");
+        regexPaths.push_back({"."});
     }
     jvput("raw", s(slice(sourceraw, token.start, token.end)));
     this->finish();
@@ -2577,7 +2621,7 @@ void Node::finishTryStatement(Node& block, vector<Node>& guardedHandlers,
                         vector<Node>& handlers, Node& finalizer) {
     addType("TryStatement");
     reg("block", block);
-    nodeVec("guardedHandlers", guradedHandlers);
+    nodeVec("guardedHandlers", guardedHandlers);
     nodeVec("handlers", handlers);
     reg("finalizer", finalizer);
     this->finish();
@@ -2585,7 +2629,8 @@ void Node::finishTryStatement(Node& block, vector<Node>& guardedHandlers,
 
 //#CLEAR
 void Node::finishUnaryExpression(u16string oper, Node& argument) {
-    addType((oper == u"++" || oper == u"--") ? "UpdateExpression" : "UnaryExpression");
+    addType((oper == u"++" || oper == u"--") ? 
+            "UpdateExpression" : "UnaryExpression");
     jvput("operator", s(oper));
     reg("argument", argument);
     jvput("prefix", true);
@@ -2593,7 +2638,9 @@ void Node::finishUnaryExpression(u16string oper, Node& argument) {
 }
 
 //#CLEAR
-void Node::finishVariableDeclaration(List< Node >& declarations, u16string kind) {
+void Node::finishVariableDeclaration(vector< Node >& declarations, 
+                                     u16string kind) {
+
     addType("VariableDeclaration");
     nodeVec("declarations", declarations);
     jvput("kind", s(kind));
@@ -2640,11 +2687,12 @@ public:
     Loc WrappingSourceLocation(TokenStruct startToken) {
         Loc result;
         if (startToken.type == Token["StringLiteral"]) {
-            this.start.line = startToken.startLineNumber;
-            this.start.column = startToken.start - startToken.startLineStart;
+            this->loc.start.line = startToken.startLineNumber;
+            this->loc.start.column = 
+                startToken.start - startToken.startLineStart;
         } else {
-            this.start.line = startToken.lineNumber;
-            this.start.column = startToken.start - startToken.lineStart;
+            this->loc.start.line = startToken.lineNumber;
+            this->loc.start.column = startToken.start - startToken.lineStart;
         }
         //return result;
         return result;
@@ -2670,16 +2718,20 @@ bool peekLineTerminator() {
 
 // Throw an exception
 void throwToJS(ExError err) {
-    throw runtime_error(
+    throw runtime_error(toU8string(err.description));
 }
 
 
-void genExError(TokenStruct token, u16string messageFormat, vector<string> args) {
+ExError genExError(TokenStruct token, u16string messageFormat, 
+                vector<u16string> args) {
     ExError error;
-    u16string searchkey, searchresult, msg = messageFormat;
+    int searchresult;
+    u16string searchkey, msg = messageFormat;
     for (int i=0; i<args.size(); i++) {
         searchkey=u"%";
-        searchkey.append(to_string(i));
+        //#all this conversion is a bit ridiculous. it may
+        //#be simpler here to work with just strings.
+        searchkey.append(toU16string(to_string(i)));
         searchresult = msg.find(searchkey);
         assert(searchresult != u16string::npos, 
             "args to genExError exceeded substitutable values in message format");
@@ -2688,11 +2740,11 @@ void genExError(TokenStruct token, u16string messageFormat, vector<string> args)
     }
 
     if (token.lineNumber != -1) {
-        error.idx = token.start;
+        error.index = token.start;
         error.lineNumber = token.lineNumber;
         error.column = token.start - lineStart + 1;
     } else {
-        error.idx = idx;
+        error.index = idx;
         error.lineNumber = lineNumber;
         error.column = idx - lineStart + 1;
     }
@@ -2701,11 +2753,11 @@ void genExError(TokenStruct token, u16string messageFormat, vector<string> args)
     return error;
 }
 
-void throwError(TokenStruct token, u16string messageFormat, vector<string> args) {
-    throwToJs(genExError(token, messageFormat, args));
+void throwError(TokenStruct token, u16string messageFormat, vector<u16string> args) {
+    throwToJS(genExError(token, messageFormat, args));
 }
 
-void throwErrorTolerant(TokenStruct token, u16string messageFormat, vector<string> args) {
+void throwErrorTolerant(TokenStruct token, u16string messageFormat, vector<u16string> args) {
     ExError result = genExError(token, messageFormat, args);
     if (extra.errorTolerant) {
         extra.errors.push_back(result);
@@ -2740,11 +2792,11 @@ void throwUnexpected(TokenStruct token) {
             throwErrorTolerant(token, Messages["StrictReservedWord"], {});
             return;
         }
-        throwError(token, Messages["UnexpectedToken"], toU8string(token.strvalue));
+        throwError(token, Messages["UnexpectedToken"], {token.strvalue});
     }
 
     // BooleanLiteral, NullLiteral, or Punctuator.
-    throwError(token, Messages["UnexpectedToken"], toU8string(token.strvalue));
+    throwError(token, Messages["UnexpectedToken"], {token.strvalue});
 }
     // Expect the next token to match the specified punctuator.
     // If not, an exception will be thrown.
@@ -2753,7 +2805,7 @@ void throwUnexpected(TokenStruct token) {
 
 //#CLEAR
 void expect(u16string value) {
-    var token = lex();
+    TokenStruct token = lex();
     if (!(has<int>(token.type, {NULLTOKEN.type, 
                         Token["Keyword"],  //# don't include punctuator.
                         Token["StringLiteral"],
@@ -2764,23 +2816,19 @@ void expect(u16string value) {
 }
 
 
-   /* @name expectTolerant
-    * @description Quietly expect the given token value when in tolerant mode, otherwise delegates
-    * to <code>expect(value)</code>
-    * @param {String} value The value we are expecting the lookahead token to have
-    * @since 2.0
-    */
+ 
 //#CLEAR
-function expectTolerant(u16string value) {
-    if (extra.errors) {
-        var token = lookahead;
+void expectTolerant(u16string value) {
+    if (extra.errorTolerant) {
+        TokenStruct token = lookahead;
         if (!(has<int>(token.type, {
                         NULLTOKEN.type, 
                             Token["Keyword"],  //# don't include punctuator.
                             Token["StringLiteral"],
                             Token["Identifier"]})) || 
                 token.strvalue != value) {
-            throwErrorTolerant(token, Messages["UnexpectedToken"], token.strvalue);
+            throwErrorTolerant(token, Messages["UnexpectedToken"], 
+                               {token.strvalue});
         } else {
             lex();
         }
@@ -2793,7 +2841,7 @@ function expectTolerant(u16string value) {
 // If not, an exception will be thrown.
 //#CLEAR
 void expectKeyword(const u16string keyword) {
-    var token = lex();
+    TokenStruct token = lex();
     if (token.type != Token["Keyword"] || 
         token.strvalue != keyword) {
         throwUnexpected(token);
@@ -2837,12 +2885,30 @@ bool matchAssign() {
                 u"|="});
 }
 
+//#forward declarations of out-of-dependency order
+//#or cross-dependent functions, in rough order of req.
+Node parseAssignmentExpression();
+Node parseFunctionSourceElements();
+Node parseVariableIdentifier();
+Node parseExpression();
+Node parseFunctionExpression();
+Node parseLeftHandSideExpression();
+Node parseSourceElement();
+Node parseStatement();
+vector<Node> parseVariableDeclarationList(u16string in);
+Node parseFunctionDeclaration();
+
+
+//#can't dynamically initialize empty vectors
+//#if func is passed by reference.
+vector<Node> EMPTY_NODE_LIST;
+
 //#CLEAR
 void consumeSemicolon() {
     int line;
 
     // Catch the very common case first: immediately a semicolon (U+003B).
-    if (source(idx) == 0x3B ||3 match(u";")) { 
+    if (source(idx) == 0x3B || match(u";")) { 
         lex();
         return;
     }
@@ -2907,7 +2973,8 @@ Node parsePropertyFunction(vector<Node>& param, TokenStruct first) {
         throwErrorTolerant(first, Messages["StrictParamName"],{});
     }
     strict = previousStrict;
-    node.finishFunctionExpression(NULLNODE, param, {}, body); 
+    node.finishFunctionExpression(NULLNODE, param, 
+                                  EMPTY_NODE_LIST, body); 
     return node;
 }
 
@@ -2951,7 +3018,8 @@ Node parseObjectProperty() {
             key = parseObjectPropertyKey();
             expect(u"(");
             expect(u")");
-            value = parsePropertyFunction({}, NULLTOKEN);
+            value = parsePropertyFunction(
+                                          EMPTY_NODE_LIST, NULLTOKEN);
             node.finishProperty(u"get", key, value);
             return node;
         }
@@ -2963,8 +3031,9 @@ Node parseObjectProperty() {
                 expect(u")");
                 throwErrorTolerant(token, 
                                    Messages["UnexpectedToken"], 
-                                   toU8string(token.strvalue));
-                value = parsePropertyFunction({}, NULLTOKEN]);
+                                   {token.strvalue});
+                value = parsePropertyFunction(EMPTY_NODE_LIST, 
+                                              NULLTOKEN);
             } else {
                 param = vector< Node >({ parseVariableIdentifier() });
                 expect(u")");
@@ -2980,6 +3049,7 @@ Node parseObjectProperty() {
     }
     if (token.type == Token["EOF"] || token.type == Token["Punctuator"]) {
         throwUnexpected(token);
+        return NULLNODE; //#just to satisfy warnings.
     } else {
         key = parseObjectPropertyKey();
         expect(u":");
@@ -2990,7 +3060,7 @@ Node parseObjectProperty() {
 }
 
 string json_tostring(json_object * in) {
-    json_type objtype json_object_get_type(in);
+    json_type objtype = json_object_get_type(in);
     if (objtype == json_type_string) {
         return json_object_get_string(in);
     } else if (objtype == json_type_double) {
@@ -3004,28 +3074,31 @@ string json_tostring(json_object * in) {
 //#CLEAR
 Node parseObjectInitialiser() {
     vector<Node> properties;
-    TokenSruct token;
+    TokenStruct token;
     Node node, property;
     json_object * keyobj;
-    string keytype;
-    u16string name, key, kind;
-    map<u16string, int> kmap;
+    string keytype, key, name, kindname;
+    int kind;
+    map<string, int> kmap;
 
     expect(u"{");
 
     while (!match(u"}")) {
         property = parseObjectProperty();
-        keyobj = json_require(property, "key");
-        keytype = json_object_get_string(keyobj, "type");
+        keyobj = json_require(property.jv, "key");
+        keytype = json_object_get_string(
+                                         json_require(keyobj, "type"));
 
-        if (keytype == s(Syntax["Identifier"])) {
-            name = tou16string(json_object_get_string(json_require(keyobj, "name")));
+        if (keytype == toU8string(Syntax["Identifier"])) {
+            name = json_object_get_string(
+                                        json_require(keyobj, "name"));
         } else {
             name = json_tostring(json_require(keyobj, "value"));
         }
-        kind = (property.kind == u"init") ? PropertyKind["Data"] : (property.kind == u"get") ? PropertyKind["Get"] : PropertyKind["Set"];
+        kindname = json_object_get_string(json_require(property.jv, "kind"));
+        kind = (kindname == "init") ? PropertyKind["Data"] : (kindname == "get") ? PropertyKind["Get"] : PropertyKind["Set"];
 
-        key = u"$";
+        key = "$";
         key.append(name);
         if (hasStringKey<int>(key,kmap)) {
             if (kmap[key] == PropertyKind["Data"]) {
@@ -3049,7 +3122,7 @@ Node parseObjectInitialiser() {
         properties.push_back(property);
 
         if (!match(u"}")) {
-            expectTolerant(',');
+            expectTolerant(u",");
         }
     }
 
@@ -3099,7 +3172,7 @@ Node parsePrimaryExpression() {
 
     expr = node;
     if (type == Token["Identifier"]) {
-        expr.finishIdentifier(lex().value);
+        expr.finishIdentifier(lex().strvalue);
     } else if (type == Token["StringLiteral"] || type == Token["NumericLiteral"]) {
         if (strict && lookahead.octal) {
             throwErrorTolerant(lookahead, Messages["StrictOctalLiteral"], {});
@@ -3121,7 +3194,7 @@ Node parsePrimaryExpression() {
         expr.finishLiteral(token);
     } else if (type == Token["NullLiteral"]) {
         token = lex();
-        token.value = null;
+        token.isNull = true;
         expr.finishLiteral(token);
     } else if (match(u"/") || match(u"/=")) {
         if (extra.tokenTracking) {
@@ -3144,7 +3217,7 @@ vector< Node > parseArguments() {
     expect(u"(");
     if (!match(u")")) {
         while (idx < length) {
-            args.push(parseAssignmentExpression());
+            args.push_back(parseAssignmentExpression());
             if (match(u")")) {
                 break;
             }
@@ -3207,22 +3280,23 @@ Node parseLeftHandSideExpressionAllowCall() {
 
     startToken = lookahead;
     state.allowIn = true;
-    expr = matchKeyword('new') ? parseNewExpression() : parsePrimaryExpression();
+    expr = matchKeyword(u"new") ? 
+        parseNewExpression() : parsePrimaryExpression();
 
     for (;;) {
         if (match(u".")) {
             property = parseNonComputedMember();
-            tmpnode = new WrappingNode(startToken);
+            tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'.', expr, property);
             expr = tmpnode;
         } else if (match(u"(")) {
             args = parseArguments();
-            tmpnode = new WrappingNode(startToken);
+            tmpnode = WrappingNode(startToken);
             tmpnode.finishCallExpression(expr, args);
             expr = tmpnode;
         } else if (match(u"[")) {
             property = parseComputedMember();
-            tmpnode = new WrappingNode(startToken);
+            tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'[', expr, property);
             expr = tmpnode;
         } else {
@@ -3240,16 +3314,17 @@ Node parseLeftHandSideExpression() {
     TokenStruct startToken;
     assert(state.allowIn, "callee of new expression always allow in keyword.");
     startToken = lookahead;
-    expr = matchKeyword('new') ? parseNewExpression() : parsePrimaryExpression();
+    expr = matchKeyword(u"new") ? 
+        parseNewExpression() : parsePrimaryExpression();
     for (;;) {
         if (match(u"[")) {
             property = parseComputedMember();
-            tmpnode = new WrappingNode(startToken);
+            tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'[', expr, property);
             expr = tmpnode;
         } else if (match(u".")) {
             property = parseNonComputedMember();
-            tmpnode = new WrappingNode(startToken);
+            tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'.', expr, property);
             expr = tmpnode;
         } else {
@@ -3270,16 +3345,19 @@ Node parsePostfixExpression() {
     if (lookahead.type == Token["Punctuator"]) {
         if ((match(u"++") || match(u"--")) && !peekLineTerminator()) {
             // 11.3.1, 11.3.2
-            if (strict && expr.type == Syntax["Identifier"] && isRestrictedWord(expr.name)) {
-                throwErrorTolerant(NULLTOKEN, Messages["StrictLHSPostfix"],{});
+            if (strict && expr.type == Syntax["Identifier"] && 
+                isRestrictedWord(expr.name)) {
+                throwErrorTolerant(NULLTOKEN,
+                                   Messages["StrictLHSPostfix"],{});
             }
 
             if (!isLeftHandSide(expr)) {
-                throwErrorTolerant(NULLTOKEN, Messages["InvalidLHSInAssignment"],{});
+                throwErrorTolerant(NULLTOKEN,
+                                   Messages["InvalidLHSInAssignment"],{});
             }
 
             token = lex();
-            tmpnode = new WrappingNode(startToken);
+            tmpnode = WrappingNode(startToken);
             tmpnode.finishPostfixExpression(token.strvalue, expr);
             return tmpnode;
         }
@@ -3310,21 +3388,21 @@ Node parseUnaryExpression() {
             throwErrorTolerant(NULLTOKEN, Messages["InvalidLHSInAssignment"], {});
         }
 
-        tmpnode = new WrappingNode(startToken);
+        tmpnode = WrappingNode(startToken);
         tmpnode.finishUnaryExpression(token.strvalue, expr);
         return tmpnode;
     } else if (match(u"+") || match(u"-") || match(u"~") || match(u"!")) {
         startToken = lookahead;
         token = lex();
         expr = parseUnaryExpression();
-        tmpnode = new WrappingNode(startToken);
-        tmpnode = finishUnaryExpression(token.strvalue, expr);
+        tmpnode = WrappingNode(startToken);
+        tmpnode.finishUnaryExpression(token.strvalue, expr);
         return tmpnode;
     } else if (matchKeyword(u"delete") || matchKeyword(u"void") || matchKeyword(u"typeof")) {
         startToken = lookahead;
         token = lex();
         expr = parseUnaryExpression();
-        tmpnode = new WrappingNode(startToken);
+        tmpnode = WrappingNode(startToken);
         tmpnode.finishUnaryExpression(token.strvalue, expr);
         if (strict && token.strvalue == u"delete" && expr.type == Syntax["Identifier"]) {
             throwErrorTolerant(NULLTOKEN, Messages["StrictDelete"], {});
@@ -3362,7 +3440,7 @@ int binaryPrecedence(TokenStruct token, bool allowIn) {
     } else if (has(tokval, {u"<", u">", u"<=", u">=", u"instanceof"})) {
         prec = 7;
     } else if (tokval == u"in") {
-        prec = allowIn ? 7 : 0
+        prec = allowIn ? 7 : 0;
     } else if (has(tokval,
                    {u"<<", u">>", u">>>"})) {
         prec = 8;
@@ -3394,7 +3472,8 @@ Node parseBinaryExpression() {
 
     marker = lookahead;
     left = parseUnaryExpression();
-    if (left == PlaceHolders["ArrowParameterPlaceHolder"]) { //? placeholder
+    if (left.type == PlaceHolders["ArrowParameterPlaceHolder"].type) {
+        //? placeholder
         return left;
     }
 
@@ -3420,12 +3499,14 @@ Node parseBinaryExpression() {
     nodestack.push_back(NULLNODE);
     tokstack.push_back(token);
     nodestack.push_back(right);
-    tokestack.push_back(NULLTOKEN);
+    tokstack.push_back(NULLTOKEN);
 
     while ((prec = binaryPrecedence(lookahead, state.allowIn)) > 0) { //? will this work the same in c++ as in js
 
         // Reduce: make a binary expression from the three topmost entries.
-        while ((tokstack.size() > 2) && (prec <= tokstack[stack.size() - 2].prec)) { //? will this work the same in c++ as in js?
+        while ((tokstack.size() > 2) && 
+               (prec <= tokstack[tokstack.size() - 2].prec)) { 
+            //? will this work the same in c++ as in js?
             right = nodestack.back(); 
             nodestack.pop_back(); tokstack.pop_back();
             oper = tokstack.back().strvalue;
@@ -3433,7 +3514,7 @@ Node parseBinaryExpression() {
             left = nodestack.back();
             nodestack.pop_back(); tokstack.pop_back();
             markers.pop_back();
-            expr = new WrappingNode(markers[markers.size() - 1]);
+            expr = WrappingNode(markers[markers.size() - 1]);
             expr.finishBinaryExpression(oper, left, right);
             nodestack.push_back(expr); tokstack.push_back(NULLTOKEN);
         }
@@ -3454,7 +3535,7 @@ Node parseBinaryExpression() {
     expr = nodestack[i];
     markers.pop_back();
     while (i > 1) {
-        tmpnode = new WrappingNode(markers.back());
+        tmpnode = WrappingNode(markers.back());
         markers.pop_back();
         tmpnode.finishBinaryExpression(tokstack[i - 1].strvalue, nodestack[i - 2], expr);
         expr = tmpnode;
@@ -3476,7 +3557,8 @@ Node parseConditionalExpression() {
     startToken = lookahead;
 
     expr = parseBinaryExpression();
-    if (expr == PlaceHolders["ArrowParameterPlaceHolder"]) { //? ever supposed to eval. to true? cause it might in some cases
+    if (expr.type == PlaceHolders["ArrowParameterPlaceHolder"].type) { 
+        //? ever supposed to eval. to true? cause it might in some cases
         //? even tho it seems in javascript it never ever will.
         
         return expr;
@@ -3490,7 +3572,7 @@ Node parseConditionalExpression() {
         expect(u":");
         alternate = parseAssignmentExpression();
 
-        tmpnode = new WrappingNode(startToken);
+        tmpnode = WrappingNode(startToken);
         tmpnode.finishConditionalExpression(expr, consequent, alternate);
         return tmpnode;
     }
@@ -3507,12 +3589,42 @@ Node parseConciseBody() {
     return parseAssignmentExpression();
 }
 
+//#CLEAR
+void validateParamNode(ReinterpretOptions options,
+                       Node param, u16string name) {
+    u16string key = u"$";
+    key.append(name);
+    if (strict) {
+        if (isRestrictedWord(name)) {
+            options.stricted = param;
+            options.message = Messages["StrictParamName"];
+        }
+        if (has(key, options.paramSet)) {
+            options.stricted = param;
+            options.message = Messages["StrictParamDupe"];
+        }
+    } else if (options.firstRestricted.isNull) {
+        if (isRestrictedWord(name)) {
+            options.firstRestricted = param;
+            options.message = Messages["StrictParamName"];
+        } else if (isStrictModeReservedWord(name)) {
+            options.firstRestricted = param;
+            options.message = Messages["StrictReservedWord"];
+        } else if (has(key, options.paramSet)) {
+            options.firstRestricted = param;
+            options.message = Messages["StrictParamDupe"];
+        }
+    }
+    options.paramSet.insert(key);
+}
+
+
 ReinterpretOut reinterpretAsCoverFormalsList(vector< Node >& expressions) {
     int i, len, defaultCount;
     Node param;
     vector< Node > params;
     vector< Node > defaults;
-    ParseParamsOptions opts;
+    ReinterpretOptions opts;
     ReinterpretOut reOut; 
     void* rest;
 
@@ -3526,20 +3638,22 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node >& expressions) {
             defaults.push_back(NULLNODE);
             validateParamNode(opts, param, param.name);
         } else if (param.type == Syntax["AssignmentExpression"]) {
-            params.push(param.left);
-            defaults.push(param.right);
+            params.push_back(*(param.left));
+            defaults.push_back(*(param.right));
             ++defaultCount;
-            validateParamNode(opts, param.left, param.left.name);
+            validateParamNode(opts, *(param.left), (*(param.left)).name);
         } else {
-            return null;
+            reOut.isNull = true;
+            return reOut; 
         }
     }
 
     if (opts.message == Messages["StrictParamDupe"]) {
         throwError(
-            strict ? options.stricted : options.firstRestricted,
-            options.message,
-            ""
+                   //strict ? opts.stricted : opts.firstRestricted, //? replicate?
+                   NULLTOKEN,
+            opts.message,
+            {}
         );
     }
 
@@ -3550,9 +3664,9 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node >& expressions) {
     reOut.params = params;
     reOut.defaults = defaults;
     reOut.rest = rest;
-    reOut.stricted = options.stricted;
-    reOut.firstRestricted = options.firstRestricted;
-    reOut.message = options.message;
+    reOut.stricted = opts.stricted;
+    reOut.firstRestricted = opts.firstRestricted;
+    reOut.message = opts.message;
     
     return reOut;
 }
@@ -3591,6 +3705,7 @@ Node parseAssignmentExpression() {
     int oldParenthesisCount;
     TokenStruct token, startToken;
     Node expr, right;
+    vector<Node> reIn;
     ReinterpretOut list;
 
     oldParenthesisCount = state.parenthesisCount;
@@ -3600,20 +3715,23 @@ Node parseAssignmentExpression() {
 
     expr = parseConditionalExpression();
 
-    if (expr == PlaceHolders["ArrowParameterPlaceHolder"] || match(u"=>")) {
+    if (expr.type == PlaceHolders["ArrowParameterPlaceHolder"].type //? will work?
+        || match(u"=>")) {
         if (state.parenthesisCount == oldParenthesisCount ||
-                state.parenthesisCount == (oldParenthesisCount + 1)) {            
+                state.parenthesisCount == (oldParenthesisCount + 1)) {      
             if (expr.type == Syntax["Identifier"]) {
-                list = reinterpretAsCoverFormalsList({ expr }); 
+                reIn.push_back(expr);
+                list = reinterpretAsCoverFormalsList(reIn); 
             } else if (expr.type == Syntax["Assignmentxpression"]) {
-                list = reinterpretAsCoverFormalsList({ expr });
+                reIn.push_back(expr);
+                list = reinterpretAsCoverFormalsList(reIn);
             } else if (expr.type == Syntax["SequenceExpression"]) {
                 list = reinterpretAsCoverFormalsList(expr.expressions);
-            } else if (expr == PlaceHolders["ArrowParameterPlaceHolder"]) {
-                list = reinterpretAsCoverFormalsList({}); //? possible to initialize with empty brackets?
+            } else if (expr.type == PlaceHolders["ArrowParameterPlaceHolder"].type) {
+                list = reinterpretAsCoverFormalsList(reIn); 
             }
-            if (list) {
-                return parseArrowFunctionExpression(list, new WrappingNode(startToken));
+            if (!(list.isNull)) {
+                return parseArrowFunctionExpression(list, WrappingNode(startToken));
             }
         }
     }
@@ -3631,8 +3749,8 @@ Node parseAssignmentExpression() {
 
         token = lex();
         right = parseAssignmentExpression();
-        expr = new WrappingNode(startToken);
-        expr.finishAssignmentExpression(token, expr, right); 
+        expr = WrappingNode(startToken);
+        expr.finishAssignmentExpression(token.strvalue, expr, right); 
     }
 
     return expr;
@@ -3655,10 +3773,10 @@ Node parseExpression() {
                 break;
             }
             lex();
-            expressions.push(parseAssignmentExpression());
+            expressions.push_back(parseAssignmentExpression());
         }
 
-        expr = new WrappingNode(startToken);
+        expr = WrappingNode(startToken);
         expr.finishSequenceExpression(expressions);
     }
 
@@ -3679,7 +3797,7 @@ vector< Node > parseStatementList() {
         if (statement.isNull) { 
             break;
         }
-        list.push(statement);
+        list.push_back(statement);
     }
 
     return list;
@@ -3711,7 +3829,7 @@ Node parseVariableIdentifier() {
         throwUnexpected(token);
     }
 
-    node.finishIdentifier(token.value);
+    node.finishIdentifier(token.strvalue);
     return node;
 }
 
@@ -3739,7 +3857,7 @@ Node parseVariableDeclaration(u16string kind) {
 }
 
 //#CLEAR
-Vector< Node > parseVariableDeclarationList(u16string kind) {
+vector< Node > parseVariableDeclarationList(u16string kind) {
     vector< Node > list; 
 
     do {
@@ -3771,7 +3889,7 @@ Node parseVariableStatement(Node node) {
 // and http://wiki.ecmascript.org/doku.php?id=harmony:let
 //#CLEAR
 Node parseConstLetDeclaration(u16string kind) {
-    List< Node > declarations;
+    vector< Node > declarations;
     Node node;
 
     expectKeyword(kind);
@@ -3794,7 +3912,7 @@ Node parseEmptyStatement() {
 // 12.4 Expression Statement
 //#CLEAR
 Node parseExpressionStatement(Node node) {
-    var expr = parseExpression();
+    Node expr = parseExpression();
     consumeSemicolon();
     node.finishExpressionStatement(expr);
     return node;
@@ -3803,14 +3921,14 @@ Node parseExpressionStatement(Node node) {
 // 12.5 If statement
 //#CLEAR
 Node parseIfStatement(Node node) {
-    var test;
+    Node test;
     Node consequent, alternate;
     expectKeyword(u"if");
     expect(u"(");
     test = parseExpression();
     expect(u")");
     consequent = parseStatement();
-    if (matchKeyword('else')) {
+    if (matchKeyword(u"else")) {
         lex();
         alternate = parseStatement();
     } else {
@@ -3866,7 +3984,7 @@ Node parseForVariableDeclaration() {
     Node node;
 
     token = lex();
-    declarations = parseVariableDeclarationList();
+    declarations = parseVariableDeclarationList(u"");
     node.finishVariableDeclaration(declarations, token.strvalue);
     return node;
 }
@@ -3895,7 +4013,7 @@ Node parseForStatement(Node node) {
                 lex();
                 left = init;
                 right = parseExpression();
-                init = null;
+                init = NULLNODE;
             }
         } else {
             state.allowIn = false;
@@ -3942,7 +4060,7 @@ Node parseForStatement(Node node) {
     state.inIteration = oldInIteration;
 
     if (left.isNull) {
-        node.finishForStatement(init, test, update, body) 
+        node.finishForStatement(init, test, update, body);
     } else {
         node.finishForInStatement(left, right, body);
     }
@@ -3984,7 +4102,7 @@ Node parseContinueStatement(Node node) {
         key = u"$";
         key.append(label.name);
         if (has<u16string>(key, state.labelSet)) {
-            throwError(NULLTOKEN, Messages["UnknownLabel"], toU8string(label.name));
+            throwError(NULLTOKEN, Messages["UnknownLabel"], {label.name});
         }
     }
 
@@ -4033,7 +4151,7 @@ Node parseBreakStatement(Node node) {
         key = u"$";
         key.append(label.name);
         if (has<u16string>(key, state.labelSet)) {
-            throwError(NULLTOKEN, Messages["UnknownLabel"], toU8string(label.name));
+            throwError(NULLTOKEN, Messages["UnknownLabel"], {label.name});
         }
     }
 
@@ -4069,7 +4187,7 @@ Node parseReturnStatement(Node node) {
     }
 
     if (peekLineTerminator()) {
-        node.finishReturnStatement(null);
+        node.finishReturnStatement(NULLNODE);
         return node;
     }
 
@@ -4157,13 +4275,15 @@ Node parseSwitchStatement(Node node) {
             break;
         }
         clause = parseSwitchCase();
-        if (json_object_is_type(json_require(clause.jv, "test"), json_type_null)) {
+        if (json_object_is_type(json_require(clause.jv, "test"), 
+                                json_type_null)) {
             if (defaultFound) {
-                throwError(NULLTOKEN, Messages["MultipleDefaultsInSwitch"],{});
+                throwError(NULLTOKEN, 
+                           Messages["MultipleDefaultsInSwitch"],{});
             }
             defaultFound = true;
         }
-        cases.push(clause);
+        cases.push_back(clause);
     }
 
     state.inSwitch = oldInSwitch;
@@ -4209,7 +4329,7 @@ Node parseCatchClause() {
     expect(u")");
     body = parseBlock();
     node.finishCatchClause(param, body);
-    return;
+    return node;
 }
 
 //#CLEAR
@@ -4232,11 +4352,12 @@ Node parseTryStatement(Node node) {
         finalizer = parseBlock();
     }
 
-    if (handlers.size() == 0 && !finalizer) {
+    if (handlers.size() == 0 && finalizer.isNull) {
         throwError(NULLTOKEN, Messages["NoCatchOrFinally"], {});
     }
 
-    node.finishTryStatement(block, {}, handlers, finalizer); //? pass empty vec in arg ok? 
+    node.finishTryStatement(block, EMPTY_NODE_LIST, 
+                            handlers, finalizer); 
     return node;
 }
 
@@ -4269,7 +4390,7 @@ Node parseStatement() {
     if (type == Token["Punctuator"]) {
         tokval = lookahead.strvalue;
         if (tokval == u";") {
-            return parseEmptyStatement(node);
+            return parseEmptyStatement();
         } else if (tokval == u"(") {
             return parseExpressionStatement(node);
         }
@@ -4286,7 +4407,9 @@ Node parseStatement() {
         } else if (tokval == u"for") {
             return parseForStatement(node);
         } else if (tokval == u"function") {
-            return parseFunctionDeclaration(node);
+            //#oddly enough in js passes node here.
+            //#even though has no param even in js.
+            return parseFunctionDeclaration();
         } else if (tokval == u"if") {
             return parseIfStatement(node);
         } else if (tokval == u"return") {
@@ -4315,7 +4438,8 @@ Node parseStatement() {
         key = u"$";
         key.append(expr.name);
         if (has<u16string>(key, state.labelSet)) {
-            throwError(NULLTOKEN, Messages["Redeclaration"], {"Label", expr.name}); 
+            throwError(NULLTOKEN, Messages["Redeclaration"], 
+                       {u"Label", expr.name}); 
         }
 
         state.labelSet.insert(key);
@@ -4362,7 +4486,7 @@ Node parseFunctionSourceElements() {
                                                                     "expression"),
                                                        "type")
                                           ), 
-                   toU8String(Syntax["Literal"])) != 0) {
+                   toU8string(Syntax["Literal"]).data()) != 0) {
             //? this one I doubt there's more an efficient way to do this
             //? then json-c accesses. Storing node hierarchies just to fix this call seems to 
             //? be likely less performant.
@@ -4404,7 +4528,7 @@ Node parseFunctionSourceElements() {
 
     expect(u"}");
 
-    state.labelSet = oldstate.LabelSet;
+    state.labelSet = oldstate.labelSet;
     state.inIteration = oldstate.inIteration;
     state.inSwitch = oldstate.inSwitch;
     state.inFunctionBody = oldstate.inFunctionBody;
@@ -4413,36 +4537,12 @@ Node parseFunctionSourceElements() {
     node.finishBlockStatement(sourceElements);
     return node;
 }
-//#CLEAR
-void validateParamNode(ReinterpretOpts options, Node param, u16string name) {
-    u16string key = '$' + name;
-    if (strict) {
-        if (isRestrictedWord(name)) {
-            options.stricted = param;
-            options.message = Messages["StrictParamName"];
-        }
-        if (has(key, options.paramSet)) {
-            options.stricted = param;
-            options.message = ["Messages.StrictParamDupe"];
-        }
-    } else if (options.firstRestricted.isNull) {
-        if (isRestrictedWord(name)) {
-            options.firstRestricted = param;
-            options.message = Messages["StrictParamName"];
-        } else if (isStrictModeReservedWord(name)) {
-            options.firstRestricted = param;
-            options.message = Messages["StrictReservedWord"];
-        } else if (has(key, options.paramSet)) {
-            options.firstRestricted = param;
-            options.message = Messages["StrictParamDupe"];
-        }
-    }
-    options.paramSet.insert(key);
-}
 
 //#CLEAR
-void validateParam(ParseParamOpts options, TokenStruct param, u16string name) {
-    u16string key = '$' + name;
+void validateParam(ParseParamsOptions options, 
+                   TokenStruct param, u16string name) {
+    u16string key = u"$";
+    key.append(name);
     if (strict) {
         if (isRestrictedWord(name)) {
             options.stricted = param;
@@ -4450,7 +4550,7 @@ void validateParam(ParseParamOpts options, TokenStruct param, u16string name) {
         }
         if (has(key, options.paramSet)) {
             options.stricted = param;
-            options.message = ["Messages.StrictParamDupe"];
+            options.message = Messages["StrictParamDupe"];
         }
     } else if (options.firstRestricted.isNull) {
         if (isRestrictedWord(name)) {
@@ -4469,7 +4569,7 @@ void validateParam(ParseParamOpts options, TokenStruct param, u16string name) {
 
 
 //#CLEAR
-bool parseParam(ParseParamOpts options) { 
+bool parseParam(ParseParamsOptions options) { 
     TokenStruct token; 
     Node param, def;
 
@@ -4494,8 +4594,8 @@ bool parseParam(ParseParamOpts options) {
 }
 
 //#CLEAR
-function parseParams(TokenStruct firstRestricted) {
-    ParseParamOpts options;
+ParseParamsOut parseParams(TokenStruct firstRestricted) {
+    ParseParamsOptions options;
     ParseParamsOut out;
     options.defaultCount = 0;
     options.firstRestricted = firstRestricted;
@@ -4536,6 +4636,7 @@ Node parseFunctionDeclaration() {
     vector< Node > defaults;
     bool previousStrict;
     Node node;
+
     
     expectKeyword(u"function");
  
@@ -4563,7 +4664,8 @@ Node parseFunctionDeclaration() {
     stricted = tmp.stricted;
     firstRestricted = tmp.firstRestricted;
 
-    if (tmp.message) {
+    if (tmp.message != u"") { //#TODO switch to hasMessage, 
+        //# hasMessage being assigned to true on message assignment.
         message = tmp.message;
     }
 
@@ -4619,7 +4721,7 @@ Node parseFunctionExpression() {
     stricted = tmp.stricted;
     firstRestricted = tmp.firstRestricted;
 
-    if (tmp.message) {
+    if (tmp.message != u"") {
         message = tmp.message;
     }
     
@@ -4656,6 +4758,7 @@ Node parseSourceElement() {
     if (lookahead.type != Token["EOF"]) {
         return parseStatement();
     }
+    return NULLNODE;
 }
 
 //#partial
@@ -4683,7 +4786,7 @@ vector< Node > parseSourceElements() {
                                                                     "expression"),
                                                        "type")
                                           ), 
-                   toU8String(Syntax["Literal"])) != 0) {         
+                   toU8string(Syntax["Literal"]).data()) != 0) {         
             // this is not directive
             break;
         }
@@ -4768,10 +4871,10 @@ json_object* tokenize(u16string code, OptionsStruct options) {
     initglobals();
     sourceraw = code.data();
     idx = 0;
-    lineNumber = (source.length > 0) ? 1 : 0;
+    lineNumber = (code.size() > 0) ? 1 : 0;
     lineStart = 0;
-    length = source.length;
-    lookahead = null;
+    length = code.length();
+    lookahead = NULLTOKEN;
 
     state.allowIn = true;
     state.inFunctionBody = false;
@@ -4782,9 +4885,9 @@ json_object* tokenize(u16string code, OptionsStruct options) {
     //? That going to be a problem for us later?
 
     // Of course we collect tokens here.
-    options["tokens"] = true;
+    options.tokens = true;
 
-    extra.Extra();
+    extra = ExtraStruct();
     extra.tokenTracking = true; 
     extra.tokenize = true;
     // The following two fields are necessary to compute the Regex tokens.
@@ -4810,14 +4913,16 @@ json_object* tokenize(u16string code, OptionsStruct options) {
     while (lookahead.type != Token["EOF"]) {
         try {
             lex();
-        } catch (lexError) { //!
+        } catch (...) { //! catch(LexError
+            ExError e;
+            e.description = u"LexError";
             if (extra.errorTolerant) {
-                extra.errors.push_back(lexError); //!
+                extra.errors.push_back(e); //!
                 // We have to break on the first error
                 // to avoid infinite loops.
                 break;
             } else {
-                throw lexError;
+                throw e;
             }
         }
     }
@@ -4834,27 +4939,27 @@ json_object* tokenize(u16string code, OptionsStruct options) {
                                              &ExError::toJson));
     }
 
-    delete[] sourceraw;
-    return fw.write(tokens);
+    return outJson;
 }
 
+
+json_object * tokenize(string code, OptionsStruct options) {
+    return tokenize(toU16string(code), options);
+}
 json_object * tokenize(string code) {
     OptionsStruct o;
     return tokenize(code, o);
-}
-json_object * tokenize(string code, OptionsStruct options) {
-    return tokenize(toU16string(code), options);
 }
 json_object * tokenize(u16string code) {
     OptionsStruct o;
     return tokenize(code, o);
 }
 
-string * tokenizeRetString(string code, OptionsStruct options) {
-    return json_object_to_json_string_ext(tokenize(code, options), JSON_C_TO_STRING_SPACED); 
+string tokenizeRetString(string code, OptionsStruct options) {
+    return string(json_object_to_json_string_ext(tokenize(code, options), JSON_C_TO_STRING_SPACED)); 
 }
-string * tokenizeRetString(u16string code, OptionsStruct options) {
-    return json_object_to_json_string_ext(tokenize(code, options), JSON_C_TO_STRING_SPACED); 
+string tokenizeRetString(u16string code, OptionsStruct options) {
+    return string(json_object_to_json_string_ext(tokenize(code, options), JSON_C_TO_STRING_SPACED)); 
 }
 
 //# Returns a map containing
@@ -4880,10 +4985,10 @@ json_object * parse(const u16string code, const OptionsStruct options) {
     initglobals();
     sourceraw = code.data();
     idx = 0;
-    lineNumber = (source.length > 0) ? 1 : 0;
+    lineNumber = (code.size() > 0) ? 1 : 0;
     lineStart = 0;
-    length = source.length;
-    lookahead = null;
+    length = code.length();
+    lookahead = NULLTOKEN;
     state.allowIn = true;
     state.parenthesisCount = 0;
     state.inFunctionBody = false;
@@ -4891,18 +4996,18 @@ json_object * parse(const u16string code, const OptionsStruct options) {
     state.inSwitch = false;
     state.lastCommentStart = -1;
 
-    extra.ExtraStruct();
+    extra = ExtraStruct();
  
     extra.range = options.range;
     extra.loc = options.loc;
     extra.attachComment = options.attachComment;
 
     if (extra.loc && options.hasSource) {
-        exta.hasSource = true;
+        extra.hasSource = true;
         extra.source = options.source;
     } else { extra.hasSource = false; }
 
-    extra.tokenTracking = options.takens;
+    extra.tokenTracking = options.tokens;
     extra.commentTracking = options.comment;
     extra.errorTolerant = options.tolerant;
 
@@ -4925,25 +5030,25 @@ json_object * parse(const u16string code, const OptionsStruct options) {
     if (extra.tokenTracking) {
         filterTokenLocation();
         json_put(programJson, "tokens", vec2jsonCallback<TokenRecord>(extra.tokenRecords,
-                                                         &TokenStruct::toJson));
+                                                         &TokenRecord::toJson));
     }
     if (extra.errorTolerant) {
         json_put(programJson, "errors", vec2jsonCallback<ExError>(extra.errors,
                                                          &ExError::toJson));
     }
  
-    delete[] sourceraw;
-    extra.ExtraStruct()
+
+    extra = ExtraStruct();
 
     return programJson;
 }
 
+json_object * parse(const string code, const OptionsStruct options) {
+    return parse(toU16string(code), options);
+}
 json_object * parse(const string code) {
     OptionsStruct o;
     return parse(code, o);
-}
-json_object * parse(const string code, const OptionsStruct options) {
-    return parse(toU16string(code), options);
 }
 json_object * parse(const u16string code) {
     OptionsStruct o;
@@ -4974,12 +5079,14 @@ char* strToChar(string in) {
 
 extern "C" {
     char* tokenizeExtern(char *code, char* options) {
-        return strToChar(tokenizeRetString(string(code_str), 
-                                          Options.dejson(string(options))));
+        return strToChar(tokenizeRetString(string(code), 
+                                          OptionsStruct(
+                                        json_tokener_parse(options))));
     }
     char* parseExtern(char *code, char* options) {
-        return strToChar(parseRetString(string(code_str), 
-                                       Options.dejson(string(options))));
+        return strToChar(parseRetString(string(code), 
+                                       OptionsStruct(
+                                         json_tokener_parse(options))));
     }
 }
 
