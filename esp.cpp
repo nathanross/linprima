@@ -146,13 +146,15 @@ json_object* json_push(json_object *a, json_object *c) {
 }
 
 json_object* json_find(json_object *a, const char* eqkey) {
-    json_object * result;
+    cout << " json_find called " << endl;
+    return json_object_new_boolean(0);
+    /*    json_object * result;
     json_object_object_foreach(a, key, val) {
         if (strcmp(key, eqkey) == 0) {
             return json_object_get(val); //increment the reference count, so no segfault if you drop the owner node.
         }
     }    
-    return nullptr;
+    return nullptr; */
 }
 
 json_object* json_require(json_object *a, const char* eqkey) {
@@ -432,16 +434,7 @@ struct TokenRecord {
         range[0] = -1;
         range[1] = -1;
     }
-    json_object * toJson() {
-        json_object *root = json_newmap(), *rangearr = json_newarr();
-        json_put(root, "type", toU8string(this->typestring));
-        json_put(root, "value", toU8string(this->valuestring));
-        json_push(rangearr, this->range[0]);
-        json_push(rangearr, this->range[1]);
-        json_put(root, "range", rangearr);
-        json_put(root, "loc", locToJson(this->loc));
-        return root;
-    }
+    json_object * toJson();
 };
 
 
@@ -718,6 +711,22 @@ TokenStruct lookahead;
 
 const char16_t * sourceraw;
 char16_t source(int idx) { return *(sourceraw + idx); }
+
+json_object * TokenRecord::toJson() {
+    json_object *root = json_newmap(), *rangearr;
+    json_put(root, "type", toU8string(this->typestring));
+    json_put(root, "value", toU8string(this->valuestring));
+    if (extra.range) {
+        rangearr = json_newarr();
+        json_push(rangearr, this->range[0]);
+        json_push(rangearr, this->range[1]);
+        json_put(root, "range", rangearr);
+    }
+    if (extra.loc) {
+        json_put(root, "loc", locToJson(this->loc));
+    }
+    return root;
+}
 
 map<string, int> LiteralType = {
     {"String", 1},
@@ -4963,10 +4972,10 @@ json_object * tokenize(u16string code) {
 }
 
 string tokenizeRetString(string code, OptionsStruct options) {
-    return string(json_object_to_json_string_ext(tokenize(code, options), JSON_C_TO_STRING_SPACED)); 
+    return string(json_object_to_json_string_ext(tokenize(code, options), JSON_C_TO_STRING_PRETTY)); 
 }
 string tokenizeRetString(u16string code, OptionsStruct options) {
-    return string(json_object_to_json_string_ext(tokenize(code, options), JSON_C_TO_STRING_SPACED)); 
+    return string(json_object_to_json_string_ext(tokenize(code, options), JSON_C_TO_STRING_PRETTY)); 
 }
 
 //# Returns a map containing
@@ -5085,16 +5094,25 @@ char* strToChar(string in) {
 }
 
 extern "C" {
-    char* tokenizeExtern(char *code, char* options) {
+    char* tokenizeExtern(const char *code, const char* options) {
         return strToChar(tokenizeRetString(string(code), 
                                           OptionsStruct(
                                         json_tokener_parse(options))));
     }
-    char* parseExtern(char *code, char* options) {
+    char* parseExtern(const char *code, const char* options) {
         return strToChar(parseRetString(string(code), 
                                        OptionsStruct(
                                          json_tokener_parse(options))));
     }
+}
+
+
+int main() {
+    string somecode = "var f = function() { echo 'hello world'; }";
+
+    string someopt = "{ abc: 'def' }";
+    string result = string(tokenizeExtern(somecode.data(), someopt.data()));
+    cout << result << endl;
 }
 
 
