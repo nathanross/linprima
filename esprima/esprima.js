@@ -3748,7 +3748,6 @@ parseStatement: true, parseSourceElement: true */
 
         skipComment();
         peek();
-        node = new Node();
         strict = false;
 
         body = parseSourceElements();

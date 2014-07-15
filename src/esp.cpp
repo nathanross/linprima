@@ -266,7 +266,7 @@ double sciNoteToDouble(string in) {
             factor.append(string({current}));               
         }
     }
-    cout << exp << endl;
+    //cout << exp << endl;
     return stod(factor) * pow(10,stod(exp));
 }
 
@@ -1394,7 +1394,7 @@ TokenStruct scanPunctuator() { DEBUG(" scanPunctuator()");
     char16_t code[2];
 
     code[0] = source(idx);
-    cout << " scanPunc code[0] == " << code[0] << "==" << toU8string(u16string({code[0]})) << "at idx " << idx << endl;
+    //cout << " scanPunc code[0] == " << code[0] << "==" << toU8string(u16string({code[0]})) << "at idx " << idx << endl;
     t.type = Token["Punctuator"];
     t.lineNumber = lineNumber;
     t.lineStart = lineStart;
@@ -1424,7 +1424,7 @@ TokenStruct scanPunctuator() { DEBUG(" scanPunctuator()");
             }
         }
         t.strvalue = u16string({ code[0] });
-        cout << "scanPunc strval should be... " << toU8string(t.strvalue) << endl;
+        //cout << "scanPunc strval should be... " << toU8string(t.strvalue) << endl;
         t.end = idx;
         return t;
     default:
@@ -2034,8 +2034,8 @@ TokenStruct advance() { DEBUG(" advance()");
     }
     
     ch = source(idx);
-   cout << " idx is : =" << idx << "+" << endl; 
-   cout << " character is : |" << toU8string(u16string({ch})) << "|" << endl;
+    //cout << " idx is : =" << idx << "+" << endl; 
+    //cout << " character is : |" << toU8string(u16string({ch})) << "|" << endl;
 
     if (isIdentifierStart(ch)) {
         return scanIdentifier();
@@ -2846,10 +2846,10 @@ void throwUnexpected(TokenStruct token) { DEBUG(" throwUnexpected(TokenStruct to
 
 //#CLEAR
 void expect(u16string value) { DEBUG(" expect(u16string value)");
-    cout << " starting at idx " << idx << endl;
+    //cout << " starting at idx " << idx << endl;
     TokenStruct token = lex();
-    cout << "lexed " << toU8string(token.strvalue) << " at " << idx << endl;
-    cout << "comparing to " << toU8string(value) << endl;
+    //cout << "lexed " << toU8string(token.strvalue) << " at " << idx << endl;
+    //cout << "comparing to " << toU8string(value) << endl;
     if (token.type != Token["Punctuator"] || 
         /*!(has<int>(token.type, {NULLTOKEN.type, 
                         Token["Keyword"],  //# don't include punctuator.
@@ -4663,7 +4663,7 @@ ParseParamsOut parseParams(TokenStruct firstRestricted) { DEBUG(" parseParams(To
         }
     }
 
-    cout << " aqui " << endl;
+    //cout << " aqui " << endl;
     expect(u")");
     DEBUG(" aquel ");
     if (options.defaultCount == 0) {
@@ -5141,14 +5141,14 @@ extern "C" {
     }
 }
 
-
+/*
 int main() {
     string somecode = "var f = function() { echo('hello world'); }";
 
     string someopt = "{ 'loc': false }";
     string result = string(parseExtern(somecode.data(), someopt.data()));
     cout << result << endl;
-}
+    }*/
 
 
 
