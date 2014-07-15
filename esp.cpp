@@ -18,6 +18,10 @@
 using namespace std;
 
 
+void DEBUG(string in) {
+    cout << in << endl;
+}
+
 string toU8string(u16string input){ 
     std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
     return myconv.to_bytes(input);
@@ -146,15 +150,15 @@ json_object* json_push(json_object *a, json_object *c) {
 }
 
 json_object* json_find(json_object *a, const char* eqkey) {
-    cout << " json_find called " << endl;
-    return json_object_new_boolean(0);
-    /*    json_object * result;
-    json_object_object_foreach(a, key, val) {
-        if (strcmp(key, eqkey) == 0) {
-            return json_object_get(val); //increment the reference count, so no segfault if you drop the owner node.
+    json_object * result;
+    
+    json_object_object_foreach(a, jkey, jval) {
+        if (strcmp(jkey, eqkey) == 0) {
+            return json_object_get(jval); //increment the reference count, so no segfault if you drop the owner node.
         }
     }    
-    return nullptr; */
+
+    return json_object_new_boolean(0);
 }
 
 json_object* json_require(json_object *a, const char* eqkey) {
@@ -566,6 +570,8 @@ struct ExtraStruct {
     }
 };
 
+
+
 struct StateStruct {
     bool allowIn;
     int parenthesisCount;
@@ -599,18 +605,33 @@ struct OptionsStruct {
         if (tmp == nullptr) { return defaultVal; }
         return (bool) json_object_get_boolean(tmp);
     }
-    OptionsStruct(json_object *in) {
-        json_object* tmp;
-        range = json_getbool(in, "range", false);
-        loc = json_getbool(in, "loc", false);
-        attachComment = json_getbool(in, "attachComment", false);
-        comment = json_getbool(in, "comment", false);
-        tolerant = json_getbool(in, "tolerant", false);
-        tokens = json_getbool(in, "tokens", false);
-        tmp = json_find(in, "source");        
-        hasSource = (tmp != nullptr);
-        if (hasSource) 
-            { source = json_object_get_string(tmp); }
+    OptionsStruct(const char *in_o) {
+        json_tokener_error tkErr;
+        json_object *in = json_tokener_parse_verbose(in_o, &tkErr);
+        if (tkErr != json_tokener_success) {
+            //#I don't think this will ever come up outside of manual
+            //# debugging unless there's some serious encoding error.
+            DEBUG("failed to parse options string provided");
+            range = false;
+            loc = false;
+            comment = false;
+            tolerant = false;
+            attachComment = false;
+            tokens = false;
+            hasSource = false;
+        } else { 
+            json_object* tmp;
+            range = json_getbool(in, "range", false);
+            loc = json_getbool(in, "loc", false);
+            attachComment = json_getbool(in, "attachComment", false);
+            comment = json_getbool(in, "comment", false);
+            tolerant = json_getbool(in, "tolerant", false);
+            tokens = json_getbool(in, "tokens", false);
+            tmp = json_find(in, "source");        
+            hasSource = (tmp != nullptr);
+            if (hasSource) 
+                { source = json_object_get_string(tmp); }
+        }
     }
 };
 
@@ -5096,13 +5117,12 @@ char* strToChar(string in) {
 extern "C" {
     char* tokenizeExtern(const char *code, const char* options) {
         return strToChar(tokenizeRetString(string(code), 
-                                          OptionsStruct(
-                                        json_tokener_parse(options))));
+                                          OptionsStruct(options)));
     }
     char* parseExtern(const char *code, const char* options) {
         return strToChar(parseRetString(string(code), 
                                        OptionsStruct(
-                                         json_tokener_parse(options))));
+                                         options)));
     }
 }
 
@@ -5110,7 +5130,7 @@ extern "C" {
 int main() {
     string somecode = "var f = function() { echo 'hello world'; }";
 
-    string someopt = "{ abc: 'def' }";
+    string someopt = "{ 'abc': 'def' }";
     string result = string(tokenizeExtern(somecode.data(), someopt.data()));
     cout << result << endl;
 }
