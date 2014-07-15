@@ -447,10 +447,11 @@ struct TokenRecord {
 
 class Node {
 public:
-    
+    bool isNull;
+    u16string type;
     json_object * jv;
     Loc loc;
-    bool isNull;
+    
     bool hasLoc;
     bool hasRange;
     int range[2];
@@ -458,7 +459,7 @@ public:
     vector<Comment> leadingComments;
     vector< vector<string> > regexPaths; //lin only. obv.
 
-    u16string type;
+
     u16string name;//for identifiers
     vector< Node > expressions; //for sequence expressions.
     shared_ptr<Node> left; //for assignment+reinterpretAsCover...
@@ -524,12 +525,13 @@ public:
     void finishWhileStatement(Node& test, Node& body);
     void finishWithStatement(Node& object, Node& body);
     
-};
+}; 
 
 
 
 TokenStruct NULLTOKEN;
 Node NULLNODE;
+bool lookaheadAvail;
 
 struct ExtraStruct {
     bool tokenTracking; //port-specific member to replace "if (extra.tokens)"
@@ -872,6 +874,7 @@ void initglobals() {
     PlaceHolders["ArrowParameterPlaceHolder"].type=u"ArrowParameterPlaceholder";
     NULLTOKEN.isNull = true;
     NULLNODE.isNull = true;
+    lookaheadAvail = true;
 }
 
  // Ensure the condition is true, otherwise throw an error.
@@ -2104,27 +2107,31 @@ void peek() {
     
 //#CLEAR
 Node::Node() { 
-    hasRange = false;
     jv = json_newmap();
     isNull = false;
 
-
-    idx = lookahead.start;
-    if (lookahead.type == Token["StringLiteral"]) {
-        lineNumber = lookahead.startLineNumber;
-        lineStart = lookahead.startLineStart;
-    } else {
-        lineNumber = lookahead.lineNumber;
-        lineStart = lookahead.lineStart;
-    }
-    if (extra.range) {
-        hasRange = true;
-        range[0] = idx;
-        range[1] = 0;
-    }
-    if (extra.loc) {
-        hasLoc = true;
-    }
+    
+    hasRange = false;
+    if (lookaheadAvail) { // not avail for nullnode.
+        idx = lookahead.start;
+        if (lookahead.type == Token["StringLiteral"]) {
+            lineNumber = lookahead.startLineNumber;
+            lineStart = lookahead.startLineStart;
+        } else {
+            lineNumber = lookahead.lineNumber;
+            lineStart = lookahead.lineStart;
+        }
+    
+        if (extra.range) {
+            hasRange = true;
+            range[0] = idx;
+            range[1] = 0;
+        }
+    
+        if (extra.loc) {
+            hasLoc = true;
+        } 
+    }    
 }
 
 json_object* Node::toJson() {
@@ -5089,6 +5096,7 @@ extern "C" {
                                          json_tokener_parse(options))));
     }
 }
+
 
 
 
