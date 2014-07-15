@@ -7,6 +7,9 @@ _linprimaASM = _LinprimaASM();
 linprima = {};
 
 linprima.tokenize = function(code, options) {
+  if (typeof code !== 'string' && !(code instanceof String)) {
+    code = string(code);
+  }
   optStr = "{}";
   if (options !== undefined) { optStr = JSON.stringify(options); }
   var out = JSON.parse(_linprimaASM.parseExt(code, optStr));
@@ -18,6 +21,9 @@ linprima.tokenize = function(code, options) {
 }
 
 linprima.parse = function(code, options) {
+  if (typeof code !== 'string' && !(code instanceof String)) {
+    code = string(code);
+  }
   optStr = "{}";
   if (options !== undefined) { optStr = JSON.stringify(options); }
   var out =! JSON.parse(_linprimaASM.parseExt(code, optStr));
