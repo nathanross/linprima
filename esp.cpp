@@ -233,6 +233,7 @@ u16string slice(const char16_t *arr, int start, int end) {
     //start inclusive, end exclusive, just like js
     const char16_t * startptr = arr + start;
     int size = sizeof(startptr[0]); //in case need to generalize this func.
+    cout << "size is:" << size << endl;
     return u16string(startptr, (end-start)*size);
 }
 
@@ -2087,7 +2088,10 @@ TokenStruct collectToken() {
     loc.end.column = idx - lineStart;
 
     if (token.type != Token["EOF"]) { //this didn't check against string. is fine.
+        cout << "token.start: " << token.start << endl;
+        cout << "token.end: " << token.end << endl;
         tr.valuestring = slice(sourceraw, token.start, token.end);
+        cout << "tr.valuestring: |" << tr.valuestring << "|" << endl;
         tr.typestring = TokenName[token.type];
         tr.loc = loc;
         extra.tokenRecords.push_back(tr);
@@ -5130,7 +5134,7 @@ extern "C" {
 int main() {
     string somecode = "var f = function() { echo 'hello world'; }";
 
-    string someopt = "{ 'abc': 'def' }";
+    string someopt = "{ 'loc': true }";
     string result = string(tokenizeExtern(somecode.data(), someopt.data()));
     cout << result << endl;
 }
