@@ -1392,8 +1392,9 @@ TokenStruct scanPunctuator() { DEBUG(" scanPunctuator()");
     char16_t ch1 = source(idx);
     u16string ch2, ch3, ch4;
     char16_t code[2];
-    code[0] = source(idx);
 
+    code[0] = source(idx);
+    cout << " scanPunc code[0] == " << code[0] << "==" << toU8string(u16string({code[0]})) << "at idx " << idx << endl;
     t.type = Token["Punctuator"];
     t.lineNumber = lineNumber;
     t.lineStart = lineStart;
@@ -1423,6 +1424,7 @@ TokenStruct scanPunctuator() { DEBUG(" scanPunctuator()");
             }
         }
         t.strvalue = u16string({ code[0] });
+        cout << "scanPunc strval should be... " << toU8string(t.strvalue) << endl;
         t.end = idx;
         return t;
     default:
@@ -1459,6 +1461,7 @@ TokenStruct scanPunctuator() { DEBUG(" scanPunctuator()");
             }
         }
     }
+
 
     // 4-character punctuator: >>>=
 
@@ -2843,11 +2846,15 @@ void throwUnexpected(TokenStruct token) { DEBUG(" throwUnexpected(TokenStruct to
 
 //#CLEAR
 void expect(u16string value) { DEBUG(" expect(u16string value)");
+    cout << " starting at idx " << idx << endl;
     TokenStruct token = lex();
-    if (!(has<int>(token.type, {NULLTOKEN.type, 
+    cout << "lexed " << toU8string(token.strvalue) << " at " << idx << endl;
+    cout << "comparing to " << toU8string(value) << endl;
+    if (token.type != Token["Punctuator"] || 
+        /*!(has<int>(token.type, {NULLTOKEN.type, 
                         Token["Keyword"],  //# don't include punctuator.
                         Token["StringLiteral"],
-                        Token["Identifier"]})) ||
+                        Token["Identifier"]})) ||*/
             token.strvalue != value) {
         throwUnexpected(token); 
     }
@@ -2859,11 +2866,15 @@ void expect(u16string value) { DEBUG(" expect(u16string value)");
 void expectTolerant(u16string value) { DEBUG(" expectTolerant(u16string value)");
     if (extra.errorTolerant) {
         TokenStruct token = lookahead;
-        if (!(has<int>(token.type, {
+
+
+        if (token.type != Token["Punctuator"] || 
+
+            /*!(has<int>(token.type, {
                         NULLTOKEN.type, 
                             Token["Keyword"],  //# don't include punctuator.
                             Token["StringLiteral"],
-                            Token["Identifier"]})) || 
+                            Token["Identifier"]})) || */ 
                 token.strvalue != value) {
             throwErrorTolerant(token, Messages["UnexpectedToken"], 
                                {token.strvalue});
@@ -4634,7 +4645,7 @@ bool parseParam(ParseParamsOptions options) { DEBUG(" parseParam(ParseParamsOpti
 }
 
 //#CLEAR
-ParseParamsOut parseParams(TokenStruct firstRestricted) {
+ParseParamsOut parseParams(TokenStruct firstRestricted) { DEBUG(" parseParams(TokenStruct firstRestricted)");
     ParseParamsOptions options;
     ParseParamsOut out;
     options.defaultCount = 0;
@@ -4652,8 +4663,9 @@ ParseParamsOut parseParams(TokenStruct firstRestricted) {
         }
     }
 
+    cout << " aqui " << endl;
     expect(u")");
-
+    DEBUG(" aquel ");
     if (options.defaultCount == 0) {
         options.defaults.clear();
     }
@@ -4857,7 +4869,7 @@ vector< Node > parseSourceElements() { DEBUG(" parseSourceElements() ");
 
 //#CLEAR
 Node parseProgram() { DEBUG(" parseProgram()");
-    Node node(false, true);
+    Node node(false, false);
     vector< Node > body;
 
     skipComment();
