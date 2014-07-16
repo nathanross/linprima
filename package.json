@@ -11,6 +11,7 @@
         "gulp-clean":"*",
         "gulp-mixotroph":"*",
         "gulp-uglify":"*",
+        "gulp-rename":"*",
         "lazypipe":"*"
     },
 "devDependencies": {},
