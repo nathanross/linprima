@@ -1,12 +1,19 @@
 var gulp = require('gulp');
 //var argv = require('yargs').argv;
 var concat = require('gulp-concat');
-var exec = require('gulp-exec');
+//var exec = require('gulp-exec');
 //var uglify = require('gulp-uglify');
 var clean = require('gulp-clean');
 var mixotroph = require('gulp-mixotroph');
 //var lazypipe = require('lazypipe');
+var exec = require('child_process').exec;
 
+function toShell(err, stdout, stderr) {
+    console.log(stdout);
+    console.log(stderr);
+    if (err != null)
+        { console.log(err); }
+}
 
 gulp.task('cleanTmp', function() {
     return gulp.src("tmp/*.cpp", {read: false})
@@ -40,27 +47,25 @@ gulp.task('ffiprod', ["cleanFFI", "fficomprod", "ffiWrapper"]);
 
 
 gulp.task('ffic', ['prepareSource'], function() {
-    return gulp.src("")
-        .pipe(exec("clang++ -Wall -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so"));
+    exec("clang++ -Wall -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so", toShell);
 });
 
 gulp.task('ffip', ['prepareSource'], function() {
-    return gulp.src("")
-        .pipe(exec("clang++ -O2 -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so"));
+    exec("clang++ -O2 -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so", toShell);
 });
 
 //#compiled code is shimmed into js module,
 //#so this must be part of pipeline.
 gulp.task('asmc', ['prepareSource'], function() {
+    exec("emcc -std=c++11 -s EXPORTED_FUNCTIONS=\"['parseExtern', 'tokenizeExtern']\" tmp/src.cpp -o tmp/lin.asm.js", toShell);
     return gulp.src("src/linprima.js")
-        .pipe(exec("emcc -std=c++11 -s EXPORTED_FUNCTIONS=\"['parseExtern', 'tokenizeExtern']\" tmp/src.cpp -o tmp/lin.asm.js"))
         .pipe(mixotroph({mode:"ASM",snippetdir:"tmp/"}))
         .pipe(gulp.dest("build/asm/"));
 });
 
 gulp.task('asmp', ['cleanASM', 'prepareSource'], function() {
+    exec("emcc -O3 -std=c++11 -s EXPORTED_FUNCTIONS=\"['parseExtern', 'tokenizeExtern']\" tmp/src.cpp -o tmp/lin.asm.js", toShell);
     return gulp.src("src/linprima.js")
-        .pipe(exec("emcc -O3 -std=c++11 -s EXPORTED_FUNCTIONS=\"['parseExtern', 'tokenizeExtern']\" tmp/src.cpp -o tmp/lin.asm.js"))
         .pipe(mixotroph({mode:"ASM",snippetdir:"tmp/"}))
         .pipe(gulp.dest("build/asm/"));
 });

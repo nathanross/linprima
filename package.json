@@ -8,7 +8,6 @@
         "esprima": "*",
         "gulp": "*",
         "gulp-concat":"*",
-        "gulp-exec":"*",
         "gulp-clean":"*",
         "gulp-mixotroph":"*",
         "gulp-uglify":"*",
