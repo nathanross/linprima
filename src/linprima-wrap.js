@@ -19,7 +19,7 @@
 
     //_linprimaMod = _LinprimaASM();
 
-    //=ASM= //%lin.asm.js%
+    //=ASM= //%linprima.asm.js%
     //=FFI= //%FFIsnippet.js%
 
     var tokenize = function(code, options) {

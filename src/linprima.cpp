@@ -11,9 +11,9 @@
 #include <memory>
 #include <exception>
 
-#include "json-c/json.h"
-#include "json-c/json_object.h"
-#include "json-c/printbuf.h"
+//#include "json-c/json.h"
+//#include "json-c/json_object.h"
+//#include "json-c/printbuf.h"
 //algorithm is for find(vector.begin()
 using namespace std;
 
@@ -150,15 +150,12 @@ json_object* json_push(json_object *a, json_object *c) {
 }
 
 json_object* json_find(json_object *a, const char* eqkey) {
-    json_object * result;
-    
     json_object_object_foreach(a, jkey, jval) {
         if (strcmp(jkey, eqkey) == 0) {
             return json_object_get(jval); //increment the reference count, so no segfault if you drop the owner node.
         }
     }    
-
-    return json_object_new_boolean(0);
+    return nullptr;
 }
 
 json_object* json_require(json_object *a, const char* eqkey) {
@@ -1573,8 +1570,7 @@ TokenStruct scanNumericLiteral() { DEBUG(" scanNumericLiteral()");
     char16_t ch;
     TokenStruct t;
     u16string number;
-    bool hasDot = false, hasSciNote= false;
-    double val;
+    bool hasDot = false;
 
 
     ch = source(idx);
@@ -1865,7 +1861,6 @@ TokenStruct scanRegExp() { DEBUG(" scanRegExp()");
     int start;
     RegexHalf body; 
     RegexHalf flags; 
-    int value; 
     TokenStruct t;
     //? value is int? to think on. 
     //testRegExp is I think supposed to normally return a regex object.
@@ -2268,7 +2263,7 @@ void Node::processComment() { DEBUG(" Node::processComment()");
     vector<Comment> trailingComments;
 
     vector< Node * > * bottomRight = &(extra.bottomRightStack);
-    Node * lastChild,
+    Node * lastChild = &NULLNODE,
         * last = bottomRight->at(bottomRight->size() - 1);
     bool LEADING = true;
 
