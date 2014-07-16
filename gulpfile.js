@@ -32,7 +32,7 @@ gulp.task('cleanFFI', ['cleanTmp'], function() {
 gulp.task('cleanAll', ['cleanASM', 'cleanFFI']);
 
 gulp.task('prepareSource', function() {
-    gulp.src(['lib/libjson*','tmp/newlinebuffer.c','src/linprima.cpp'])
+    return gulp.src(['lib/libjson*','tmp/newlinebuffer.c','src/linprima.cpp'])
     .pipe(concat('src.cpp'))
     .pipe(gulp.dest('tmp'));
 });
