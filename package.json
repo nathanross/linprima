@@ -1,0 +1,27 @@
+{
+    "name": "linprima-src",
+    "version": "0.0.1",
+    "description": "linprima and linprimaFFI parsing tools (source) faster drop-in replacements for esprima",
+    "main": "build/asm/linprima.js",
+    "dependencies": {
+        "ffi": "~1.2.7",
+        "esprima": "*",
+        "gulp": "*",
+        "gulp-concat":"*",
+        "gulp-exec":"*",
+        "gulp-clean":"*",
+        "gulp-mixotroph":"*",
+        "gulp-uglify":"*",
+        "lazypipe":"*"
+    },
+"devDependencies": {},
+"scripts": {
+"test": "node tests/linprimaTest.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "."
+  },
+  "author": "Nathan Ross",
+  "license": "Apache2"
+}

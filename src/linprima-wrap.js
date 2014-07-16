@@ -19,11 +19,8 @@
 
     //_linprimaMod = _LinprimaASM();
 
-    var ffi = require("ffi");
-    var _linprimaMod = ffi.Library("esp", {
-        'tokenizeExtern': ['string', ['string', 'string']],
-        'parseExtern': ['string', ['string', 'string']],
-    });
+    //=ASM= //%lin.asm.js%
+    //=FFI= //%FFIsnippet.js%
 
     var tokenize = function(code, options) {
         if (typeof code !== 'string' && !(code instanceof String)) {
