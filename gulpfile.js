@@ -8,6 +8,7 @@ var mixotroph = require('gulp-mixotroph');
 var rename = require('gulp-rename');
 //var lazypipe = require('lazypipe');
 var exec = require('child_process').exec;
+var replace = require('gulp-replace');
 
 function toShell(err, stdout, stderr) {
     console.log(stdout);
@@ -65,14 +66,30 @@ function asmCompDone(err, stdout, stderr) {
     //as code is substituted into wrapper.
     toShell(err, stdout, stderr);
     completeWrapper('ASM', 'tmp/', 'build/asm/');
+
+    //emscripten uses an export member on its module
+    //which, when using emscripten's choice of UMD pattern
+    //causes a name collision in NodeJS / commonJS module handling
+    //leading the emscripten module itself to be returned 
+    //rather than the wrapper.
+    gulp.src('tmp/linprima.asm.0.js')
+    .pipe(replace('export','emscport'))
+    .pipe(rename('linprima.asm.js'))
+    .pipe(gulp.dest('tmp'));
+    gulp.src('build/asm/linprima.js')
+    .pipe(rename('esprima.js'))
+    .pipe(gulp.dest('esprima/esprima/'))
 }
 
 //#compiled code is shimmed into js module,
 //#so this must be part of pipeline.
+gulp.task('asmcopy', function() {
+    asmCompDone(null, "", "");
+});
 gulp.task('asmc', ['cleanASM', 'prepareSource'], function() {
-    exec("emcc -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseExtern', '_tokenizeExtern']\" tmp/src.cpp -o tmp/linprima.asm.js", asmCompDone);
+    exec("emcc -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseExtern', '_tokenizeExtern']\" tmp/src.cpp -o tmp/linprima.asm.0.js", asmCompDone);
 });
 
 gulp.task('asmp', ['cleanASM', 'prepareSource'], function() {
-    exec("emcc -O3 -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseExtern', '_tokenizeExtern']\" tmp/src.cpp -o tmp/linprima.asm.js", asmCompDone);
+    exec("emcc -O3 -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseExtern', '_tokenizeExtern']\" tmp/src.cpp -o tmp/linprima.asm.0.js", asmCompDone);
 });
