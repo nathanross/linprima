@@ -20,32 +20,59 @@ using namespace std;
 int debuglevel = 0;
 vector<string> stackfuncs;
 
-void DEBUGIN(string in) {    
-    string spacer = "d:";
-    for (int i=0;i<debuglevel;i++) {
-        spacer.append(" ");
-    }
-    
-    cout << spacer << in << endl;
-    stackfuncs.push_back(in);
-    debuglevel++;
+static inline std::string &ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+    return s;
 }
 
-void DEBUGOUT(string in) {
-    string spacer = "d:";
+bool HIPRI_ONLY=true;
+
+void DEBUGIN(string in, bool lowprio) {    
+    if (HIPRI_ONLY && lowprio) { return; }
+    debuglevel++;
+    string spacer = "d: ";
+    string msg = "";
+    if (lowprio) { msg.append("\033[1;30m"); } 
+    msg.append(ltrim(in));
+    if (lowprio) { msg.append("\033[0m"); } 
+
     for (int i=0;i<debuglevel;i++) {
-        spacer.append(" ");
+        spacer.append("  ");
+    }    
+    cout << spacer << msg << endl;
+    stackfuncs.push_back(ltrim(in));
+}
+void DEBUGIN(string in) {
+    DEBUGIN(in, false);
+}
+
+void DEBUGOUT(string in, bool lowprio) {
+    if (HIPRI_ONLY && lowprio) { return; }
+    string spacer = "d:";
+    string msg = "";
+
+    if (lowprio) { msg.append("\033[1;30m"); } 
+    msg.append("~");
+    //    msg.append(ltrim(in));
+    if (stackfuncs.size() > 0) {
+        //    msg.append("@@ ");
+        msg.append(stackfuncs.back());
     }
-    if (stackfuncs.size() > 0)
-        { cout << spacer << "~" << in << " @@ " << stackfuncs.back() << endl; }
-    else 
-        { cout << spacer << "~" << in << endl; }
+    if (lowprio) { msg.append("\033[0m"); } 
+
+    for (int i=0;i<debuglevel;i++) {
+        spacer.append("  ");
+    }
+    cout << spacer << msg << endl;
     stackfuncs.pop_back();
     debuglevel--;
 }
+void DEBUGOUT(string in) {
+    DEBUGOUT(in, false);
+}
 
 void DEBUGOUT() {
-    DEBUGOUT("");
+    DEBUGOUT("", false);
 }
 
 
@@ -301,8 +328,8 @@ int parseInt(u16string in_u16, int radix) {  // !!!
         int length, 
             result = 0;
         length = in.length();
-        for (var i=0; i<length; i++) {
-            result += (stoi(in[i]) * pow(radix,length-(i+1)));
+        for (int i=0; i<length; i++) {
+            result += (((int) in[i]) * pow(radix,length-(i+1)));
         }
   DEBUGOUT(); return result; 
 }
@@ -328,7 +355,8 @@ double sciNoteToDouble(string in) {
         }
     }
     //cout << exp << endl;
-  return DEBUGRET(, stod(factor) * pow(10,stod(exp)));
+    DEBUGOUT("sciNoteToDouble");
+  return stod(factor) * pow(10,stod(exp));
 }
 
 
@@ -357,13 +385,10 @@ struct Position {
     int column;
 
     Position() {
-        DEBUGIN("Position()");
+        DEBUGIN("Position()", true);
         line = lineNumber;
-        cout << " creating new position " << endl;
-        cout << " index is :" << idx << endl;
-        cout << " lineStart is :" << idx << endl;
         column = idx - lineStart;
-        DEBUGOUT();
+        DEBUGOUT("Position()", true);
     }
 };
 
@@ -375,12 +400,12 @@ struct Loc {
     string source;
     
     Loc() {
-        DEBUGIN("Loc()");
+        DEBUGIN("Loc()", true);
         this->end.line = -1;
         this->end.column = -1;
         this->hasSource = false;
         this->source = "";
-        DEBUGOUT();
+        DEBUGOUT("loc()", true);
     }
 };
 
@@ -389,7 +414,7 @@ json_object*  posToJson(Position p) { DEBUGIN(" posToJson(Position p)");
     json_object * root = json_newmap();
     json_put(root, "line", p.line);
     json_put(root, "column", p.column);
-  DEBUGOUT(); return root;
+  DEBUGOUT("posToJSon(Position)"); return root;
 }
 
 json_object*  locToJson(Loc l) { DEBUGIN(" locToJson(Loc l)");
@@ -402,7 +427,7 @@ json_object*  locToJson(Loc l) { DEBUGIN(" locToJson(Loc l)");
     if (l.hasSource) {
         json_put(root, "source", l.source.data());
     }
-  DEBUGOUT(); return root;
+  DEBUGOUT("locToJson"); return root;
 }
 
 struct Comment {
@@ -416,7 +441,7 @@ struct Comment {
         this->value = u"";
         this->range[0] = -1;
         this->range[1] = -1;
-        DEBUGOUT();
+        DEBUGOUT("Comment()");
     }
     json_object * toJson() {
         DEBUGIN("Comment::toJson");
@@ -427,7 +452,7 @@ struct Comment {
         json_push(rangearr, this->range[1]);
         json_put(root, "range", rangearr);
         json_put(root, "loc", locToJson(this->loc));
-      DEBUGOUT(); return root;
+      DEBUGOUT("comment::toJson"); return root;
     }
 };
 
@@ -449,7 +474,7 @@ public:
         json_put(root, "index", this->index);
         json_put(root, "lineNumber", this->lineNumber);
         json_put(root, "column", this->column);
-      DEBUGOUT(); return root;
+      DEBUGOUT("Error::toJSON"); return root;
     }
 };
 
@@ -483,7 +508,7 @@ struct TokenStruct {
     bool octal;
     Loc loc;
     TokenStruct() {
-        DEBUGIN("TokenStruct()");
+        DEBUGIN("TokenStruct()", true);
         isNull = false;
         type = -1;
         lineNumber = -1;
@@ -495,7 +520,7 @@ struct TokenStruct {
         octal=false; 
         range[0] = -1;
         range[1] = -1;
-        DEBUGOUT();
+        DEBUGOUT("TokenStruct()", true);
     }
     ~TokenStruct() {
     }
@@ -508,10 +533,10 @@ struct TokenRecord {
     u16string valuestring;
     u16string typestring;
     TokenRecord() {
-        DEBUGIN("TokenRecord()");
+        DEBUGIN("TokenRecord()", true);
         range[0] = -1;
         range[1] = -1;
-        DEBUGOUT();
+        DEBUGOUT("TokenRecord()", true);
     }
     json_object * toJson();
 };
@@ -675,7 +700,7 @@ struct OptionsStruct {
         attachComment = false;
         tokens = false;
         hasSource = false;
-        DEBUGOUT();
+        DEBUGOUT("OptionsStruct()");
     }
     bool json_getbool(json_object* in, string key, bool defaultVal) {
         json_object* tmp = json_find(in, key.data());
@@ -710,7 +735,7 @@ struct OptionsStruct {
             if (hasSource) 
                 { source = json_object_get_string(tmp); }
         }
-        DEBUGOUT();
+        DEBUGOUT("OptionsStruct(char*)");
     }
 };
 
@@ -826,7 +851,7 @@ json_object*  TokenRecord::toJson() { DEBUGIN(" TokenRecord::toJson()");
     if (extra.loc) {
         json_put(root, "loc", locToJson(this->loc));
     }
-  DEBUGOUT(); return root;
+  DEBUGOUT("TokenRecord::toJson()"); return root;
 }
 
 //#C++ specific type specifier
@@ -1676,7 +1701,6 @@ TokenStruct scanNumericLiteral() { DEBUGIN(" scanNumericLiteral()");
     char16_t ch;
     TokenStruct t;
     u16string number;
-    bool hasDot = false;
 
 
     ch = source(idx);
@@ -2262,7 +2286,7 @@ void peek() { DEBUGIN(" peek()");
     
 //#CLEAR
 
-Node::Node(bool lookaheadAvail, bool storeStats) { DEBUGIN("Node::Node(bool, bool)");
+Node::Node(bool lookaheadAvail, bool storeStats) { DEBUGIN("Node::Node(bool, bool)", true);
     jv = json_newmap();
     isNull = false;
     hasRange = false;
@@ -2288,7 +2312,7 @@ Node::Node(bool lookaheadAvail, bool storeStats) { DEBUGIN("Node::Node(bool, boo
             hasLoc = true;
         } 
     }
-    DEBUGOUT();
+    DEBUGOUT("", true);
 }
 Node::Node() : Node(true, true) {} 
 
@@ -2867,7 +2891,6 @@ public:
     }
     Loc WrappingSourceLocation(TokenStruct startToken) {
         DEBUGIN("WrappingSourceLocation (Token)");
-        cout << " new wrappingSourceLocation " << endl;
         Loc result;
         if (startToken.type == Token["StringLiteral"]) {
             this->loc.start.line = startToken.startLineNumber;
@@ -2875,8 +2898,6 @@ public:
                 startToken.start - startToken.startLineStart;
         } else {
             this->loc.start.line = startToken.lineNumber;
-            cout << " startToken.start == " << startToken.start << endl;
-            cout << " startToken.lineStart == " << startToken.lineStart << endl;            
             this->loc.start.column = startToken.start - startToken.lineStart;
         }
         //return result;
@@ -2990,7 +3011,8 @@ void throwUnexpected(TokenStruct token) { DEBUGIN(" throwUnexpected(TokenStruct 
 
 
 //#CLEAR
-void expect(u16string value) { DEBUGIN(" expect(u16string value)");
+void expect(u16string value) { 
+    //DEBUGIN(" expect(u16string value)");
     //cout << " starting at idx " << idx << endl;
     TokenStruct token = lex();
     //cout << "lexed " << toU8string(token.strvalue) << " at " << idx << endl;
@@ -3003,13 +3025,14 @@ void expect(u16string value) { DEBUGIN(" expect(u16string value)");
             token.strvalue != value) {
         throwUnexpected(token); 
     }
- DEBUGOUT("expect");
+    // DEBUGOUT("expect");
 }
 
 
  
 //#CLEAR
-void expectTolerant(u16string value) { DEBUGIN(" expectTolerant(u16string value)");
+void expectTolerant(u16string value) {
+    // DEBUGIN(" expectTolerant(u16string value)");
     if (extra.errorTolerant) {
         TokenStruct token = lookahead;
 
@@ -3030,45 +3053,47 @@ void expectTolerant(u16string value) { DEBUGIN(" expectTolerant(u16string value)
     } else {
         expect(value);
     }
- DEBUGOUT("expectTol");
+    // DEBUGOUT("expectTol");
 
 }
 
 // Expect the next token to match the specified keyword.
 // If not, an exception will be thrown.
 //#CLEAR
-void expectKeyword(const u16string keyword) { DEBUGIN(" expectKeyword(const u16string keyword)");
+void expectKeyword(const u16string keyword) { 
     TokenStruct token = lex();
     if (token.type != Token["Keyword"] || 
         token.strvalue != keyword) {
         throwUnexpected(token);
     }
- DEBUGOUT("expectKey");
+
 }
 
 
 // Return true if the next token matches the specified punctuator.
 //#CLEAR
-bool match(const u16string value) { DEBUGIN(" match(const u16string value)");
-  DEBUGOUT("match"); return lookahead.type == Token["Punctuator"] && lookahead.strvalue == value;
+bool match(const u16string value) { 
+  return lookahead.type == Token["Punctuator"] && lookahead.strvalue == value;
 }
 
 // Return true if the next token matches the specified keyword
 
 //#CLEAR
-bool matchKeyword(const u16string keyword) { DEBUGIN(" matchKeyword(const u16string keyword)");
-  DEBUGOUT("matchKey"); return lookahead.type == Token["Keyword"] && lookahead.strvalue == keyword;
+bool matchKeyword(const u16string keyword) {
+    // DEBUGIN(" matchKeyword(const u16string keyword)");
+    //  DEBUGOUT("matchKey"); 
+return lookahead.type == Token["Keyword"] && lookahead.strvalue == keyword;
 }
 
     // Return true if the next token is an assignment operator
 
 //#CLEAR
-bool matchAssign() { DEBUGIN(" matchAssign()");
+bool matchAssign() { 
     if (lookahead.type != Token["Punctuator"]) {
-     DEBUGOUT("matchAssign"); return false;
+     return false;
     }
     u16string op = lookahead.strvalue;
-  DEBUGOUT(); return has<u16string>(op, {//?I'm assuming lookahead.value will be a from-input val?
+  return has<u16string>(op, {//?I'm assuming lookahead.value will be a from-input val?
                 u"=", 
                 u"*=",
                 u"/=",
