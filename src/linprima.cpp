@@ -25,9 +25,11 @@ static inline std::string &ltrim(std::string &s) {
     return s;
 }
 
-bool HIPRI_ONLY=true;
+bool DEBUG_ON= (bool) 0;
+bool HIPRI_ONLY= (bool) 1;
 
 void DEBUGIN(string in, bool lowprio) {    
+    if (!DEBUG_ON) { return; }
     if (HIPRI_ONLY && lowprio) { return; }
     debuglevel++;
     string spacer = "d: ";
@@ -47,6 +49,7 @@ void DEBUGIN(string in) {
 }
 
 void DEBUGOUT(string in, bool lowprio) {
+    if (!DEBUG_ON) { return; }
     if (HIPRI_ONLY && lowprio) { return; }
     string spacer = "d:";
     string msg = "";
@@ -354,7 +357,7 @@ double sciNoteToDouble(string in) {
             factor.append(string({current}));               
         }
     }
-    //cout << exp << endl;
+
     DEBUGOUT("sciNoteToDouble");
   return stod(factor) * pow(10,stod(exp));
 }
@@ -422,7 +425,6 @@ json_object*  locToJson(Loc l) { DEBUGIN(" locToJson(Loc l)");
     json_put(root, "start", posToJson(l.start));
     if (l.end.line != -1) {
         json_put(root, "end", posToJson(l.end));
-
     }
     if (l.hasSource) {
         json_put(root, "source", l.source.data());
@@ -1516,7 +1518,7 @@ TokenStruct scanPunctuator() { DEBUGIN(" scanPunctuator()");
     char16_t code[2];
 
     code[0] = source(idx);
-    //cout << " scanPunc code[0] == " << code[0] << "==" << toU8string(u16string({code[0]})) << "at idx " << idx << endl;
+    
     t.type = Token["Punctuator"];
     t.lineNumber = lineNumber;
     t.lineStart = lineStart;
@@ -1546,7 +1548,7 @@ TokenStruct scanPunctuator() { DEBUGIN(" scanPunctuator()");
             }
         }
         t.strvalue = u16string({ code[0] });
-        //cout << "scanPunc strval should be... " << toU8string(t.strvalue) << endl;
+        
         t.end = idx;
       DEBUGOUT(); return t;
     default:
@@ -2178,8 +2180,8 @@ TokenStruct advance() { DEBUGIN(" advance()");
     }
     
     ch = source(idx);
-    //cout << " idx is : =" << idx << "+" << endl; 
-    //cout << " character is : |" << toU8string(u16string({ch})) << "|" << endl;
+    
+    
 
     if (isIdentifierStart(ch)) {
       return DEBUGRET("adv", scanIdentifier());
@@ -2550,7 +2552,7 @@ void Node::finishAssignmentExpression(u16string oper, Node& left, Node& right) {
 void Node::finishBinaryExpression(u16string oper, Node& left, Node& right) { DEBUGIN(" Node::finishBinaryExpression(u16string oper, Node& left, Node& right)");
     addType((oper == u"||" || oper == u"&&") ? "LogicalExpression" : "BinaryExpression");
     jvput("operator", s(oper));
-    cout << " finishing operator " << s(oper) << endl;
+    
     reg("left", left); 
     reg("right", right);
     this->finish();
@@ -2763,7 +2765,12 @@ void Node::finishPostfixExpression(u16string oper, Node& argument) { DEBUGIN(" N
 void Node::finishProgram(vector< Node >& body) { DEBUGIN(" Node::finishProgram(vector< Node >& body)");
     addType("Program");
     nodeVec("body", body);
-    this->finish(); DEBUGOUT();
+    this->finish(); 
+    //no parent node to call reg so add these atts. here.
+    json_put(jv, "range",vec2json<int>({range[0], range[1]}));
+    json_put(jv, "loc", locToJson(loc));
+DEBUGOUT();
+    
 }
 
 //#CLEAR
@@ -2893,13 +2900,15 @@ public:
         DEBUGIN("WrappingSourceLocation (Token)");
         Loc result;
         if (startToken.type == Token["StringLiteral"]) {
-            this->loc.start.line = startToken.startLineNumber;
-            this->loc.start.column = 
+            result.start.line = startToken.startLineNumber;
+            result.start.column = 
                 startToken.start - startToken.startLineStart;
         } else {
-            this->loc.start.line = startToken.lineNumber;
-            this->loc.start.column = startToken.start - startToken.lineStart;
+            result.start.line = startToken.lineNumber;
+            result.start.column = startToken.start - startToken.lineStart;
         }
+        result.end.line = -1;
+        result.end.column = -1;
         //return result;
       DEBUGOUT("WraSrcLoc"); return result;
     }
@@ -3013,10 +3022,10 @@ void throwUnexpected(TokenStruct token) { DEBUGIN(" throwUnexpected(TokenStruct 
 //#CLEAR
 void expect(u16string value) { 
     //DEBUGIN(" expect(u16string value)");
-    //cout << " starting at idx " << idx << endl;
+    
     TokenStruct token = lex();
-    //cout << "lexed " << toU8string(token.strvalue) << " at " << idx << endl;
-    //cout << "comparing to " << toU8string(value) << endl;
+    
+    
     if (token.type != Token["Punctuator"] || 
         /*!(has<int>(token.type, {NULLTOKEN.type, 
                         Token["Keyword"],  //# don't include punctuator.
@@ -3711,7 +3720,7 @@ Node parseBinaryExpression() { DEBUGIN(" parseBinaryExpression()");
     vector< TokenStruct > markers, tokstack;
     u16string oper;
     int i, prec;
-
+    
     marker = lookahead;
     left = parseUnaryExpression();
     if (left.type == PlaceHolders["ArrowParameterPlaceHolder"].type) {
@@ -3785,6 +3794,7 @@ Node parseBinaryExpression() { DEBUGIN(" parseBinaryExpression()");
         i -= 2;
     }
 
+    
   DEBUGOUT("parseBinary"); return expr;
 }
 
@@ -4003,7 +4013,7 @@ Node parseAssignmentExpression() { DEBUGIN(" parseAssignmentExpression()");
 }
 
 // 11.14 Comma Operator
-//#CLEAR
+//#CLEAR+
 Node parseExpression() { DEBUGIN(" parseExpression()");
     Node expr; 
     TokenStruct startToken = lookahead;
@@ -4861,7 +4871,7 @@ ParseParamsOut parseParams(TokenStruct firstRestricted) { DEBUGIN(" parseParamS(
         }
     }
 
-    //cout << " aqui " << endl;
+    
     expect(u")");
     DEBUGIN(" aquel ");
     if (options.defaultCount == 0) {
@@ -5072,7 +5082,7 @@ vector< Node > parseSourceElements() { DEBUGIN(" parseSourceElementS() ");
 
 //#CLEAR
 Node parseProgram() { DEBUGIN(" parseProgram()");
-    Node node(false, false);
+    Node node(false, true);
     vector< Node > body;
 
     skipComment();
