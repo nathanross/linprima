@@ -2335,6 +2335,7 @@ void Node::lookavailInit() {
         lineStart = lookahead.lineStart;
     }
     if (hasRange) { //#should always be true, but keep it open while testing.
+        loc.start = Position();
         range[0] = idx;
     }
 }
@@ -2546,12 +2547,12 @@ void Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >&
 
 //#CLEAR
 void Node::finishAssignmentExpression(u16string oper, Node& left, Node& right) { DEBUGIN(" Node::finishAssignmentExpression(u16string oper, Node& left, Node& right)");
-    //cout << " fininshing assign left type is : " << s(left.type) << endl;
+
     addType("AssignmentExpression");
     jvput("operator", s(oper));
-   //cout << " again1 assign left type is : " << s(left.type) << endl;
+
     reg("left", left);
-   //cout << " again2 assign left type is : " << s(left.type) << endl;
+
     Node * tmpleft = new Node(false, true);
     *tmpleft = left;
     shared_ptr<Node> tmpleftshared (tmpleft);
@@ -2569,8 +2570,8 @@ void Node::finishAssignmentExpression(u16string oper, Node& left, Node& right) {
 void Node::finishBinaryExpression(u16string oper, Node& left, Node& right) { DEBUGIN(" Node::finishBinaryExpression(u16string oper, Node& left, Node& right)");
     addType((oper == u"||" || oper == u"&&") ? "LogicalExpression" : "BinaryExpression");
     jvput("operator", s(oper));
-    //cout << " finishing binaryEx w. operator " << s(oper) << endl;
-    //cout << " has loc.end.column " << loc.end.column << endl;
+
+
     reg("left", left); 
     reg("right", right);
     this->finish();
@@ -2738,7 +2739,8 @@ void Node::finishLiteral(TokenStruct token) { DEBUGIN(" Node::finishLiteral(Toke
     } else if (token.literaltype == LiteralType["Null"]) {
         jvput_null("value");
     } else if (token.literaltype == LiteralType["Regexp"]) {
-        json_put(jv, "value", vec2json<string>({s(token.strvalue), s(token.flags)}));
+        json_put(jv, "value", 
+                 vec2json<string>({s(token.strvalue), s(token.flags)}));
         regexPaths.push_back({"."});
     }
     jvput("raw", s(slice(sourceraw, token.start, token.end)));
@@ -2904,17 +2906,17 @@ class WrappingNode : public Node {
 public:
     WrappingNode(TokenStruct startToken) : Node(false, true) {
         DEBUGIN("WrappingNode(Token)");
-        //cout << "wrap1 idx " << idx << " linestart " << lineStart << endl;            
+ 
         if (extra.range) {
             hasRange = true;
             range[0] = startToken.start;
             range[1] = 0;
         }
-        //cout << "wrap2 idx " << idx << " linestart " << lineStart << endl;            
+ 
         if (extra.loc) {
             loc = this->WrappingSourceLocation(startToken);
         }
-        //cout << "wrap3 idx " << idx << " linestart " << lineStart << endl;            
+ 
         DEBUGOUT("Wr");
     }
     Loc WrappingSourceLocation(TokenStruct startToken) {
@@ -3433,6 +3435,7 @@ Node parsePrimaryExpression() { DEBUGIN(" parsePrimaryExpression()");
     node.lookavailInit();
 
     expr = node;
+
     if (type == Token["Identifier"]) {
         expr.finishIdentifier(lex().strvalue);
     } else if (type == Token["StringLiteral"] || 
@@ -3443,6 +3446,7 @@ Node parsePrimaryExpression() { DEBUGIN(" parsePrimaryExpression()");
                                Messages["StrictOctalLiteral"], {});
         }
         expr.finishLiteral(lex());
+
     } else if (type == Token["Keyword"]) {
         if (matchKeyword(u"function")) {
           return DEBUGRET("", parseFunctionExpression());
@@ -3550,6 +3554,8 @@ Node parseLeftHandSideExpressionAllowCall() { DEBUGIN(" parseLeftHandSideExpress
     state.allowIn = true;
     expr = matchKeyword(u"new") ? 
         parseNewExpression() : parsePrimaryExpression();
+
+
 
     for (;;) {
         if (match(u".")) {
@@ -3693,7 +3699,7 @@ Node parseUnaryExpression() { DEBUGIN(" parseUnaryExpression()");
     } else {
         expr = parsePostfixExpression();
     }
-    //cout << "unary.loc.end.col" << expr.loc.end.column << endl;
+
   DEBUGOUT("parseUnary"); return expr;
 }
 
@@ -3756,9 +3762,9 @@ Node parseBinaryExpression() { DEBUGIN(" parseBinaryExpression()");
     int i, prec;
     
     marker = lookahead;
-    //cout << "preLeft idx " << idx << " linestart " << lineStart << endl;
+
     left = parseUnaryExpression();
-    //cout << "afterLeft idx " << idx << " linestart " << lineStart << endl;
+
     if (left.type == PlaceHolders["ArrowParameterPlaceHolder"].type) {
         //? placeholder
       DEBUGOUT("parseBinary"); return left;
@@ -3801,12 +3807,11 @@ Node parseBinaryExpression() { DEBUGIN(" parseBinaryExpression()");
             left = nodestack.back();
             nodestack.pop_back(); tokstack.pop_back();
             markers.pop_back();
-            //cout << "prewrap idx " << idx << " linestart " << lineStart << endl;            
+
             expr = WrappingNode(markers[markers.size() - 1]);
-            //cout << "postwrap idx " << idx << " linestart " << lineStart << endl;
+
             expr.finishBinaryExpression(oper, left, right);
-            //cout << "afterfinish idx " << idx << " linestart " << lineStart << endl;
-            //cout << " mid loop expr ... " << expr.loc.end.column << endl;
+
             nodestack.push_back(expr); tokstack.push_back(NULLTOKEN);
         }
 
@@ -3830,12 +3835,12 @@ Node parseBinaryExpression() { DEBUGIN(" parseBinaryExpression()");
         markers.pop_back();
         tmpnode.finishBinaryExpression(
             tokstack[i - 1].strvalue, nodestack[i - 2], expr);
-        //cout << " from token... " << tmpnode.loc.end.column << endl;
+
         expr = tmpnode;
         i -= 2;
     }
 
-    //cout << "binary.loc.end.col" << expr.loc.end.column << endl;    
+
   DEBUGOUT("parseBinary"); return expr;
 }
 
@@ -4007,7 +4012,7 @@ Node parseAssignmentExpression() { DEBUGIN(" parseAssignmentExpression()");
     vector<Node> reIn;
     ReinterpretOut list;
 
-   //cout << "k1" << toU8string(expr.type) << endl;
+
     oldParenthesisCount = state.parenthesisCount;
 
     startToken = lookahead;
@@ -4017,7 +4022,7 @@ Node parseAssignmentExpression() { DEBUGIN(" parseAssignmentExpression()");
 
     if (expr.type == PlaceHolders["ArrowParameterPlaceHolder"].type //? will work?
         || match(u"=>")) {
-       //cout << " assignA " << endl;
+
         if (state.parenthesisCount == oldParenthesisCount ||
                 state.parenthesisCount == (oldParenthesisCount + 1)) {      
             if (expr.type == Syntax["Identifier"]) {
@@ -4039,8 +4044,8 @@ Node parseAssignmentExpression() { DEBUGIN(" parseAssignmentExpression()");
 
     if (matchAssign()) {
         // LeftHandSideExpression
-       //cout << " assignB " << endl;
-   //cout << "k2" << toU8string(expr.type) << endl;
+
+
         if (!isLeftHandSide(expr)) {
             throwErrorTolerant(NULLTOKEN, Messages["InvalidLHSInAssignment"], {});
         }
@@ -4053,7 +4058,7 @@ Node parseAssignmentExpression() { DEBUGIN(" parseAssignmentExpression()");
         token = lex();
         right = parseAssignmentExpression();
         tmpnode = WrappingNode(startToken);
-   //cout << "k3" << toU8string(expr.type) << endl;
+
         tmpnode.finishAssignmentExpression(token.strvalue, expr, right); 
         return tmpnode;
     }
@@ -5386,10 +5391,10 @@ string parseRetString(const u16string code, const OptionsStruct options) {
 }
 string parseRetString(const string code, const OptionsStruct options) { 
     json_object* a = parse(code, options);
-   //cout << "a" << endl;
-        string b = json_object_to_json_string_ext(a, JSON_C_TO_STRING_PLAIN);
-    //cout << "b" << endl;
-    //return "{ a : 5 }";
+
+    string b = json_object_to_json_string_ext(a, JSON_C_TO_STRING_PLAIN);
+
+
         return json_object_to_json_string_ext(parse(code, options), JSON_C_TO_STRING_PRETTY); 
 }
 
