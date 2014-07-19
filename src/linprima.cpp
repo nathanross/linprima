@@ -3437,8 +3437,10 @@ Node parsePrimaryExpression() { DEBUGIN(" parsePrimaryExpression()");
         expr.finishIdentifier(lex().strvalue);
     } else if (type == Token["StringLiteral"] || 
                type == Token["NumericLiteral"]) {
+
         if (strict && lookahead.octal) {
-            throwErrorTolerant(lookahead, Messages["StrictOctalLiteral"], {});
+            throwErrorTolerant(lookahead, 
+                               Messages["StrictOctalLiteral"], {});
         }
         expr.finishLiteral(lex());
     } else if (type == Token["Keyword"]) {
@@ -3542,6 +3544,7 @@ Node parseLeftHandSideExpressionAllowCall() { DEBUGIN(" parseLeftHandSideExpress
     Node expr(false, true), property(false, true), tmpnode(false,true);
     TokenStruct startToken;
     bool previousAllowIn = state.allowIn;
+    bool sub = false;
 
     startToken = lookahead;
     state.allowIn = true;
@@ -3550,14 +3553,17 @@ Node parseLeftHandSideExpressionAllowCall() { DEBUGIN(" parseLeftHandSideExpress
 
     for (;;) {
         if (match(u".")) {
+            sub = true;
             property = parseNonComputedMember();
             tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'.', expr, property);
         } else if (match(u"(")) {
+            sub = true;
             args = parseArguments();
             tmpnode = WrappingNode(startToken);
             tmpnode.finishCallExpression(expr, args);
         } else if (match(u"[")) {
+            sub = true;
             property = parseComputedMember();
             tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'[', expr, property);
@@ -3565,33 +3571,43 @@ Node parseLeftHandSideExpressionAllowCall() { DEBUGIN(" parseLeftHandSideExpress
             break;
         }
     }
+
     state.allowIn = previousAllowIn;
 
-  DEBUGOUT("parseLeftHandSideExprAllow"); return tmpnode;
+  DEBUGOUT("parseLeftHandSideExprAllow"); 
+  if (sub) { return tmpnode; }
+  else { return expr; }
 }
 
 //#CLEAR
 Node parseLeftHandSideExpression() { DEBUGIN(" parseLeftHandSideExpression()");
     Node tmpnode(false, true), expr(false, true), property(false, true);
     TokenStruct startToken;
+    bool sub = false;
+
     assert(state.allowIn, "callee of new expression always allow in keyword.");
     startToken = lookahead;
     expr = matchKeyword(u"new") ? 
         parseNewExpression() : parsePrimaryExpression();
+    
     for (;;) {
         if (match(u"[")) {
+            sub = true;
             property = parseComputedMember();
             tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'[', expr, property);
         } else if (match(u".")) {
+            sub = true;
             property = parseNonComputedMember();
             tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'.', expr, property);
-        } else {
+        } else {            
             break;
         }
     }
-  DEBUGOUT("parseLeftHandSideExpr"); return tmpnode;
+  DEBUGOUT("parseLeftHandSideExpr");
+  if (sub) { return tmpnode; }
+  else { return expr; }
 }
 
 // 11.3 Postfix Expressions
