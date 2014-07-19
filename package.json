@@ -12,6 +12,8 @@
         "gulp-uglify":"*",
         "gulp-rename":"*",
         "gulp-replace":"*",
+        "gulp-run":"*",
+        "run-sequence":"*",
         "lazypipe":"*"
     },
 "devDependencies": {},

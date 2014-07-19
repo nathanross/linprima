@@ -6,7 +6,6 @@
     // Universal Module Definition (UMD) to support AMD, CommonJS/Node.js,
     // Rhino, and plain browser loading.
 
-    /* istanbul ignore next */
     if (typeof define === 'function' && define.amd) {
         define(['exports'], factory);
     } else if (typeof exports !== 'undefined') {
@@ -17,10 +16,16 @@
 }(this, function (exports) {
     'use strict';
 
-    //_linprimaMod = _LinprimaASM();
+    //=FFI= //%FFIsnippet.js%
 
     //=ASM= //%linprima.asm.js%
-    //=FFI= //%FFIsnippet.js%
+
+    //=ASM= var _linprimaMod = {
+    //=ASM= parseExtern : 
+    //=ASM= Module.cwrap('parseExtern', 'string', ['string', 'string']),
+    //=ASM= tokenizeExtern : 
+    //=ASM= Module.cwrap('tokenizeExtern', 'string', ['string', 'string']),
+    //=ASM= };
 
     var tokenize = function(code, options) {
         if (typeof code !== 'string' && !(code instanceof String)) {
@@ -40,12 +45,12 @@
         if (typeof code !== 'string' && !(code instanceof String)) {
             code = string(code);
         }
-        optStr = "{}";
+        var optStr = "{}";
         if (options !== undefined) { optStr = JSON.stringify(options); }
         var out = JSON.parse(_linprimaMod.parseExtern(code, optStr));
         var path,j,cursor, regex;
-        for (var i=0; i<out["regex"].length; i++) {
-            path=out["regex"][i]; 
+        for (var i=0; i<out["regexp"].length; i++) {
+            path=out["regexp"][i]; 
             cursor = out["program"];
             for (j=0; j<path.length; j++) {
                 cursor = cursor[path[j]];
@@ -59,10 +64,10 @@
             }
         }
         var programOut = out.program;
-        program.comments = out["comments"];
-        delete out["regex"];
+        if (out.comments != undefined) { programOut.comments = out["comments"]; }
+        if (out.errors != undefined) { programOut.errors = out["errors"]; }
+        if (out.tokens != undefined) { programOut.tokens = out["tokens"]; }
         return programOut;
-
     }
 
 

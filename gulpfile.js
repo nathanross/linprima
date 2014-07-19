@@ -89,7 +89,7 @@ gulp.task('ffip', function() {
     //as code is substituted into wrapper.
 gulp.task('asmccall', ['prepareSource'], function(callback) {
     var cb = function(a,b,c) { toShell(a,b,c); callback(); };
-    exec("emcc -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseExtern', '_tokenizeExtern']\" tmp/src.cpp -o tmp/linprima.asm.0.js", 
+    exec("emcc -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseExtern', '_tokenizeExtern']\" -s TOTAL_MEMORY=33554432 tmp/src.cpp -o tmp/linprima.asm.0.js", 
         makeExecCallback(callback));
 });
 
