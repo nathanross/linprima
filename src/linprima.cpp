@@ -2294,6 +2294,10 @@ void peek() { DEBUGIN(" peek()");
     
 //#CLEAR
 
+//#this is the ONLY constructor in this code capable of 
+//#modifying state, it ALWAYS and ONLY changes state if lookaheadAvail
+//#is true. Important to keep in mind when making 
+//#1:1 updates.
 Node::Node(bool lookaheadAvail, bool storeStats) { DEBUGIN("Node::Node(bool, bool)", true);
     jv = json_newmap();
     isNull = false;
@@ -2312,6 +2316,7 @@ Node::Node(bool lookaheadAvail, bool storeStats) { DEBUGIN("Node::Node(bool, boo
     
         if (extra.loc) {
             hasLoc = true;
+            loc.start = Position();
         } 
     }
     DEBUGOUT("", true);
@@ -3194,8 +3199,8 @@ bool isLeftHandSide(Node expr) { DEBUGIN("   isLeftHandSide(Node expr)");
 //#CLEAR+
 Node parseArrayInitialiser() { DEBUGIN(" parseArrayInitialiser()");
     vector< Node > elements;
-    Node node(true, true);
-
+    Node node(true, true);    
+    
     expect(u"[");
 
     while (!match(u"]")) {
