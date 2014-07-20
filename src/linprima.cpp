@@ -25,23 +25,23 @@ static inline std::string &ltrim(std::string &s) {
     return s;
 }
 
-bool DEBUG_ON= (bool) 0;
+bool DEBUG_ON= (bool) 1;
 bool HIPRI_ONLY= (bool) 1;
 
 void DEBUGIN(string in, bool lowprio) {    
     if (!DEBUG_ON) { return; }
     if (HIPRI_ONLY && lowprio) { return; }
     debuglevel++;
-    string spacer = "d: ";
     string msg = "";
+
+    for (int i=0;i<debuglevel;i++) {
+        msg.append("  ");
+    }    
     if (lowprio) { msg.append("\033[1;30m"); } 
     msg.append(ltrim(in));
     if (lowprio) { msg.append("\033[0m"); } 
-
-    for (int i=0;i<debuglevel;i++) {
-        spacer.append("  ");
-    }    
-    cout << spacer << msg << endl;
+    msg.append("\n");
+    printf(msg.data());
     stackfuncs.push_back(ltrim(in));
 }
 void DEBUGIN(string in) {
@@ -51,9 +51,11 @@ void DEBUGIN(string in) {
 void DEBUGOUT(string in, bool lowprio) {
     if (!DEBUG_ON) { return; }
     if (HIPRI_ONLY && lowprio) { return; }
-    string spacer = "d:";
     string msg = "";
 
+    for (int i=0;i<debuglevel;i++) {
+        msg.append("  ");
+    }
     if (lowprio) { msg.append("\033[1;30m"); } 
     msg.append("~");
     //    msg.append(ltrim(in));
@@ -62,11 +64,9 @@ void DEBUGOUT(string in, bool lowprio) {
         msg.append(stackfuncs.back());
     }
     if (lowprio) { msg.append("\033[0m"); } 
+    msg.append("\n");
+    printf(msg.data());
 
-    for (int i=0;i<debuglevel;i++) {
-        spacer.append("  ");
-    }
-    cout << spacer << msg << endl;
     stackfuncs.pop_back();
     debuglevel--;
 }
@@ -5311,11 +5311,14 @@ string tokenizeRetString(u16string code, OptionsStruct options) {
 //#    serializer that does not print quotes.
 
 json_object*  parse(const u16string code, const OptionsStruct options) { 
+        
     Node programNode;
     json_object * programJson = json_newmap();
 
     initglobals();
+    
     sourceraw = code.data();
+    
     idx = 0;
     lineNumber = (code.size() > 0) ? 1 : 0;
     lineStart = 0;
@@ -5379,6 +5382,7 @@ json_object*  parse(const u16string code, const OptionsStruct options) {
 }
 
 json_object*  parse(const string code, const OptionsStruct options) {
+    
   return parse(toU16string(code), options);
 }
 json_object*  parse(const string code) { 
@@ -5392,15 +5396,10 @@ json_object*  parse(const u16string code) {
 
 //# return json as string.
 string parseRetString(const u16string code, const OptionsStruct options) { 
-  return json_object_to_json_string_ext(parse(code, options), JSON_C_TO_STRING_PRETTY); 
+  return json_object_to_json_string_ext(parse(code, options), JSON_C_TO_STRING_PLAIN); 
 }
 string parseRetString(const string code, const OptionsStruct options) { 
-    json_object* a = parse(code, options);
-
-    string b = json_object_to_json_string_ext(a, JSON_C_TO_STRING_PLAIN);
-
-
-        return json_object_to_json_string_ext(parse(code, options), JSON_C_TO_STRING_PRETTY); 
+   return json_object_to_json_string_ext(parse(code, options), JSON_C_TO_STRING_PLAIN); 
 }
 
 
@@ -5423,6 +5422,7 @@ extern "C" {
                                           OptionsStruct(options)));
     }
     char* parseExtern(const char *code, const char* options) {
+        printf(" hello parseExtern\n");
       return strToChar(parseRetString(string(code), 
                                        OptionsStruct(
                                          options)));
