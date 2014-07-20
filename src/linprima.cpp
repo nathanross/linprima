@@ -26,7 +26,7 @@ static inline std::string &ltrim(std::string &s) {
 }
 
 
-bool DEBUG_ON= (bool) 1;
+bool DEBUG_ON= (bool) 0;
 bool HIPRI_ONLY= (bool) 1;
 
 void DEBUGIN(string in, bool lowprio) {    
@@ -42,7 +42,7 @@ void DEBUGIN(string in, bool lowprio) {
     msg.append(ltrim(in));
     if (lowprio) { msg.append("\033[0m"); } 
     msg.append("\n");
-    printf(msg.data());
+    printf("%s", msg.data());
     stackfuncs.push_back(ltrim(in));
 }
 void DEBUGIN(string in) {
@@ -66,7 +66,7 @@ void DEBUGOUT(string in, bool lowprio) {
     }
     if (lowprio) { msg.append("\033[0m"); } 
     msg.append("\n");
-    printf(msg.data());
+    printf("%s", msg.data());
 
     stackfuncs.pop_back();
     debuglevel--;
@@ -2793,10 +2793,13 @@ void Node::finishProgram(vector< Node >& body) { DEBUGIN(" Node::finishProgram(v
     nodeVec("body", body);
     this->finish(); 
     //no parent node to call reg so add these atts. here.
-    json_put(jv, "range",vec2json<int>({range[0], range[1]}));
-    json_put(jv, "loc", locToJson(loc));
-    DEBUGOUT();
-    
+    if (extra.range) {
+        json_put(jv, "range",vec2json<int>({range[0], range[1]}));
+    }
+    if (extra.loc) {
+        json_put(jv, "loc", locToJson(loc));
+    }
+    DEBUGOUT();    
 }
 
 //#CLEAR
@@ -3203,8 +3206,9 @@ Node parseArrayInitialiser() { DEBUGIN(" parseArrayInitialiser()");
     Node node(true, true);    
     
     expect(u"[");
-
+    
     while (!match(u"]")) {
+
         if (match(u",")) {
             lex();
             elements.push_back(NULLNODE);
@@ -5423,21 +5427,23 @@ extern "C" {
                                           OptionsStruct(options)));
     }
     char* parseExtern(const char *code, const char* options) {
-        printf(" hello parseExtern\n");
+
+        //printf("code:%s\n", code);
       return strToChar(parseRetString(string(code), 
                                        OptionsStruct(
                                          options)));
     }
 }
 
-/*
+
 int main() {
     string somecode = "var f = function() { echo('hello world'); }";
 
     string someopt = "{ 'loc': false }";
     string result = string(parseExtern(somecode.data(), someopt.data()));
-   //cout << result << endl;
-    }*/
+    result.append("\n");
+    printf("%s", result.data());
+}
 
 
 
