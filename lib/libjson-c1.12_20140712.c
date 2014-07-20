@@ -4869,6 +4869,7 @@ static int json_object_object_to_json_string(struct json_object* jso,
 		sprintbuf(pb, "\n");
 	json_object_object_foreachC(jso, iter)
 	{
+        //printf(iter.key);
 		if (had_children)
 		{
 			sprintbuf(pb, ",");
