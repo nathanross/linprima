@@ -226,17 +226,52 @@ json_object* json_push(json_object *a, json_object *c) {
    return c;
 }
 
-json_object* json_find(json_object *a, const char* eqkey) { 
+//# incrRef increases the reference count of the json_object
+//# returned. This means you're essentially saying 'keep this
+//# object around, even if the parent json object containing it gets
+//# freed' via json_object_put called on it or some parent of it,
+//# or parent of that, etc.
+
+//# the consequence of that is that later you need to free 
+//# this retrieved object individually via json_object_put
+//# to decrease the refcount to 0 and have libjson-c free it.
+//# otherwise you'll have a memory leak. best policy
+//# for primitives is just find json objects and get their values 
+//# then return the values not the object, and when possible
+//# for objects and arrays, don't increment, make all necessary
+//# reads and writes in scope find is called.
+
+//# again, if you return the json out of the function find is 
+//# called in, the object will still exist until put is called
+//# on a parent, but it makes for spaghetti freeing.
+json_object* json_find(json_object *a, const bool incrRef, 
+                       const char* eqkey, const json_type eqType) { 
     json_object_object_foreach(a, jkey, jval) {
         if (strcmp(jkey, eqkey) == 0) {
-           return json_object_get(jval); //increment the reference count, so no segfault if you drop the owner node.
+            if (json_object_is_type(jval, eqType)) {
+                if (incrRef) { return json_object_get(jval); }
+                return jval;
+            }
+            return nullptr;
         }
     }    
-   return nullptr;
+    return nullptr;
 }
 
-json_object* json_require(json_object *a, const char* eqkey) { 
-    json_object * out = json_find(a, eqkey);
+json_object* json_find(json_object *a, const bool incrRef, 
+                       const char* eqkey) { 
+    json_object_object_foreach(a, jkey, jval) {
+        if (strcmp(jkey, eqkey) == 0) {
+            if (incrRef) { return json_object_get(jval); }
+            return jval;
+        }
+    }    
+    return nullptr;
+}
+
+json_object* json_require(json_object *a, bool incrRef, 
+                          const char* eqkey) { 
+    json_object * out = json_find(a, incrRef, eqkey);
     if (out == nullptr) {
         string errormsg = "json_find failed to find key : ";
         errormsg.append(string(eqkey));
@@ -245,23 +280,24 @@ json_object* json_require(json_object *a, const char* eqkey) {
    return out;
 }
 
-json_object* json_arrfind(json_object* a, int idx) { 
+json_object* json_arrfind(json_object* a, bool incrRef, const int idx) { 
     if (idx >= json_object_array_length(a)) {
         throw runtime_error("json_arrIdx was asked to find an index outside of the array bounds");
     }
-   return json_object_array_get_idx(a, idx);
+    json_object * result = json_object_array_get_idx(a, idx);
+    if (incrRef) { return json_object_get(result); }
+    return result;
 }
 
-void json_arrput(json_object* a, int idx, json_object *c) {        
+void json_arrput(json_object* a, const int idx, json_object *c) {        
     if (idx > json_object_array_length(a)) {
         throw runtime_error("json_arrIdx was asked to set an index higher than array length");
     }
-    json_object_array_put_idx(a, idx, c);
- 
+    json_object_array_put_idx(a, idx, c); 
 }
 
 void json_del(json_object *a, const char* key) { 
-    if (json_find(a, key) != nullptr) {
+    if (json_find(a, false, key) != nullptr) {
         json_object_object_del(a, key);
     }
     
@@ -711,10 +747,10 @@ struct OptionsStruct {
         DEBUGOUT("OptionsStruct()");
     }
     bool json_getbool(json_object* in, string key, bool defaultVal) {
-        json_object* tmp = json_find(in, key.data());
+        json_object* tmp = json_find(in, false, 
+                                     key.data(), json_type_boolean);
         if (tmp == nullptr) { return defaultVal; }
         bool result = (bool) json_object_get_boolean(tmp);
-        json_object_put(tmp);
         return result;
     }
     OptionsStruct(const char *in_o) {
@@ -740,11 +776,10 @@ struct OptionsStruct {
             comment = json_getbool(in, "comment", false);
             tolerant = json_getbool(in, "tolerant", false);
             tokens = json_getbool(in, "tokens", false);
-            tmp = json_find(in, "source");        
+            tmp = json_find(in, false, "source", json_type_string);     
             hasSource = (tmp != nullptr);
             if (hasSource) { 
                 source = json_object_get_string(tmp); 
-                json_object_put(tmp);
             }
         }
         json_object_put(in);
@@ -2479,7 +2514,8 @@ void Node::processComment() { DEBUGIN(" Node::processComment()");
 
 
     if (type == Syntax["Program"]) {  
-        if (json_object_array_length(json_require(jv, "body")) > 0) {
+        if (json_object_array_length(
+                    json_require(jv,false, "body")) > 0) {
           DEBUGOUT(); return;
         }
     }
@@ -3391,17 +3427,19 @@ Node parseObjectInitialiser() { DEBUGIN(" parseObjectInitialiser()");
 
     while (!match(u"}")) {
         property = parseObjectProperty();
-        keyobj = json_require(property.jv, "key");
+        keyobj = json_require(property.jv, false, "key");
         keytype = json_object_get_string(
-                                         json_require(keyobj, "type"));
+                      json_require(keyobj, false, "type"));
 
         if (keytype == toU8string(Syntax["Identifier"])) {
             name = json_object_get_string(
-                                        json_require(keyobj, "name"));
+                      json_require(keyobj, false, "name"));
         } else {
-            name = json_tostring(json_require(keyobj, "value"));
+            name = json_tostring(
+                      json_require(keyobj, false, "value"));
         }
-        kindname = json_object_get_string(json_require(property.jv, "kind"));
+        kindname = json_object_get_string(
+                      json_require(property.jv, false, "kind"));
         kind = (kindname == "init") ? PropertyKind["Data"] : (kindname == "get") ? PropertyKind["Get"] : PropertyKind["Set"];
 
         key = "$";
@@ -4364,7 +4402,7 @@ Node parseForStatement(Node node) { DEBUGIN(" parseForStatement(Node node)");
             state.allowIn = previousAllowIn;
 
             if (json_object_array_length(
-                         json_require(init.jv, "declarations")) == 1 
+                   json_require(init.jv, false, "declarations")) == 1 
                 && matchKeyword(u"in")) { 
                 
                 lex();
@@ -4635,8 +4673,9 @@ Node parseSwitchStatement(Node node) { DEBUGIN(" parseSwitchStatement(Node node)
             break;
         }
         clause = parseSwitchCase();
-        if (json_object_is_type(json_require(clause.jv, "test"), 
-                                json_type_null)) {
+        if (json_object_is_type(
+                  json_require(clause.jv, false, "test"), 
+                  json_type_null)) {
             if (defaultFound) {
                 throwError(NULLTOKEN, 
                            Messages["MultipleDefaultsInSwitch"],{});
@@ -4840,12 +4879,9 @@ Node parseFunctionSourceElements() { DEBUGIN(" parseFunctionSourceElements()");
         //# so returns a string literal expression node wrapped in an expressionStatement node.
         sourceElements.push_back(sourceElement); 
         if (strcmp(
-                   json_object_get_string(json_require(
-                                                       json_require(
-                                                                    sourceElement.jv, 
-                                                                    "expression"),
-                                                       "type")
-                                          ), 
+                   json_object_get_string(
+json_require(json_require(sourceElement.jv, false, "expression"),
+             false, "type")), 
                    toU8string(Syntax["Literal"]).data()) != 0) {
             //? this one I doubt there's more an efficient way to do this
             //? then json-c accesses. Storing node hierarchies just to fix this call seems to 
@@ -5145,13 +5181,9 @@ vector< Node > parseSourceElements() { DEBUGIN(" parseSourceElementS() ");
         sourceElements.push_back(sourceElement);
         //#todo make a function that accepts vector of nested finds
         //#so we can make tests like this more legible.
-        if (strcmp(
-                   json_object_get_string(json_require(
-                                                       json_require(
-                                                                    sourceElement.jv, 
-                                                                    "expression"),
-                                                       "type")
-                                          ), 
+        if (strcmp(json_object_get_string(
+json_require(json_require(sourceElement.jv, false,"expression"), 
+false,"type")), 
                    toU8string(Syntax["Literal"]).data()) != 0) {         
             // this is not directive
             break;
