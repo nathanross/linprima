@@ -5322,11 +5322,14 @@ json_object*  tokenize(u16string code) {
   return tokenize(code, o);
 }
 
-string tokenizeRetString(string code, OptionsStruct options) {
-  return string(json_object_to_json_string_ext(tokenize(code, options), JSON_C_TO_STRING_PRETTY)); 
-}
 string tokenizeRetString(u16string code, OptionsStruct options) {
-  return string(json_object_to_json_string_ext(tokenize(code, options), JSON_C_TO_STRING_PRETTY)); 
+    json_object * m = tokenize(code, options);
+    string result = json_object_to_json_string_ext(m, JSON_C_TO_STRING_PLAIN); 
+    json_object_put(m);
+    return result;  
+}
+string tokenizeRetString(string code, OptionsStruct options) {
+    return tokenizeRetString(toU16string(code, options));
 }
 
 //# Returns a map containing
@@ -5430,14 +5433,13 @@ json_object*  parse(const u16string code) {
 }
 
 //# return json as string.
-string parseRetString(const u16string code, const OptionsStruct options) { 
-  return json_object_to_json_string_ext(parse(code, options), JSON_C_TO_STRING_PLAIN); 
+string parseRetString(const u16string code, const OptionsStruct options) {    json_object * m = parse(code, options);
+    string result = json_object_to_json_string_ext(m, JSON_C_TO_STRING_PLAIN); 
+    json_object_put(m);
+    return result; 
 }
 string parseRetString(const string code, const OptionsStruct options) { 
-    json_object * m = parse(code, options);
-    string result = json_object_to_json_string_ext(m, JSON_C_TO_STRING_PLAIN); 
-    cout << "put: " << json_object_put(m) << endl;
-    return result;
+    return parseRetString(toU16string(code), options);
 }
 
 
