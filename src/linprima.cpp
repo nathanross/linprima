@@ -5329,7 +5329,7 @@ string tokenizeRetString(u16string code, OptionsStruct options) {
     return result;  
 }
 string tokenizeRetString(string code, OptionsStruct options) {
-    return tokenizeRetString(toU16string(code, options));
+    return tokenizeRetString(toU16string(code), options);
 }
 
 //# Returns a map containing
