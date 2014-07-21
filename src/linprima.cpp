@@ -2942,9 +2942,12 @@ void Node::finishWithStatement(Node& object, Node& body) { DEBUGIN(" Node::finis
 
 class WrappingNode : public Node {
 public:
-    WrappingNode(TokenStruct startToken) : Node(true, true) {
+    WrappingNode(TokenStruct startToken) : Node(false, true) {
         DEBUGIN("WrappingNode(Token)");
- 
+        if (!hasJv) { 
+            jv = json_newmap(); 
+            hasJv=true;
+        }
         if (extra.range) {
             hasRange = true;
             range[0] = startToken.start;
