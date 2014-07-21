@@ -549,6 +549,7 @@ class Node {
 public:
     bool isNull;
     u16string type;
+    bool hasJv;
     json_object * jv;
     Loc loc;
     
@@ -558,6 +559,7 @@ public:
     vector<Comment> trailingComments;
     vector<Comment> leadingComments;
     vector< vector<string> > regexPaths; //lin only. obv.
+
 
 
     u16string name;//for identifiers
@@ -570,6 +572,8 @@ public:
     Node(bool lookaheadAvail, bool storeStats);
     json_object* toJson();
     void lookavailInit();
+    void clear();
+    void unused();
     void jvput(string path, string b);
     void jvput(string path, int b); 
     void jvput(string path, bool b);
@@ -709,7 +713,9 @@ struct OptionsStruct {
     bool json_getbool(json_object* in, string key, bool defaultVal) {
         json_object* tmp = json_find(in, key.data());
         if (tmp == nullptr) { return defaultVal; }
-      return (bool) json_object_get_boolean(tmp);
+        bool result = (bool) json_object_get_boolean(tmp);
+        json_object_put(tmp);
+        return result;
     }
     OptionsStruct(const char *in_o) {
         DEBUGIN("OptionsStruct(char*)");
@@ -736,9 +742,12 @@ struct OptionsStruct {
             tokens = json_getbool(in, "tokens", false);
             tmp = json_find(in, "source");        
             hasSource = (tmp != nullptr);
-            if (hasSource) 
-                { source = json_object_get_string(tmp); }
+            if (hasSource) { 
+                source = json_object_get_string(tmp); 
+                json_object_put(tmp);
+            }
         }
+        json_object_put(in);
         DEBUGOUT("OptionsStruct(char*)");
     }
 };
@@ -2300,7 +2309,7 @@ void peek() { DEBUGIN(" peek()");
 //#is true. Important to keep in mind when making 
 //#1:1 updates.
 Node::Node(bool lookaheadAvail, bool storeStats) { DEBUGIN("Node::Node(bool, bool)", true);
-    jv = json_newmap();
+    hasJv = false;
     isNull = false;
     hasRange = false;
     hasLoc = false;
@@ -2332,6 +2341,9 @@ json_object* Node::toJson() {
 string Node::s(u16string in) { return toU8string(in); }
 
 void Node::lookavailInit() {
+    hasJv = true;
+    jv = json_newmap();
+
     idx = lookahead.start;
     if (lookahead.type == Token["StringLiteral"]) {
         lineNumber = lookahead.startLineNumber;
@@ -2345,6 +2357,23 @@ void Node::lookavailInit() {
         range[0] = idx;
     }
 }
+
+void Node::clear() {
+    regexPaths.clear();
+    trailingComments.clear();
+    leadingComments.clear();
+    expressions.clear();
+    
+    hasLoc = false;
+    hasRange = false;
+}
+
+void Node::unused() {
+    if (hasJv) {
+        json_object_put(this->jv);
+    }
+}
+
 void Node::jvput(string path, string b) {json_put(jv, path.data(), b); }
 void Node::jvput(string path, int b) {json_put(jv, path.data(), b); }
 void Node::jvput(string path, bool b) {json_put(jv, path.data(), b); }
@@ -2375,8 +2404,8 @@ void Node::regNoadd(vector<string> paths, Node &child) { DEBUGIN(" Node::regNoad
                 }
             }
         }
-        child.regexPaths.clear();
     }
+    child.clear();
     DEBUGOUT("Node::regNoAdd");
 }
 
@@ -2913,7 +2942,7 @@ void Node::finishWithStatement(Node& object, Node& body) { DEBUGIN(" Node::finis
 
 class WrappingNode : public Node {
 public:
-    WrappingNode(TokenStruct startToken) : Node(false, true) {
+    WrappingNode(TokenStruct startToken) : Node(true, true) {
         DEBUGIN("WrappingNode(Token)");
  
         if (extra.range) {
@@ -3459,6 +3488,7 @@ Node parsePrimaryExpression() { DEBUGIN(" parsePrimaryExpression()");
 
     } else if (type == Token["Keyword"]) {
         if (matchKeyword(u"function")) {
+            expr.unused();
           return DEBUGRET("", parseFunctionExpression());
         }
         if (matchKeyword(u"this")) {
@@ -5404,7 +5434,10 @@ string parseRetString(const u16string code, const OptionsStruct options) {
   return json_object_to_json_string_ext(parse(code, options), JSON_C_TO_STRING_PLAIN); 
 }
 string parseRetString(const string code, const OptionsStruct options) { 
-   return json_object_to_json_string_ext(parse(code, options), JSON_C_TO_STRING_PLAIN); 
+    json_object * m = parse(code, options);
+    string result = json_object_to_json_string_ext(m, JSON_C_TO_STRING_PLAIN); 
+    cout << "put: " << json_object_put(m) << endl;
+    return result;
 }
 
 
@@ -5436,14 +5469,14 @@ extern "C" {
 }
 
 
-int main() {
+/*int main() {
     string somecode = "var f = function() { echo('hello world'); }";
 
     string someopt = "{ 'loc': false }";
     string result = string(parseExtern(somecode.data(), someopt.data()));
     result.append("\n");
     printf("%s", result.data());
-}
+}*/
 
 
 
