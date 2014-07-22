@@ -364,13 +364,27 @@ void append(u16string &base, char16_t tail) { DEBUGIN(" append(u16string &base, 
 
 int parseInt(u16string in_u16, int radix) {  // !!!
         DEBUGIN("parseInt");
+        const int zero = 48;
+        const int upperA = 65;
+        const int lowerA = 97;
+
         string in = toU8string(in_u16);
-        int length, 
-            result = 0,
-            tare = (int) '0';
+        int length,
+            cur,
+            result = 0;
         length = in.length();
         for (int i=0; i<length; i++) {
-            result += ((((int) in[i]) - tare) * pow(radix,length-(i+1)));
+            cur = (int) in[i];
+            if (cur <= zero+9 &&  cur >= zero) {
+                cur = cur - zero;
+            } else if (cur <= upperA+5 && cur <= upperA) {
+                cur = 10 + cur - upperA;
+            } else if (cur <= lowerA+5 && cur <= lowerA) {
+                cur = 10 + cur - lowerA;
+            } else {
+                return -1;
+            }
+            result += (cur * pow(radix,length-(i+1)));
         }
   DEBUGOUT(); return result; 
 }
