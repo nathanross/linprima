@@ -26,7 +26,7 @@ static inline std::string &ltrim(std::string &s) {
 }
 
 
-bool DEBUG_ON= (bool) 0;
+bool DEBUG_ON= (bool) 1;
 bool HIPRI_ONLY= (bool) 1;
 
 void DEBUGIN(string in, bool lowprio) {    
@@ -482,16 +482,63 @@ struct Comment {
         this->range[1] = -1;
         DEBUGOUT("Comment()");
     }
-    json_object * toJson() {
-        DEBUGIN("Comment::toJson");
-        json_object *root = json_newmap(), *rangearr = json_newarr();
-        json_put(root, "type", toU8string(this->type));
-        json_put(root, "value", toU8string(this->value));
-        json_push(rangearr, this->range[0]);
-        json_push(rangearr, this->range[1]);
-        json_put(root, "range", rangearr);
-        json_put(root, "loc", locToJson(this->loc));
-      DEBUGOUT("comment::toJson"); return root;
+    json_object * toJson();
+};
+
+//# good to have these separated from individual nodes,
+//# because unless we start storing nodes in heap,
+//# what happens is we create a node, goes on stack,
+//# reference it from extrastruct (storing it is a
+//# prohibitive expense due to some expandable members)
+//# exits stack, gone, ref. invalid.
+
+//# better to only keep in memory the data necessary.
+//# these are the only data members that will be necessary
+//# once the node has left the stack (barring Assignment
+//# Expressions which which put a nodecopy on the heap)
+class NodesComments {
+public:
+    vector<Comment> leadingComments;
+    vector<Comment> trailingComments;
+    json_object * nodesJv;
+    int range[2];
+    bool isNull;
+    NodesComments() {
+        nodesJv = 0x0;
+        isNull = false;
+        range[0] = -1;
+        range[1] = -1;
+        leadingComments.clear();
+        trailingComments.clear();
+    }
+    NodesComments(json_object * jv) {
+        this->nodesJv = jv;
+        isNull = false;
+        range[0] = -1;
+        range[1] = -1;
+        leadingComments.clear();
+        trailingComments.clear();
+    }
+    void commentsIntoJson(const bool leading) { 
+        DEBUGIN(" NodesComments::commentsIntoJson(const bool leading)");
+        string key;
+        vector<Comment> * commentVec;
+        if (leading) {
+            key = "leadingComments";
+            commentVec = &leadingComments;
+        } else {
+            key = "trailingComments";
+            commentVec = &trailingComments;
+        }
+        if (commentVec->size() > 0) {
+            json_put(nodesJv, key.data(), 
+                     vec2jsonCallback<Comment>(*commentVec,
+                                               &Comment::toJson));
+        } else {
+
+            json_del(nodesJv, key.data());
+        }
+        //DEBUGOUT("commentsIntoJSon");
     }
 };
 
@@ -592,8 +639,6 @@ public:
     bool hasLoc;
     bool hasRange;
     int range[2];
-    vector<Comment> trailingComments;
-    vector<Comment> leadingComments;
     vector< vector<string> > regexPaths; //lin only. obv.
 
 
@@ -673,7 +718,6 @@ public:
 
 TokenStruct NULLTOKEN;
 Node NULLNODE(false,false);
-
 struct ExtraStruct {
     bool tokenTracking; //port-specific member to replace "if (extra.tokens)"
     vector<TokenRecord> tokenRecords; //called extra.tokens in esprima
@@ -699,7 +743,7 @@ struct ExtraStruct {
     bool attachComment;
     vector<Comment> leadingComments;
     vector<Comment> trailingComments;
-    vector< Node * > bottomRightStack; //! todo Node header text.
+    vector< NodesComments > bottomRightStack; //! todo Node header text.
 
     ExtraStruct() {
         tokenize = false;
@@ -713,8 +757,6 @@ struct ExtraStruct {
         
     }
 };
-
-
 
 struct StateStruct {
     bool allowIn;
@@ -891,6 +933,7 @@ TokenStruct lookahead;
 const char16_t * sourceraw;
 char16_t source(int idx) { return *(sourceraw + idx); }
 
+
 json_object*  TokenRecord::toJson() { DEBUGIN(" TokenRecord::toJson()");
     json_object *root = json_newmap(), *rangearr;
     json_put(root, "type", toU8string(this->typestring));
@@ -904,7 +947,22 @@ json_object*  TokenRecord::toJson() { DEBUGIN(" TokenRecord::toJson()");
     if (extra.loc) {
         json_put(root, "loc", locToJson(this->loc));
     }
+
   DEBUGOUT("TokenRecord::toJson()"); return root;
+}
+
+json_object * Comment::toJson() {
+    DEBUGIN("Comment::toJson");
+    json_object *root = json_newmap(), *rangearr = json_newarr();
+    json_put(root, "type", toU8string(this->type));
+    json_put(root, "value", toU8string(this->value));
+    json_push(rangearr, this->range[0]);
+    json_push(rangearr, this->range[1]);
+    json_put(root, "range", rangearr);
+    if (extra.loc) {
+        json_put(root, "loc", locToJson(this->loc));
+    }
+    DEBUGOUT("comment::toJson"); return root;
 }
 
 //#C++ specific type specifier
@@ -2395,8 +2453,6 @@ void Node::lookavailInit() {
 
 void Node::clear() {
     regexPaths.clear();
-    trailingComments.clear();
-    leadingComments.clear();
     expressions.clear();
     
     hasLoc = false;
@@ -2481,37 +2537,25 @@ json_object* Node::regexPaths2json() { DEBUGIN("Node::regexPaths2json()");
   DEBUGOUT(); return root;
 }
 
-void Node::commentsIntoJson(const bool leading) { DEBUGIN(" Node::commentsIntoJson(const bool leading)");
-    string key;
-    vector<Comment> * commentVec;
-    if (leading) {
-        key = "leadingComments";
-        commentVec = &leadingComments;
-    } else {
-        key = "trailingComments";
-        commentVec = &trailingComments;
-    }
-    if (commentVec->size() > 0) {
-        jvput(key, vec2jsonCallback<Comment>(*commentVec,
-                                          &Comment::toJson));
-    } else {
-        json_del(jv, key.data());
-    }
-    DEBUGOUT();
-}
-
 //#CLEAR
+//#not the most efficient way to do this. would be easy to choke
+//#on big comments. TODO move NodesComments to heap, free
+//on removal from bottomright and end of use.
 void Node::processComment() { DEBUGIN(" Node::processComment()");
     //# assumes attachComments 
     //# so that means range is already true.
+    
+    vector< Comment > trailingComments;
 
-    vector<Comment> trailingComments;
-
-    vector< Node * > * bottomRight = &(extra.bottomRightStack);
-    Node * lastChild = &NULLNODE,
-        * last = bottomRight->at(bottomRight->size() - 1);
-    bool LEADING = true;
-
+    vector< NodesComments > * bottomRight = &(extra.bottomRightStack);
+    NodesComments lastChild;
+    NodesComments last;
+    last.isNull = true; lastChild.isNull = true;
+    NodesComments thisnc(jv);
+    bool LEADING = true, TRAILING= false;
+    if (bottomRight->size() > 0) {
+        last = bottomRight->back();
+    }
 
     if (type == Syntax["Program"]) {  
         if (json_object_array_length(
@@ -2520,8 +2564,11 @@ void Node::processComment() { DEBUGIN(" Node::processComment()");
         }
     }
 
+    thisnc.range[0] = range[0];
+    thisnc.range[1] = range[1];
+
     if (extra.trailingComments.size() > 0) {
-        if (extra.trailingComments[0].range[0] >= this->range[1]) {
+        if (extra.trailingComments[0].range[0] >= thisnc.range[1]) {
             trailingComments = extra.trailingComments;
             extra.trailingComments.clear();
         } else {
@@ -2530,47 +2577,53 @@ void Node::processComment() { DEBUGIN(" Node::processComment()");
             //# don't think there's an effective difference thoug
         }
     } else {
-        if (!(last->isNull) && 
-            last->trailingComments.size() > 0 && 
-            last->trailingComments[0].range[0] >= this->range[1]) {
-            trailingComments = last->trailingComments;
-            last->trailingComments.clear();
-            last->commentsIntoJson(! LEADING);
+        if (!(last.isNull) && 
+            last.trailingComments.size() > 0 && 
+            last.trailingComments[0].range[0] >= thisnc.range[1]) {
+            trailingComments = last.trailingComments;
+            last.trailingComments.clear();
+            last.commentsIntoJson(TRAILING);
             //delete last.trailingComments; 
             //? maybe have a boolean to say no trailing comments? length will prob. be workable.
         }
     }
 
     // Eating the stack.
-    if (!(last->isNull)) {
-        while ((!(last->isNull)) && last->range[0] >= this->range[0]) {
+    if (!(last.isNull)) {
+        while ((!(last.isNull)) && last.range[0] >= thisnc.range[0]) {
             lastChild = last;
-            last = bottomRight->back();
-            bottomRight->pop_back();
+            if (bottomRight->size() > 0) { 
+                last = bottomRight->back(); 
+                bottomRight->pop_back();
+            } else { 
+                last.isNull = true; 
+            }
         }
     }
 
-    if (!(lastChild->isNull)) { 
-        if (lastChild->leadingComments.size() > 0 &&
-            lastChild->leadingComments[lastChild->leadingComments.size() - 1].range[1] <= this->range[0]) {
-            this->leadingComments = lastChild->leadingComments;
-            lastChild->leadingComments.clear();
-            lastChild->commentsIntoJson(LEADING);
-            this->commentsIntoJson(LEADING);
+    if (!(lastChild.isNull)) {
+        if (lastChild.leadingComments.size() > 0 &&
+            lastChild.leadingComments.back()
+                .range[1] <= thisnc.range[0]) {
+            thisnc.leadingComments = lastChild.leadingComments;
+            lastChild.leadingComments.clear();
+            lastChild.commentsIntoJson(LEADING);
+            thisnc.commentsIntoJson(LEADING);
         }
     } else if (extra.leadingComments.size() > 0 && 
-               extra.leadingComments[extra.leadingComments.size() - 1].range[1] <= this->range[0]) {
-        this->leadingComments = extra.leadingComments;
+               extra.leadingComments[extra.leadingComments.size() - 1]
+               .range[1] <= thisnc.range[0]) {
+        thisnc.leadingComments = extra.leadingComments;
         extra.leadingComments.clear();
-        this->commentsIntoJson(LEADING);
+        thisnc.commentsIntoJson(LEADING);
     }
 
     if (trailingComments.size() > 0) {
-        this->trailingComments = trailingComments;
-        this->commentsIntoJson(! LEADING);
+        thisnc.trailingComments = trailingComments;
+        thisnc.commentsIntoJson(TRAILING);
     }
 
-    bottomRight->push_back(this);
+    bottomRight->push_back(thisnc);
  DEBUGOUT();
 }
 
@@ -5383,7 +5436,7 @@ string tokenizeRetString(string code, OptionsStruct options) {
 //#    numeric literals are represented as strings, serialized to json string using a special
 //#    serializer that does not print quotes.
 
-json_object*  parse(const u16string code, const OptionsStruct options) { 
+json_object* parse(const u16string code, const OptionsStruct options) { 
         
     Node programNode;
     json_object * programJson = json_newmap();
@@ -5433,19 +5486,22 @@ json_object*  parse(const u16string code, const OptionsStruct options) {
 
 
     if (extra.commentTracking) {
-        json_put(programJson, "comments", vec2jsonCallback<Comment>(extra.comments,
-                                                           &Comment::toJson)); //! do these .toJson funcs all exist?
+        json_put(programJson, "comments", 
+                 vec2jsonCallback<Comment>(extra.comments,
+                                           &Comment::toJson)); 
     }
 
     if (extra.tokenTracking) {
         filterTokenLocation();
-        json_put(programJson, "tokens", vec2jsonCallback<TokenRecord>(extra.tokenRecords,
-                                                         &TokenRecord::toJson));
+        json_put(programJson, "tokens", 
+                 vec2jsonCallback<TokenRecord>(extra.tokenRecords,
+                                               &TokenRecord::toJson));
     }
 
     if (extra.errorTolerant) {
-        json_put(programJson, "errors", vec2jsonCallback<ExError>(extra.errors,
-                                                         &ExError::toJson));
+        json_put(programJson, "errors", 
+                 vec2jsonCallback<ExError>(extra.errors,
+                                           &ExError::toJson));
     }
 
 
@@ -5469,7 +5525,7 @@ json_object*  parse(const u16string code) {
 
 //# return json as string.
 string parseRetString(const u16string code, const OptionsStruct options) {    json_object * m = parse(code, options);
-    string result = json_object_to_json_string_ext(m, JSON_C_TO_STRING_PLAIN); 
+    string result = json_object_to_json_string_ext(m, JSON_C_TO_STRING_PRETTY); 
     json_object_put(m);
     return result; 
 }
@@ -5506,14 +5562,14 @@ extern "C" {
 }
 
 
-/*int main() {
-    string somecode = "var f = function() { echo('hello world'); }";
+int main() {
+    string somecode = "42 /* block comment 1 */ /* block comment 2 */";
 
-    string someopt = "{ 'loc': false }";
+    string someopt = "{ 'comment':true, 'attachComment':true }";
     string result = string(parseExtern(somecode.data(), someopt.data()));
     result.append("\n");
     printf("%s", result.data());
-}*/
+}
 
 
 
