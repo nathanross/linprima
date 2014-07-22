@@ -17,7 +17,7 @@
 //algorithm is for find(vector.begin()
 using namespace std;
 
-int debuglevel = 0;
+int debuglevel = 1;
 vector<string> stackfuncs;
 
 static inline std::string &ltrim(std::string &s) {
@@ -4591,6 +4591,7 @@ Node parseContinueStatement(Node node) { DEBUGIN(" parseContinueStatement(Node n
 Node parseBreakStatement(Node node) { DEBUGIN(" parseBreakStatement(Node node)");
     Node label(false, true);
     u16string key;
+    label.isNull = true;
 
     expectKeyword(u"break");
 
@@ -4710,7 +4711,9 @@ Node parseSwitchCase() { DEBUGIN(" parseSwitchCase()");
     expect(u":");
 
     while (idx < length) {
-        if (match(u"}") || matchKeyword(u"default") || matchKeyword(u"case")) {
+        if (match(u"}") 
+            || matchKeyword(u"default") 
+            || matchKeyword(u"case")) {
             break;
         }
         statement = parseStatement();
@@ -5612,9 +5615,9 @@ extern "C" {
 
 
 int main() {
-    string somecode = "42 /* block comment 1 */ /* block comment 2 */";
+    string somecode = "while (true) { break }";
 
-    string someopt = "{ 'comment':true, 'attachComment':true }";
+    string someopt = "{ 'loc':true, 'range':true }";
     string result = string(parseExtern(somecode.data(), someopt.data()));
     result.append("\n");
     printf("%s", result.data());
