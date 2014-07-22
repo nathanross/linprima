@@ -22,9 +22,9 @@
 
     //=ASM= var _linprimaMod = {
     //=ASM= parseExtern : 
-    //=ASM= Module.cwrap('parseExtern', 'string', ['string', 'string']),
+    //=ASM= Module.cwrap('parseExtern', 'string', ['string', 'number', 'string']),
     //=ASM= tokenizeExtern : 
-    //=ASM= Module.cwrap('tokenizeExtern', 'string', ['string', 'string']),
+    //=ASM= Module.cwrap('tokenizeExtern', 'string', ['string', 'number', 'string']),
     //=ASM= };
 
     var tokenize = function(code, options) {
@@ -33,7 +33,9 @@
         }
         var optStr = "{}";
         if (options !== undefined) { optStr = JSON.stringify(options); }
-        var out = JSON.parse(_linprimaMod.tokenizeExtern(code, optStr));
+        var out = JSON.parse(_linprimaMod.tokenizeExtern(code,
+                                                   //=ASM= code.length,
+                                                         optStr));
         var nodeRoot = out.tokenlist;
         if ("comments" in out) { nodeRoot.comments = out.comments; }
         if ("tokens" in out) { nodeRoot.tokens = out.tokens; }
@@ -47,7 +49,9 @@
         }
         var optStr = "{}";
         if (options !== undefined) { optStr = JSON.stringify(options); }
-        var out = JSON.parse(_linprimaMod.parseExtern(code, optStr));
+        var out = JSON.parse(_linprimaMod.parseExtern(code, 
+                                            //=ASM=   code.length, 
+                                                      optStr));
         var path,j,cursor, regex;
         for (var i=0; i<out["regexp"].length; i++) {
             path=out["regexp"][i]; 

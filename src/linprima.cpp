@@ -5531,7 +5531,8 @@ json_object*  parse(const u16string code) {
 
 //# return json as string.
 string parseRetString(const u16string code, const OptionsStruct options) {    json_object * m = parse(code, options);
-    string result = json_object_to_json_string_ext(m, JSON_C_TO_STRING_PRETTY); 
+    string result = json_object_to_json_string_ext(
+                     m, JSON_C_TO_STRING_PRETTY); 
     json_object_put(m);
     return result; 
 }
@@ -5558,10 +5559,36 @@ extern "C" {
       return strToChar(tokenizeRetString(string(code), 
                                           OptionsStruct(options)));
     }
-    char* parseExtern(const char *code, const char* options) {
+    char* parseExtern(const char *code,
+                      const char* options) {
+        return strToChar(parseRetString(string(code),
+                                       OptionsStruct(
+                                         options)));
+    }
 
-        //printf("code:%s\n", code);
-      return strToChar(parseRetString(string(code), 
+    // #emscripten will sometimes, on receipt of certain unicode chars,
+    // append options any second char arg array to code. 
+    // because this only happens sometimes, you can't 
+    // just subtract length of second arg
+    // available workarounds pending any emcc fixes
+    // are compare ending text of code and assume
+    // no one would deliberately pass code which ended with
+    // the value of the options array
+    // or simply pass a length arg in limprima-wrap in ASM
+
+    // node that because js stores strings in UCS-2 or UTF-16
+    // with some complications, we have to convert to UTF-16
+    // before using substring. 
+    char* tokenizeASMJS(const char *code, int codelen,
+                        const char* options) {
+      return strToChar(tokenizeRetString(
+            toU16string(string(code)).substr(0,indicator), 
+                                          OptionsStruct(options)));
+    }
+    char* parseASMJS(const char *code, int codelen, 
+                      const char* options) {
+        return strToChar(parseRetString(
+                    toU16string(string(code)).substr(0, indicator), 
                                        OptionsStruct(
                                          options)));
     }
@@ -5572,7 +5599,7 @@ int main() {
     string somecode = "42 /* block comment 1 */ /* block comment 2 */";
 
     string someopt = "{ 'comment':true, 'attachComment':true }";
-    string result = string(parseExtern(somecode.data(), someopt.data()));
+    string result = string(parseExtern(somecode.data(), 3, someopt.data()));
     result.append("\n");
     printf("%s", result.data());
 }
