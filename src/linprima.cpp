@@ -26,7 +26,7 @@ static inline std::string &ltrim(std::string &s) {
 }
 
 
-bool DEBUG_ON= (bool) 1;
+bool DEBUG_ON= (bool) 0;
 bool HIPRI_ONLY= (bool) 1;
 
 void DEBUGIN(string in, bool lowprio) {    
@@ -2899,7 +2899,7 @@ void Node::finishObjectExpression(vector<Node>& properties) { DEBUGIN(" Node::fi
 //#CLEAR
 void Node::finishPostfixExpression(u16string oper, Node& argument) { DEBUGIN(" Node::finishPostfixExpression(u16string oper, Node& argument)");
     addType("UpdateExpression");
-    jvput("oper", s(oper));
+    jvput("operator", s(oper));
     reg("argument", argument);
     jvput("prefix", false);
     this->finish(); DEBUGOUT();
