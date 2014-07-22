@@ -1771,9 +1771,7 @@ TokenStruct scanHexLiteral(const int start) { DEBUGIN(" scanHexLiteral(const int
     }
    
     t.type = Token["NumericLiteral"];
-    val = u"0x";
-    val.append(number);
-    t.intvalue = parseInt(val, 16);
+    t.intvalue = parseInt(number, 16);
     t.literaltype = LiteralType["Int"];
     t.lineNumber = lineNumber;
     t.lineStart = lineStart;
@@ -1852,6 +1850,10 @@ TokenStruct scanNumericLiteral() { DEBUGIN(" scanNumericLiteral()");
     }
     
     if (ch == u'.') {
+        //#JSON can't parse decimal numbers without
+        //#a number preceding the decimal.
+        if (start == idx) { append(number, u'0'); }
+
         append(number, source(idx++));
         while (isDecimalDigit(source(idx))) {
             //if (source(idx) != u'0') { hasDot = true; } //# js auto-casts dbls of negligible epsilon-to-int to int
