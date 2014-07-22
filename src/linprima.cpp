@@ -366,10 +366,11 @@ int parseInt(u16string in_u16, int radix) {  // !!!
         DEBUGIN("parseInt");
         string in = toU8string(in_u16);
         int length, 
-            result = 0;
+            result = 0,
+            tare = (int) '0';
         length = in.length();
         for (int i=0; i<length; i++) {
-            result += (((int) in[i]) * pow(radix,length-(i+1)));
+            result += ((((int) in[i]) - tare) * pow(radix,length-(i+1)));
         }
   DEBUGOUT(); return result; 
 }
@@ -1877,7 +1878,6 @@ TokenStruct scanNumericLiteral() { DEBUGIN(" scanNumericLiteral()");
     if (isIdentifierStart(source(idx))) {
         throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
-    
     t.type = Token["NumericLiteral"];
     t.strvalue = number;
         //t.dblvalue = //# want to allow browsers to use full allowance of whatever their local max int size is.
@@ -2858,7 +2858,7 @@ void Node::finishLiteral(TokenStruct token) { DEBUGIN(" Node::finishLiteral(Toke
     if (token.literaltype == LiteralType["String"]) {
         jvput("value", s(token.strvalue));
     } else if (token.literaltype == LiteralType["Int"]) {
-        jvput_dbl("value", s(token.strvalue));
+        jvput("value", token.intvalue);
     } else if (token.literaltype == LiteralType["Double"]) {
         jvput_dbl("value", s(token.strvalue));
     } else if (token.literaltype == LiteralType["Bool"]) {
