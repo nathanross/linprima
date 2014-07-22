@@ -29,7 +29,7 @@
 
     var tokenize = function(code, options) {
         if (typeof code !== 'string' && !(code instanceof String)) {
-            code = string(code);
+            code = String(code);
         }
         var optStr = "{}";
         if (options !== undefined) { optStr = JSON.stringify(options); }
@@ -45,7 +45,7 @@
 
     var parse = function(code, options) {
         if (typeof code !== 'string' && !(code instanceof String)) {
-            code = string(code);
+            code = String(code);
         }
         var optStr = "{}";
         if (options !== undefined) { optStr = JSON.stringify(options); }

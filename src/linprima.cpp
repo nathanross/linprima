@@ -5578,7 +5578,9 @@ extern "C" {
 
     // node that because js stores strings in UCS-2 or UTF-16
     // with some complications, we have to convert to UTF-16
-    // before using substring. 
+    // before using substring, because the length of the char*
+    // argument here is going to be byte length, not number of
+    // characters as represented in javascript strings (ucs)
     char* tokenizeASMJS(const char *code, int codelen,
                         const char* options) {
       return strToChar(tokenizeRetString(
