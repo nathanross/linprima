@@ -4446,6 +4446,7 @@ Node parseForStatement(Node node) { DEBUGIN(" parseForStatement(Node node)");
 
     Node body(false, true), left(false, true), right(false, true), 
         update(false, true), test(false, true), init(false, true);
+    left=NULLNODE;
     update=NULLNODE; test=NULLNODE; init=NULLNODE;
 
     expectKeyword(u"for");
