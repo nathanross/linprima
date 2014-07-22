@@ -953,12 +953,15 @@ json_object*  TokenRecord::toJson() { DEBUGIN(" TokenRecord::toJson()");
 
 json_object * Comment::toJson() {
     DEBUGIN("Comment::toJson");
-    json_object *root = json_newmap(), *rangearr = json_newarr();
+    json_object *root = json_newmap(), *rangearr;
     json_put(root, "type", toU8string(this->type));
     json_put(root, "value", toU8string(this->value));
-    json_push(rangearr, this->range[0]);
-    json_push(rangearr, this->range[1]);
-    json_put(root, "range", rangearr);
+    if (extra.range) {
+        rangearr = json_newarr();
+        json_push(rangearr, this->range[0]);
+        json_push(rangearr, this->range[1]);
+        json_put(root, "range", rangearr);
+    }
     if (extra.loc) {
         json_put(root, "loc", locToJson(this->loc));
     }
