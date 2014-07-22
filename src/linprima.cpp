@@ -377,9 +377,9 @@ int parseInt(u16string in_u16, int radix) {  // !!!
             cur = (int) in[i];
             if (cur <= zero+9 &&  cur >= zero) {
                 cur = cur - zero;
-            } else if (cur <= upperA+5 && cur <= upperA) {
+            } else if (cur <= upperA+5 && cur >= upperA) {
                 cur = 10 + cur - upperA;
-            } else if (cur <= lowerA+5 && cur <= lowerA) {
+            } else if (cur <= lowerA+5 && cur >= lowerA) {
                 cur = 10 + cur - lowerA;
             } else {
                 return -1;
