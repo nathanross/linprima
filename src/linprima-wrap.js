@@ -22,9 +22,9 @@
 
     //=ASM= var _linprimaMod = {
     //=ASM= parseExtern : 
-    //=ASM= Module.cwrap('parseExtern', 'string', ['string', 'number', 'string']),
+    //=ASM= Module.cwrap('parseASMJS', 'string', ['string', 'number', 'string']),
     //=ASM= tokenizeExtern : 
-    //=ASM= Module.cwrap('tokenizeExtern', 'string', ['string', 'number', 'string']),
+    //=ASM= Module.cwrap('tokenizeASMJS', 'string', ['string', 'number', 'string']),
     //=ASM= };
 
     var tokenize = function(code, options) {

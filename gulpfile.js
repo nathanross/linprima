@@ -64,6 +64,16 @@ function makeExecCallback(func) {
 }
 
 
+gulp.task('ffigcall', ['prepareSource'], function(callback) { //gperftools
+    exec("clang++ -g -fno-builtin -O0 -Wall -std=c++11 -stdlib=libc++  -ltcmalloc tmp/src.cpp -o test.out", 
+
+        makeExecCallback(callback));
+});
+gulp.task('ffidcall', ['prepareSource'], function(callback) { //gdb, valgrind
+    exec("clang++ -g -O0 -Wall -std=c++11 -stdlib=libc++ tmp/src.cpp -o test.out", 
+
+        makeExecCallback(callback));
+});
 gulp.task('fficcall', ['prepareSource'], function(callback) {
     exec("clang++ -Wall -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so", 
         makeExecCallback(callback));
@@ -77,7 +87,12 @@ gulp.task('ffipcall', ['prepareSource'], function() {
 gulp.task('ffiWrapper', function() {
     return completeWrapper('FFI', 'src/snippets', 'build/ffi');
 });
-
+gulp.task('ffig', function() { //gdb and valgrind debugging
+    runSequence('cleanFFI', 'ffigls call', 'ffiWrapper');
+});
+gulp.task('ffid', function() { //gdb and valgrind debugging
+    runSequence('cleanFFI', 'ffidcall', 'ffiWrapper');
+});
 gulp.task('ffic', function() {
     runSequence('cleanFFI', 'fficcall', 'ffiWrapper');
 });
@@ -89,13 +104,13 @@ gulp.task('ffip', function() {
     //as code is substituted into wrapper.
 gulp.task('asmccall', ['prepareSource'], function(callback) {
     var cb = function(a,b,c) { toShell(a,b,c); callback(); };
-    exec("emcc -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseExtern', '_tokenizeExtern']\" tmp/src.cpp -o tmp/linprima.asm.0.js", 
+    exec("emcc -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js", 
         makeExecCallback(callback));
 });
 
 gulp.task('asmpcall', ['prepareSource'], function(callback) {
 //    var cb = function(a,b,c) { toShell(a,b,c); callback(); };    
-    exec("emcc -O3 -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseExtern', '_tokenizeExtern']\" tmp/src.cpp -o tmp/linprima.asm.0.js",
+    exec("emcc -O3 -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js",
         makeExecCallback(callback));
 });
 

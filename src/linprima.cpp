@@ -5584,13 +5584,13 @@ extern "C" {
     char* tokenizeASMJS(const char *code, int codelen,
                         const char* options) {
       return strToChar(tokenizeRetString(
-            toU16string(string(code)).substr(0,indicator), 
+            toU16string(string(code)).substr(0,codelen), 
                                           OptionsStruct(options)));
     }
     char* parseASMJS(const char *code, int codelen, 
                       const char* options) {
         return strToChar(parseRetString(
-                    toU16string(string(code)).substr(0, indicator), 
+                    toU16string(string(code)).substr(0, codelen), 
                                        OptionsStruct(
                                          options)));
     }
@@ -5601,7 +5601,7 @@ int main() {
     string somecode = "42 /* block comment 1 */ /* block comment 2 */";
 
     string someopt = "{ 'comment':true, 'attachComment':true }";
-    string result = string(parseExtern(somecode.data(), 3, someopt.data()));
+    string result = string(parseExtern(somecode.data(), someopt.data()));
     result.append("\n");
     printf("%s", result.data());
 }
