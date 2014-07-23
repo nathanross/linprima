@@ -4620,7 +4620,8 @@ Node parseBreakStatement(Node node) { DEBUGIN(" parseBreakStatement(Node node)")
 
         key = u"$";
         key.append(label.name);
-        if (has<u16string>(key, state.labelSet)) {
+
+        if (!(has<u16string>(key, state.labelSet))) {
             throwError(NULLTOKEN, Messages["UnknownLabel"], {label.name});
         }
     }
@@ -4916,7 +4917,6 @@ Node parseStatement() { DEBUGIN(" parseStatement()");
             throwError(NULLTOKEN, Messages["Redeclaration"], 
                        {u"Label", expr.name}); 
         }
-
         state.labelSet.insert(key);
         labeledBody = parseStatement();
         state.labelSet.erase(key);
