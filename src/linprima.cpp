@@ -26,11 +26,11 @@ static inline std::string &ltrim(std::string &s) {
 }
 
 
-bool DEBUG_ON= (bool) 1;
+bool DEBUG_ON= (bool) 0;
 bool HIPRI_ONLY= (bool) 1;
 
 void DEBUGIN(string in, bool lowprio) {    
-    if (!DEBUG_ON || true) { return; }
+    if (!DEBUG_ON) { return; }
     if (HIPRI_ONLY && lowprio) { return; }
     debuglevel++;
     string msg = "";
@@ -50,7 +50,7 @@ void DEBUGIN(string in) {
 }
 
 void DEBUGOUT(string in, bool lowprio) {
-    if (!DEBUG_ON || true) { return; }
+    if (!DEBUG_ON) { return; }
     if (HIPRI_ONLY && lowprio) { return; }
     string msg = "";
 
@@ -2492,7 +2492,10 @@ void Node::jvput_null(string path) { json_put_null(jv, path.data()); }
 
 //# different name to prevent easy bug of forgetting the string.
 //# root path, should be first in vector, then path within it, etc.
-void Node::regNoadd(vector<string> paths, Node &child) { DEBUGIN(" Node::regNoadd(vector<string> paths, Node &child)");
+void Node::regNoadd(vector<string> paths, Node &child) { 
+    string debugmsg = " Node::regNoadd(vector<string> paths, Node &child) :::";
+    debugmsg.append(paths[0]);
+    DEBUGIN(debugmsg);
     if (child.isNull) { 
         child.jv = NULL;
       DEBUGOUT("", false); return;
@@ -3701,7 +3704,6 @@ Node parseLeftHandSideExpressionAllowCall() { DEBUGIN(" parseLeftHandSideExpress
     Node expr(false, true), property(false, true), tmpnode(false,true);
     TokenStruct startToken;
     bool previousAllowIn = state.allowIn;
-    bool sub = false;
 
     startToken = lookahead;
     state.allowIn = true;
@@ -3712,20 +3714,20 @@ Node parseLeftHandSideExpressionAllowCall() { DEBUGIN(" parseLeftHandSideExpress
 
     for (;;) {
         if (match(u".")) {
-            sub = true;
             property = parseNonComputedMember();
             tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'.', expr, property);
+            expr = tmpnode;
         } else if (match(u"(")) {
-            sub = true;
             args = parseArguments();
             tmpnode = WrappingNode(startToken);
             tmpnode.finishCallExpression(expr, args);
+            expr = tmpnode;
         } else if (match(u"[")) {
-            sub = true;
             property = parseComputedMember();
             tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'[', expr, property);
+            expr = tmpnode;
         } else {
             break;
         }
@@ -3734,15 +3736,13 @@ Node parseLeftHandSideExpressionAllowCall() { DEBUGIN(" parseLeftHandSideExpress
     state.allowIn = previousAllowIn;
 
   DEBUGOUT("parseLeftHandSideExprAllow"); 
-  if (sub) { return tmpnode; }
-  else { return expr; }
+  return expr; 
 }
 
 //#CLEAR
 Node parseLeftHandSideExpression() { DEBUGIN(" parseLeftHandSideExpression()");
     Node tmpnode(false, true), expr(false, true), property(false, true);
     TokenStruct startToken;
-    bool sub = false;
 
     assert(state.allowIn, "callee of new expression always allow in keyword.");
     startToken = lookahead;
@@ -3751,22 +3751,21 @@ Node parseLeftHandSideExpression() { DEBUGIN(" parseLeftHandSideExpression()");
     
     for (;;) {
         if (match(u"[")) {
-            sub = true;
             property = parseComputedMember();
             tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'[', expr, property);
+            expr = tmpnode;
         } else if (match(u".")) {
-            sub = true;
             property = parseNonComputedMember();
             tmpnode = WrappingNode(startToken);
             tmpnode.finishMemberExpression(u'.', expr, property);
+            expr = tmpnode;
         } else {            
             break;
         }
     }
   DEBUGOUT("parseLeftHandSideExpr");
-  if (sub) { return tmpnode; }
-  else { return expr; }
+  return expr;
 }
 
 // 11.3 Postfix Expressions
