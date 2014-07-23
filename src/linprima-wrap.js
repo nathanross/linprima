@@ -60,13 +60,16 @@
                 cursor = cursor[path[j]];
             }
             try {
-                regex = new Regexp(cursor["value"], cursor["flags"]);
+                regex = new RegExp(cursor["value"][0], 
+                                   cursor["value"][1]);
                 cursor["value"] = regex;
-                delete cursor["flags"];
+//                delete cursor["flags"];
             } catch (e) {
-                throwError(Messages["InvalidRegexp"]); //!
+                return { "a": cursor["value"][0] + "::" + cursor["value"][1]};
+                    //Messages["InvalidRegexp"]); //!
             }
         }
+        delete out["regexp"];
         var programOut = out.program;
         if (out.comments != undefined) { programOut.comments = out["comments"]; }
         if (out.errors != undefined) { programOut.errors = out["errors"]; }
