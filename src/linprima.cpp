@@ -559,10 +559,9 @@ public:
 
 //# called ExError to prevent forseeable 
 //# exception-handling namespace conflict.
-class ExError {
+class ExError : public exception {
 public:
-
-    u16string description;
+    string description;
     int index;
     int lineNumber;
     int column;
@@ -571,13 +570,16 @@ public:
     json_object * toJson() {
                 DEBUGIN("Error::toJSON");
         json_object * root = json_newmap();
-        json_put(root, "description", toU8string(description));
+        json_put(root, "isError", true);
+        json_put(root, "description", description);
         json_put(root, "index", this->index);
         json_put(root, "lineNumber", this->lineNumber);
         json_put(root, "column", this->column);
       DEBUGOUT("Error::toJSON"); return root;
     }
 };
+
+ExError retError;
 
 
 //used in initial scannig
@@ -1523,7 +1525,7 @@ u16string scanUnicodeCodePointEscape() { DEBUGIN("scanUnicodeCodePointEscape");
 
     cu[0] = ((code - 0x10000) >> 10) + 0xD800; 
     cu[1] = ((code - 0x10000) & 1023) + 0xDC00;
-  DEBUGOUT("scanUnicodeCodePointEscape"); return u16string(cu);
+    DEBUGOUT("scanUnicodeCodePointEscape"); return u16string({cu[0], cu[1]});
 }
 
 //#CLEAR+
@@ -1633,7 +1635,7 @@ TokenStruct scanIdentifier() { DEBUGIN(" scanIdentifier()");
     t.end = idx;
   DEBUGOUT("scanIdentifier"); return t;
 }
-
+u16string emccu16str;
 // 7.7 Punctuators
 //#CLEAR+
 TokenStruct scanPunctuator() { DEBUGIN(" scanPunctuator()");
@@ -1695,7 +1697,7 @@ TokenStruct scanPunctuator() { DEBUGIN(" scanPunctuator()");
             case 0x26:  // &
             case 0x2A:  // *
                 idx += 2;
-                t.strvalue = u16string(code);
+                t.strvalue = u16string({code[0], code[1]});                
                 t.end = idx;
               DEBUGOUT("", false); return t;
             case 0x21: // !
@@ -1929,7 +1931,6 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
 
     while (idx < length) {
         ch = source(idx++);
-
         if (ch == quote) {
             quote = NULL_CHAR16;
             break;
@@ -3108,7 +3109,8 @@ bool peekLineTerminator() { DEBUGIN(" peekLineTerminator()");
 
 // Throw an exception
 void throwToJS(ExError err) { DEBUGIN(" throwToJS(ExError err)");
-    throw runtime_error(toU8string(err.description));
+    throw runtime_error(err.description);
+    //    throw err;
 }
 
 
@@ -3139,8 +3141,8 @@ ExError genExError(TokenStruct token, u16string messageFormat,
         error.column = idx - lineStart + 1;
     }
 
-    error.description = msg;
-  DEBUGOUT("genExErr"); return error;
+    error.description = toU8string(msg);
+    DEBUGOUT("genExErr"); return error;
 }
 
 void throwError(TokenStruct token, u16string messageFormat, vector<u16string> args) { DEBUGIN(" throwError(TokenStruct token, u16string messageFormat, vector<u16string> args)");
@@ -3854,7 +3856,6 @@ Node parseUnaryExpression() { DEBUGIN(" parseUnaryExpression()");
 
   DEBUGOUT("parseUnary"); return expr;
 }
-
 //#CLEAR+
 int binaryPrecedence(TokenStruct token, bool allowIn) {
     DEBUGIN(" binaryPrecedence(Tokenstruct token, bool allowIn)");
@@ -3922,7 +3923,7 @@ Node parseBinaryExpression() { DEBUGIN(" parseBinaryExpression()");
       DEBUGOUT("parseBinary"); return left;
     }
 
-    token = lookahead;
+    token = lookahead;    
     prec = binaryPrecedence(token, state.allowIn);
     if (prec == 0) {
       DEBUGOUT("parseBinary"); return left;
@@ -5047,6 +5048,7 @@ bool parseParam(ParseParamsOptions options) { DEBUGIN(" parseParam(ParseParamsOp
 
     token = lookahead;
     param = parseVariableIdentifier();
+    //printf("token strvalue %s \n", (toU8string(token.strvalue)).data());
     //! MAJOR CONCERN: if a number is put where an argument is here,
     //! will that cause an ungraceful crash because validateParam is expecting
     //! a string so we cast it here, but the token grabbed might be
@@ -5153,7 +5155,7 @@ Node parseFunctionDeclaration() { DEBUGIN(" parseFunctionDeclaration()");
 
     node.finishFunctionDeclaration(id, params, defaults, body);
   DEBUGOUT("parseFunctionDecl"); return node;
-}
+} 
 
 //#partial
 Node parseFunctionExpression() { DEBUGIN(" parseFunctionExpression()");
@@ -5340,7 +5342,9 @@ void filterTokenLocation() { DEBUGIN(" filterTokenLocation()");
 //# -2. no js regex validation unless passed through a js environment 
 //#    afterwards for validation with a tool like linprima-wrapfuncs.js
 
-json_object* tokenize(u16string code, OptionsStruct options) { 
+json_object* tokenizeImpl(const u16string code, 
+                          OptionsStruct options,
+                          const bool retErrorsAsJson) { 
     vector<TokenRecord> tokens;
     json_object *outJson = json_newmap();
 
@@ -5390,15 +5394,14 @@ json_object* tokenize(u16string code, OptionsStruct options) {
     while (lookahead.type != Token["EOF"]) {
         try {
             lex();
-        } catch (...) { //! catch(LexError
-            ExError e;
-            e.description = u"LexError";
+        } catch (ExError& e) { //! catch(LexError
             if (extra.errorTolerant) {
-                extra.errors.push_back(e); //!
-                // We have to break on the first error
-                // to avoid infinite loops.
-                break;
+                extra.errors.push_back(e); 
             } else {
+                if (retErrorsAsJson) {
+                    json_object_put(outJson);
+                    return e.toJson();
+                }
                 throw e;
             }
         }
@@ -5420,25 +5423,28 @@ json_object* tokenize(u16string code, OptionsStruct options) {
 }
 
 
-json_object*  tokenize(string code, OptionsStruct options) { 
-  return tokenize(toU16string(code), options);
+json_object*  tokenize(const u16string code, const OptionsStruct options) { 
+    return tokenizeImpl(code, options, false);
 }
-json_object*  tokenize(string code) { 
-    OptionsStruct o;
-  return tokenize(code, o);
+json_object*  tokenize(const string code, const OptionsStruct options) { 
+    return tokenizeImpl(toU16string(code), options, false);
 }
-json_object*  tokenize(u16string code) { 
+json_object*  tokenize(const string code) { 
     OptionsStruct o;
-  return tokenize(code, o);
+    return tokenizeImpl(toU16string(code), o, false);
+}
+json_object*  tokenize(const u16string code) { 
+    OptionsStruct o;
+    return tokenizeImpl(code, o, false);
 }
 
-string tokenizeRetString(u16string code, OptionsStruct options) {
-    json_object * m = tokenize(code, options);
+string tokenizeRetString(const u16string code, const OptionsStruct options) {
+    json_object * m = tokenizeImpl(code, options, true);
     string result = json_object_to_json_string_ext(m, JSON_C_TO_STRING_PLAIN); 
     json_object_put(m);
     return result;  
 }
-string tokenizeRetString(string code, OptionsStruct options) {
+string tokenizeRetString(const string code, const OptionsStruct options) {
     return tokenizeRetString(toU16string(code), options);
 }
 
@@ -5458,7 +5464,9 @@ string tokenizeRetString(string code, OptionsStruct options) {
 //#    numeric literals are represented as strings, serialized to json string using a special
 //#    serializer that does not print quotes.
 
-json_object* parse(const u16string code, const OptionsStruct options) { 
+json_object* parseImpl(const u16string code, 
+                       OptionsStruct options, //# nonconst 1:1
+                       const bool retErrorsAsJson) { 
         
     Node programNode;
     json_object * programJson = json_newmap();
@@ -5502,7 +5510,15 @@ json_object* parse(const u16string code, const OptionsStruct options) {
     }
 
 
-    programNode = parseProgram();
+    //try {
+        programNode = parseProgram();
+        /*} catch(ExError& e) {        
+        if (retErrorsAsJson) {
+            json_object_put(programJson);
+            return e.toJson();
+        }
+        throw e;
+        }*/
     json_put(programJson, "program", programNode.jv);
     json_put(programJson, "regexp", programNode.regexPaths2json());
 
@@ -5531,29 +5547,30 @@ json_object* parse(const u16string code, const OptionsStruct options) {
 
   return programJson;
 }
-
-json_object*  parse(const string code, const OptionsStruct options) {
-    
-  return parse(toU16string(code), options);
+json_object*  parse(const u16string code, OptionsStruct options) {    
+    return parseImpl(code, options, false);
+}
+json_object*  parse(const string code, OptionsStruct options) {    
+    return parseImpl(toU16string(code), options, false);
 }
 json_object*  parse(const string code) { 
     OptionsStruct o;
-  return parse(code, o);
+    return parseImpl(toU16string(code), o, false);
 }
 json_object*  parse(const u16string code) { 
     OptionsStruct o;
-  return parse(code, o);
+    return parseImpl(code, o, false);
 }
 
 //# return json as string.
-string parseRetString(const u16string code, const OptionsStruct options) {    json_object * m = parse(code, options);
+string parseRetString(const u16string code, OptionsStruct options) {    
+    json_object * m = parseImpl(code, options, true);
     string result = json_object_to_json_string_ext(
                      m, JSON_C_TO_STRING_PRETTY); 
-    //printf("%s \n", result.data());
     json_object_put(m);
     return result; 
 }
-string parseRetString(const string code, const OptionsStruct options) { 
+string parseRetString(const string code, OptionsStruct options) { 
     return parseRetString(toU16string(code), options);
 }
 
