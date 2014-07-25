@@ -36,6 +36,15 @@
         var out = JSON.parse(_linprimaMod.tokenizeExtern(code,
                                                    //=ASM= code.length,
                                                          optStr));
+        if ("isError" in out) {
+            var e = new Error('Line ' + out['lineNumber'] +
+                                ': ' + out['description']);
+            e.description = out["description"];
+            e.index = out["index"];
+            e.lineNumber = out["lineNumber"];
+            e.column = out["column"];
+            throw e;
+        }
         var nodeRoot = out.tokenlist;
         if ("comments" in out) { nodeRoot.comments = out.comments; }
         if ("tokens" in out) { nodeRoot.tokens = out.tokens; }
@@ -52,6 +61,15 @@
         var out = JSON.parse(_linprimaMod.parseExtern(code, 
                                             //=ASM=   code.length, 
                                                       optStr));
+        if ("isError" in out) {
+            var e = new Error('Line ' + out['lineNumber'] +
+                                ': ' + out['description']);
+            e.description = out["description"];
+            e.index = out["index"];
+            e.lineNumber = out["lineNumber"];
+            e.column = out["column"];
+            throw e;
+        }
         var path,j,cursor, regex;
         for (var i=0; i<out["regexp"].length; i++) {
             path=out["regexp"][i]; 

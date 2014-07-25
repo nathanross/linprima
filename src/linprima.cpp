@@ -29,6 +29,18 @@ static inline std::string &ltrim(std::string &s) {
 bool DEBUG_ON= (bool) 0;
 bool HIPRI_ONLY= (bool) 1;
 
+string colorHash(string text) {
+    int num=0; 
+    string code = "";
+    for (int i=0; i<text.length() && i < 7; i++) {
+        num += (int) text[i];
+    }
+    code.append("\033[1;");
+    code.append(to_string(31 + (num % 7)));
+    code.append("m");
+    return code;
+}
+
 void DEBUGIN(string in, bool lowprio) {    
     if (!DEBUG_ON) { return; }
     if (HIPRI_ONLY && lowprio) { return; }
@@ -39,9 +51,9 @@ void DEBUGIN(string in, bool lowprio) {
         msg.append("  ");
     }    
     if (lowprio) { msg.append("\033[1;30m"); } 
+    else { msg.append(colorHash(ltrim(in))); }
     msg.append(ltrim(in));
-    if (lowprio) { msg.append("\033[0m"); } 
-    msg.append("\n");
+    msg.append("\033[0m\n");
     printf("%s", msg.data());
     stackfuncs.push_back(ltrim(in));
 }
@@ -53,23 +65,26 @@ void DEBUGOUT(string in, bool lowprio) {
     if (!DEBUG_ON) { return; }
     if (HIPRI_ONLY && lowprio) { return; }
     string msg = "";
+    string realtext = "";
+    if (stackfuncs.size() > 0) {
+        realtext = stackfuncs.back();
+    }
 
     for (int i=0;i<debuglevel;i++) {
         msg.append("  ");
     }
     if (lowprio) { msg.append("\033[1;30m"); } 
+    else { msg.append(colorHash(realtext)); }
     msg.append("~");
-    //    msg.append(ltrim(in));
+    msg.append(ltrim(in));
     if (stackfuncs.size() > 0) {
-        //    msg.append("@@ ");
+        msg.append("@@ ");
         msg.append(stackfuncs.back());
+        stackfuncs.pop_back();
+        debuglevel--;
     }
-    if (lowprio) { msg.append("\033[0m"); } 
-    msg.append("\n");
+    msg.append("\033[0m\n");
     printf("%s", msg.data());
-
-    stackfuncs.pop_back();
-    debuglevel--;
 }
 void DEBUGOUT(string in) {
     DEBUGOUT(in, false);
@@ -307,36 +322,38 @@ void json_del(json_object *a, const char* key) {
 // that 
 template <typename T>
 json_object* vec2json(vector<T> in) { //only practically valid for vectors of ints and strings.
-        DEBUGIN("vec2json");
+    //DEBUGIN("vec2json");
     json_object * arr = json_object_new_array();
     for (int i=0; i<in.size(); i++) {
         json_push(arr, in[i]);
     }
-  DEBUGOUT("", false); return arr;
+    //DEBUGOUT("", false); 
+    return arr;
 }
 
 template <typename T>
 json_object* vec2jsonCallback(vector<T> in,
                               function<json_object*(T&)> const& f) {
-        DEBUGIN("vec2JsonCallback");
+    //DEBUGIN("vec2JsonCallback");
     json_object * arr = json_object_new_array();
     for (int i=0; i<in.size(); i++) {
         json_push(arr, f(in[i]));
     }
-  DEBUGOUT("", false); return arr;
+    //DEBUGOUT("", false); 
+    return arr;
 }
 
 //non-parallel functions
 // example: has<int>(3, {1,2,3,4,5}) // would return true
 template<typename T> bool has(const T needle, const unordered_set<T> haystack) {
-        DEBUGIN("has");
+        
     auto result = haystack.find(needle);
-  DEBUGOUT("", false); return (result != haystack.end());
+ return (result != haystack.end());
 }
 template<typename T> bool hasStringKey(const string needle, const map<string,T> haystack) {
-        DEBUGIN("hasStringKey");
+ 
     auto result = haystack.find(needle);
-  DEBUGOUT("", false); return (result != haystack.end());
+  return (result != haystack.end());
 }
 
 
@@ -348,22 +365,22 @@ u16string res_u16(void* pos) {
 
 u16string slice(const char16_t *arr, int start, int end) {
     //start inclusive, end exclusive, just like js
-        DEBUGIN("slice");
+        
     const char16_t * startptr = arr + start;    
-  DEBUGOUT("", false); return u16string(startptr, (end-start));
+  return u16string(startptr, (end-start));
 }
 
-void append(u16string &base, char16_t tail) { DEBUGIN(" append(u16string &base, char16_t tail)");
+void append(u16string &base, char16_t tail) { 
     base.append(u16string({tail})); 
     //? switch to u16stringstream? but there's nothing like that
     // on SO someone said append only handles certain input types right,
     //not sure if that's true for u16string.
-    DEBUGOUT("", false);
+
 }
 
 
 int parseInt(u16string in_u16, int radix) {  // !!!
-        DEBUGIN("parseInt");
+
         const int zero = 48;
         const int upperA = 65;
         const int lowerA = 97;
@@ -386,7 +403,7 @@ int parseInt(u16string in_u16, int radix) {  // !!!
             }
             result += (cur * pow(radix,length-(i+1)));
         }
-  DEBUGOUT("", false); return result; 
+ return result; 
 }
 
 double sciNoteToDouble(string in) {
@@ -465,14 +482,17 @@ struct Loc {
 };
 
 //#CLEAR 
-json_object*  posToJson(Position p) { DEBUGIN(" posToJson(Position p)");
+json_object*  posToJson(Position p) {
+    //DEBUGIN(" posToJson(Position p)");
     json_object * root = json_newmap();
     json_put(root, "line", p.line);
     json_put(root, "column", p.column);
-  DEBUGOUT("posToJSon(Position)"); return root;
+    //DEBUGOUT("posToJSon(Position)"); 
+    return root;
 }
 
-json_object*  locToJson(Loc l) { DEBUGIN(" locToJson(Loc l)");
+json_object*  locToJson(Loc l) { 
+    //DEBUGIN(" locToJson(Loc l)");
     json_object * root = json_newmap();
     json_put(root, "start", posToJson(l.start));
     if (l.end.line != -1) {
@@ -481,7 +501,8 @@ json_object*  locToJson(Loc l) { DEBUGIN(" locToJson(Loc l)");
     if (l.hasSource) {
         json_put(root, "source", l.source.data());
     }
-  DEBUGOUT("locToJson"); return root;
+    //DEBUGOUT("locToJson"); 
+    return root;
 }
 
 struct Comment {
@@ -490,12 +511,12 @@ struct Comment {
     int range[2];
     Loc loc;
     Comment() {
-        DEBUGIN("Comment()");
+        //DEBUGIN("Comment()");
         this->type = -1;
         this->value = u"";
         this->range[0] = -1;
         this->range[1] = -1;
-        DEBUGOUT("Comment()");
+        //DEBUGOUT("Comment()");
     }
     json_object * toJson();
 };
@@ -535,7 +556,7 @@ public:
         trailingComments.clear();
     }
     void commentsIntoJson(const bool leading) { 
-        DEBUGIN(" NodesComments::commentsIntoJson(const bool leading)");
+        //DEBUGIN(" NodesComments::commentsIntoJson(const bool leading)");
         string key;
         vector<Comment> * commentVec;
         if (leading) {
@@ -649,6 +670,7 @@ class Node {
 public:
     bool isNull;
     u16string type;
+
     bool hasJv;
     json_object * jv;
     Loc loc;
@@ -666,6 +688,7 @@ public:
     shared_ptr<Node> right; //same
 
     string s(u16string in);
+    u16string getName();
     Node();
     Node(bool lookaheadAvail, bool storeStats);
     json_object* toJson();
@@ -2421,7 +2444,8 @@ void peek() { DEBUGIN(" peek()");
 //#modifying state, it ALWAYS and ONLY changes state if lookaheadAvail
 //#is true. Important to keep in mind when making 
 //#1:1 updates.
-Node::Node(bool lookaheadAvail, bool storeStats) { DEBUGIN("Node::Node(bool, bool)", true);
+Node::Node(bool lookaheadAvail, bool storeStats) { 
+    //DEBUGIN("Node::Node(bool, bool)", true);
     hasJv = false;
     isNull = false;
     hasRange = false;
@@ -2442,7 +2466,7 @@ Node::Node(bool lookaheadAvail, bool storeStats) { DEBUGIN("Node::Node(bool, boo
             loc.start = Position();
         } 
     }
-    DEBUGOUT("", true);
+    //DEBUGOUT("", true);
 }
 Node::Node() : Node(false, true) {} 
 
@@ -2496,10 +2520,11 @@ void Node::jvput_null(string path) { json_put_null(jv, path.data()); }
 void Node::regNoadd(vector<string> paths, Node &child) { 
     string debugmsg = " Node::regNoadd(vector<string> paths, Node &child) :::";
     debugmsg.append(paths[0]);
-    DEBUGIN(debugmsg);
+    //DEBUGIN(debugmsg);
     if (child.isNull) { 
         child.jv = NULL;
-      DEBUGOUT("", false); return;
+        //DEBUGOUT("", false); 
+      return;
     }
     if (child.hasRange) {
         json_put(child.jv, "range", 
@@ -2521,16 +2546,18 @@ void Node::regNoadd(vector<string> paths, Node &child) {
         }
     }
     child.clear();
-    DEBUGOUT("Node::regNoAdd");
+    //DEBUGOUT("Node::regNoAdd");
 }
 
-void Node::reg(string path, Node &child) { DEBUGIN(" Node::reg(string path, Node &child)");
+void Node::reg(string path, Node &child) { 
+    //DEBUGIN("reg(string path, Node &child)");
     regNoadd({path}, child);
     json_put(jv, path.data(), child.jv);
-    DEBUGOUT("node::reg");
+    //DEBUGOUT("node::reg");
 }
 
-void Node::nodeVec(string path, vector< Node > & nodes) { DEBUGIN(" Node::nodeVec(string path, vector< Node > & nodes)");
+void Node::nodeVec(string path, vector< Node > & nodes) { 
+    //DEBUGIN("nodeVec(string path, vector< Node > & nodes)");
     json_object * root = json_newarr();
     for (int i=0; i<nodes.size(); i++) {
         if (nodes[i].isNull) {
@@ -2541,14 +2568,14 @@ void Node::nodeVec(string path, vector< Node > & nodes) { DEBUGIN(" Node::nodeVe
         }
     } 
     json_put(jv, path.data(), root);
- DEBUGOUT("node::nodeVec");
+    //DEBUGOUT("node::nodeVec");
 }
-void Node::addType(string in) { DEBUGIN(" Node::addType(string in)");
+void Node::addType(string in) { 
     type = Syntax[in];
     json_put(jv, "type", s(type));
- DEBUGOUT("node::addType");
 }
-json_object* Node::regexPaths2json() { DEBUGIN("Node::regexPaths2json()");
+json_object* Node::regexPaths2json() { 
+    //DEBUGIN("Node::regexPaths2json()");
     json_object *tmp, *root = json_newarr();
     for (int i=0; i<regexPaths.size(); i++) {
         tmp = json_newarr();
@@ -2557,14 +2584,15 @@ json_object* Node::regexPaths2json() { DEBUGIN("Node::regexPaths2json()");
         } 
         json_push(root, tmp);
     }
-  DEBUGOUT("", false); return root;
+    //DEBUGOUT("", false); 
+    return root;
 }
 
 //#CLEAR
 //#not the most efficient way to do this. would be easy to choke
 //#on big comments. TODO move NodesComments to heap, free
 //on removal from bottomright and end of use.
-void Node::processComment() { DEBUGIN(" Node::processComment()");
+void Node::processComment() { DEBUGIN("processComment()");
     //# assumes attachComments 
     //# so that means range is already true.
     
@@ -2651,7 +2679,7 @@ void Node::processComment() { DEBUGIN(" Node::processComment()");
 }
 
 //#CLEAR
-void Node::finish() { DEBUGIN(" Node::finish()");
+void Node::finish() { DEBUGIN("finish()");
     if (extra.range) {
         this->range[1] = idx; 
     }
@@ -2671,14 +2699,14 @@ void Node::finish() { DEBUGIN(" Node::finish()");
 }
 
 //#CLEAR
-void Node::finishArrayExpression(vector< Node >& elements) { DEBUGIN(" Node::finishArrayExpression(vector< Node >& elements)");
+void Node::finishArrayExpression(vector< Node >& elements) { DEBUGIN("finishArrayExpression(vector< Node >& elements)");
     addType("ArrayExpression");
     nodeVec("elements", elements);
     this->finish();
  DEBUGOUT("", false);
 }
 
-void Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression) { DEBUGIN(" Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression)");
+void Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression) { DEBUGIN("finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression)");
     addType("ArrowFunctionExpression");
 
     jvput_null("id");
@@ -2693,7 +2721,7 @@ void Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >&
 }
 
 //#CLEAR
-void Node::finishAssignmentExpression(u16string oper, Node& left, Node& right) { DEBUGIN(" Node::finishAssignmentExpression(u16string oper, Node& left, Node& right)");
+void Node::finishAssignmentExpression(u16string oper, Node& left, Node& right) { DEBUGIN("finishAssignmentExpression(u16string oper, Node& left, Node& right)");
 
     addType("AssignmentExpression");
     jvput("operator", s(oper));
@@ -2714,7 +2742,7 @@ void Node::finishAssignmentExpression(u16string oper, Node& left, Node& right) {
 }
 
 //#CLEAR
-void Node::finishBinaryExpression(u16string oper, Node& left, Node& right) { DEBUGIN(" Node::finishBinaryExpression(u16string oper, Node& left, Node& right)");
+void Node::finishBinaryExpression(u16string oper, Node& left, Node& right) { DEBUGIN("finishBinaryExpression(u16string oper, Node& left, Node& right)");
     addType((oper == u"||" || oper == u"&&") ? "LogicalExpression" : "BinaryExpression");
     jvput("operator", s(oper));
 
@@ -2726,7 +2754,7 @@ void Node::finishBinaryExpression(u16string oper, Node& left, Node& right) { DEB
 }
 
 //#CLEAR
-void Node::finishBlockStatement(vector< Node >& body) { DEBUGIN(" Node::finishBlockStatement(vector< Node >& body)");
+void Node::finishBlockStatement(vector< Node >& body) { DEBUGIN("finishBlockStatement(vector< Node >& body)");
     addType("BlockStatement");
     nodeVec("body", body);
     this->finish();
@@ -2734,14 +2762,14 @@ void Node::finishBlockStatement(vector< Node >& body) { DEBUGIN(" Node::finishBl
 }
 
 //#CLEAR
-void Node::finishBreakStatement(Node& label) { DEBUGIN(" Node::finishBreakStatement(Node& label)");
+void Node::finishBreakStatement(Node& label) { DEBUGIN("finishBreakStatement(Node& label)");
     addType("BreakStatement");
     reg("label", label);
     this->finish();  DEBUGOUT("", false);
 }
 
 //#CLEAR
-void Node::finishCallExpression(Node& callee, vector< Node >& args) { DEBUGIN(" Node::finishCallExpression(Node& callee, vector< Node >& args)");
+void Node::finishCallExpression(Node& callee, vector< Node >& args) { DEBUGIN("finishCallExpression(Node& callee, vector< Node >& args)");
     addType("CallExpression");
     reg("callee", callee);
     nodeVec("arguments", args);
@@ -2749,7 +2777,7 @@ void Node::finishCallExpression(Node& callee, vector< Node >& args) { DEBUGIN(" 
 }
 
 //#CLEAR
-void Node::finishCatchClause(Node& param, Node& body) { DEBUGIN(" Node::finishCatchClause(Node& param, Node& body)");
+void Node::finishCatchClause(Node& param, Node& body) { DEBUGIN("finishCatchClause(Node& param, Node& body)");
     addType("CatchClause");
     reg("param", param);
     reg("body", body);
@@ -2757,7 +2785,7 @@ void Node::finishCatchClause(Node& param, Node& body) { DEBUGIN(" Node::finishCa
 }
 
 //#CLEAR
-void Node::finishConditionalExpression(Node& test, Node& consequent, Node& alternate) { DEBUGIN(" Node::finishConditionalExpression(Node& test, Node& consequent, Node& alternate)");
+void Node::finishConditionalExpression(Node& test, Node& consequent, Node& alternate) { DEBUGIN("finishConditionalExpression(Node& test, Node& consequent, Node& alternate)");
     addType("ConditionalExpression");
     reg("test", test);
     reg("consequent", consequent);
@@ -2766,20 +2794,20 @@ void Node::finishConditionalExpression(Node& test, Node& consequent, Node& alter
 }
 
 //#CLEAR
-void Node::finishContinueStatement(Node& label) { DEBUGIN(" Node::finishContinueStatement(Node& label)");
+void Node::finishContinueStatement(Node& label) { DEBUGIN("finishContinueStatement(Node& label)");
     addType("ContinueStatement");
     reg("label", label);
     this->finish();  DEBUGOUT("", false);
 }
 
 //#CLEAR
-void Node::finishDebuggerStatement() { DEBUGIN(" Node::finishDebuggerStatement()");
+void Node::finishDebuggerStatement() { DEBUGIN("finishDebuggerStatement()");
     addType("DebuggerStatement");
     this->finish(); DEBUGOUT("", false);
 }
 
 //#CLEAR
-void Node::finishDoWhileStatement(Node& body, Node& test) { DEBUGIN(" Node::finishDoWhileStatement(Node& body, Node& test)");
+void Node::finishDoWhileStatement(Node& body, Node& test) { DEBUGIN("finishDoWhileStatement(Node& body, Node& test)");
     addType("DoWhileStatement");
     reg("body", body);
     reg("test", test);
@@ -2787,20 +2815,20 @@ void Node::finishDoWhileStatement(Node& body, Node& test) { DEBUGIN(" Node::fini
 }
 
 //#CLEAR
-void Node::finishEmptyStatement() { DEBUGIN(" Node::finishEmptyStatement()");
+void Node::finishEmptyStatement() { DEBUGIN("finishEmptyStatement()");
     addType("EmptyStatement");
     this->finish(); DEBUGOUT("", false);
 }
 
 //#CLEAR
-void Node::finishExpressionStatement(Node expression) { DEBUGIN(" Node::finishExpressionStatement(Node expression)");
+void Node::finishExpressionStatement(Node expression) { DEBUGIN("finishExpressionStatement(Node expression)");
     addType("ExpressionStatement");
     reg("expression", expression);
     this->finish();  DEBUGOUT("", false);
 }
 
 //#CLEAR
-void Node::finishForStatement(Node& init, Node& test, Node& update, Node& body) { DEBUGIN(" Node::finishForStatement(Node& init, Node& test, Node& update, Node& body)");
+void Node::finishForStatement(Node& init, Node& test, Node& update, Node& body) { DEBUGIN("finishForStatement(Node& init, Node& test, Node& update, Node& body)");
     addType("ForStatement");
     reg("init", init);
     reg("test", test);
@@ -2810,7 +2838,7 @@ void Node::finishForStatement(Node& init, Node& test, Node& update, Node& body) 
 }
 
 //#CLEAR
-void Node::finishForInStatement(Node& left, Node& right, Node& body) { DEBUGIN(" Node::finishForInStatement(Node& left, Node& right, Node& body)");
+void Node::finishForInStatement(Node& left, Node& right, Node& body) { DEBUGIN("finishForInStatement(Node& left, Node& right, Node& body)");
     addType("ForInStatement");
     reg("left", left);
     reg("right", right);
@@ -2847,8 +2875,12 @@ void Node::finishFunctionExpression(Node& id, vector< Node >& params,
     this->finish(); DEBUGOUT("", false);
 }
 
+u16string Node::getName() {
+    return this->name;
+}
+
 //#CLEAR
-void Node::finishIdentifier(u16string name) { DEBUGIN(" Node::finishIdentifier(u16string name)");
+void Node::finishIdentifier(u16string name) { DEBUGIN("finishIdentifier(u16string name)");
     addType("Identifier");
     this->name = name;
     jvput("name", s(name));
@@ -2856,7 +2888,7 @@ void Node::finishIdentifier(u16string name) { DEBUGIN(" Node::finishIdentifier(u
 }
 
 //#CLEAR
-void Node::finishIfStatement(Node& test, Node& consequent, Node& alternate) { DEBUGIN(" Node::finishIfStatement(Node& test, Node& consequent, Node& alternate)");
+void Node::finishIfStatement(Node& test, Node& consequent, Node& alternate) { DEBUGIN("finishIfStatement(Node& test, Node& consequent, Node& alternate)");
     addType("IfStatement");
     reg("test", test);
     reg("consequent", consequent);
@@ -2865,7 +2897,7 @@ void Node::finishIfStatement(Node& test, Node& consequent, Node& alternate) { DE
 }
 
 //#CLEAR
-void Node::finishLabeledStatement(Node label, Node body) { DEBUGIN(" Node::finishLabeledStatement(Node label, Node body)");
+void Node::finishLabeledStatement(Node label, Node body) { DEBUGIN("finishLabeledStatement(Node label, Node body)");
     addType("LabeledStatement");
     reg("label", label);
     reg("body", body);
@@ -2873,7 +2905,7 @@ void Node::finishLabeledStatement(Node label, Node body) { DEBUGIN(" Node::finis
 }
 
 //#CLEAR ?maybe check against js to make sure we're not missing anything.
-void Node::finishLiteral(TokenStruct token) { DEBUGIN(" Node::finishLiteral(TokenStruct token)");
+void Node::finishLiteral(TokenStruct token) { DEBUGIN("finishLiteral(TokenStruct token)");
     addType("Literal");
     if (token.literaltype == LiteralType["String"]) {
         jvput("value", s(token.strvalue));
@@ -2896,7 +2928,7 @@ void Node::finishLiteral(TokenStruct token) { DEBUGIN(" Node::finishLiteral(Toke
 }
 
 //#CLEAR
-void Node::finishMemberExpression(char16_t accessor, Node& object, Node& property) { DEBUGIN(" Node::finishMemberExpression(char16_t accessor, Node& object, Node& property)");
+void Node::finishMemberExpression(char16_t accessor, Node& object, Node& property) { DEBUGIN("finishMemberExpression(char16_t accessor, Node& object, Node& property)");
     addType("MemberExpression");
     jvput("computed", (accessor == u'['));
     reg("object", object);
@@ -2905,7 +2937,7 @@ void Node::finishMemberExpression(char16_t accessor, Node& object, Node& propert
 }
 
 //#CLEAR
-void Node::finishNewExpression(Node& callee, vector<Node>& args) { DEBUGIN(" Node::finishNewExpression(Node& callee, vector<Node>& args)");
+void Node::finishNewExpression(Node& callee, vector<Node>& args) { DEBUGIN("finishNewExpression(Node& callee, vector<Node>& args)");
     addType("NewExpression");
     reg("callee", callee);
     nodeVec("arguments", args);
@@ -2913,14 +2945,14 @@ void Node::finishNewExpression(Node& callee, vector<Node>& args) { DEBUGIN(" Nod
 }
 
 //#CLEAR
-void Node::finishObjectExpression(vector<Node>& properties) { DEBUGIN(" Node::finishObjectExpression(vector<Node>& properties)");
+void Node::finishObjectExpression(vector<Node>& properties) { DEBUGIN("finishObjectExpression(vector<Node>& properties)");
     addType("ObjectExpression");
     nodeVec("properties", properties);
     this->finish(); DEBUGOUT("", false);
 }
 
 //#CLEAR
-void Node::finishPostfixExpression(u16string oper, Node& argument) { DEBUGIN(" Node::finishPostfixExpression(u16string oper, Node& argument)");
+void Node::finishPostfixExpression(u16string oper, Node& argument) { DEBUGIN("finishPostfixExpression(u16string oper, Node& argument)");
     addType("UpdateExpression");
     jvput("operator", s(oper));
     reg("argument", argument);
@@ -2929,7 +2961,7 @@ void Node::finishPostfixExpression(u16string oper, Node& argument) { DEBUGIN(" N
 }
 
 //#CLEAR
-void Node::finishProgram(vector< Node >& body) { DEBUGIN(" Node::finishProgram(vector< Node >& body)");
+void Node::finishProgram(vector< Node >& body) { DEBUGIN("finishProgram(vector< Node >& body)");
     addType("Program");
     nodeVec("body", body);
     this->finish(); 
@@ -2944,7 +2976,7 @@ void Node::finishProgram(vector< Node >& body) { DEBUGIN(" Node::finishProgram(v
 }
 
 //#CLEAR
-void Node::finishProperty(u16string kind, Node& key, Node& value) { DEBUGIN(" Node::finishProperty(u16string kind, Node& key, Node& value)");
+void Node::finishProperty(u16string kind, Node& key, Node& value) { DEBUGIN("finishProperty(u16string kind, Node& key, Node& value)");
     addType("Property");
     reg("key", key);
     reg("value", value);
@@ -2953,14 +2985,14 @@ void Node::finishProperty(u16string kind, Node& key, Node& value) { DEBUGIN(" No
 }
 
 //#CLEAR
-void Node::finishReturnStatement(Node& argument) { DEBUGIN(" Node::finishReturnStatement(Node& argument)");
+void Node::finishReturnStatement(Node& argument) { DEBUGIN("finishReturnStatement(Node& argument)");
     addType("ReturnStatement");
     reg("argument", argument);
     this->finish(); DEBUGOUT("", false);
 }
 
 //#CLEAR
-void Node::finishSequenceExpression(vector< Node >& expressions) { DEBUGIN(" Node::finishSequenceExpression(vector< Node >& expressions)");
+void Node::finishSequenceExpression(vector< Node >& expressions) { DEBUGIN("finishSequenceExpression(vector< Node >& expressions)");
     addType("SequenceExpression");
     this->expressions = expressions;
     nodeVec("expressions", expressions);
@@ -2968,7 +3000,7 @@ void Node::finishSequenceExpression(vector< Node >& expressions) { DEBUGIN(" Nod
 }
 
 //#CLEAR
-void Node::finishSwitchCase(Node& test, vector< Node >& consequent) { DEBUGIN(" Node::finishSwitchCase(Node& test, vector< Node >& consequent)");
+void Node::finishSwitchCase(Node& test, vector< Node >& consequent) { DEBUGIN("finishSwitchCase(Node& test, vector< Node >& consequent)");
     addType("SwitchCase");
     reg("test", test);
     nodeVec("consequent", consequent);
@@ -2976,7 +3008,7 @@ void Node::finishSwitchCase(Node& test, vector< Node >& consequent) { DEBUGIN(" 
 }
 
 //#CLEAR
-void Node::finishSwitchStatement(Node& discriminant, vector < Node >& cases) { DEBUGIN(" Node::finishSwitchStatement(Node& discriminant, vector < Node >& cases)");
+void Node::finishSwitchStatement(Node& discriminant, vector < Node >& cases) { DEBUGIN("finishSwitchStatement(Node& discriminant, vector < Node >& cases)");
     addType("SwitchStatement");
     reg("discriminant", discriminant);
     nodeVec("cases", cases);
@@ -2984,13 +3016,13 @@ void Node::finishSwitchStatement(Node& discriminant, vector < Node >& cases) { D
 }
 
 //#CLEAR
-void Node::finishThisExpression() { DEBUGIN(" Node::finishThisExpression()");
+void Node::finishThisExpression() { DEBUGIN("finishThisExpression()");
     addType("ThisExpression");
     this->finish(); DEBUGOUT("", false);
 }
 
 //#CLEAR
-void Node::finishThrowStatement(Node& argument) { DEBUGIN(" Node::finishThrowStatement(Node& argument)");
+void Node::finishThrowStatement(Node& argument) { DEBUGIN("finishThrowStatement(Node& argument)");
     addType("ThrowStatement");
     reg("argument", argument);
     this->finish(); DEBUGOUT("", false);
@@ -3008,7 +3040,7 @@ void Node::finishTryStatement(Node& block, vector<Node>& guardedHandlers,
 }
 
 //#CLEAR
-void Node::finishUnaryExpression(u16string oper, Node& argument) { DEBUGIN(" Node::finishUnaryExpression(u16string oper, Node& argument)");
+void Node::finishUnaryExpression(u16string oper, Node& argument) { DEBUGIN("finishUnaryExpression(u16string oper, Node& argument)");
     addType((oper == u"++" || oper == u"--") ? 
             "UpdateExpression" : "UnaryExpression");
     jvput("operator", s(oper));
@@ -3028,7 +3060,7 @@ void Node::finishVariableDeclaration(vector< Node >& declarations,
 }
 
 //#CLEAR
-void Node::finishVariableDeclarator(Node& id, Node& init) { DEBUGIN(" Node::finishVariableDeclarator(Node& id, Node& init)");
+void Node::finishVariableDeclarator(Node& id, Node& init) { DEBUGIN("finishVariableDeclarator(Node& id, Node& init)");
     addType("VariableDeclarator");
     reg("id", id);
     reg("init", init);
@@ -3036,7 +3068,7 @@ void Node::finishVariableDeclarator(Node& id, Node& init) { DEBUGIN(" Node::fini
 }
 
 //#CLEAR
-void Node::finishWhileStatement(Node& test, Node& body) { DEBUGIN(" Node::finishWhileStatement(Node& test, Node& body)");
+void Node::finishWhileStatement(Node& test, Node& body) { DEBUGIN("finishWhileStatement(Node& test, Node& body)");
     addType("WhileStatement");
     reg("test", test);
     reg("body", body);
@@ -3044,7 +3076,7 @@ void Node::finishWhileStatement(Node& test, Node& body) { DEBUGIN(" Node::finish
 }
 
 //#CLEAR
-void Node::finishWithStatement(Node& object, Node& body) { DEBUGIN(" Node::finishWithStatement(Node& object, Node& body)");
+void Node::finishWithStatement(Node& object, Node& body) { DEBUGIN("finishWithStatement(Node& object, Node& body)");
     addType("WithStatement");
     reg("object", object);
     reg("body", body);
@@ -3055,7 +3087,7 @@ void Node::finishWithStatement(Node& object, Node& body) { DEBUGIN(" Node::finis
 class WrappingNode : public Node {
 public:
     WrappingNode(TokenStruct startToken) : Node(false, true) {
-        DEBUGIN("WrappingNode(Token)");
+        DEBUGIN("WrappingNode(Token)", true);
         if (!hasJv) { 
             jv = json_newmap(); 
             hasJv=true;
@@ -3070,10 +3102,10 @@ public:
             loc = this->WrappingSourceLocation(startToken);
         }
  
-        DEBUGOUT("Wr");
+        DEBUGOUT("Wr", true);
     }
     Loc WrappingSourceLocation(TokenStruct startToken) {
-        DEBUGIN("WrappingSourceLocation (Token)");
+        DEBUGIN("WrappingSourceLocation (Token)", true);
         Loc result;
         if (startToken.type == Token["StringLiteral"]) {
             result.start.line = startToken.startLineNumber;
@@ -3086,7 +3118,7 @@ public:
         result.end.line = -1;
         result.end.column = -1;
         //return result;
-      DEBUGOUT("WraSrcLoc"); return result;
+        DEBUGOUT("WraSrcLoc", true); return result;
     }
 };
     
@@ -3565,7 +3597,9 @@ Node parseGroupExpression() { DEBUGIN(" parseGroupExpression()");
     ++(state.parenthesisCount);
     expr = parseExpression();
     expect(u")");
-  DEBUGOUT("parseGroupExpr"); return expr;
+    string debugmsg="parseGroupExpr()";
+    DEBUGOUT(debugmsg);
+    return expr;
 }
 
 
@@ -3920,13 +3954,13 @@ Node parseBinaryExpression() { DEBUGIN(" parseBinaryExpression()");
 
     if (left.type == PlaceHolders["ArrowParameterPlaceHolder"].type) {
         //? placeholder
-      DEBUGOUT("parseBinary"); return left;
+      DEBUGOUT("parseBinary1"); return left;
     }
 
     token = lookahead;    
     prec = binaryPrecedence(token, state.allowIn);
     if (prec == 0) {
-      DEBUGOUT("parseBinary"); return left;
+      DEBUGOUT("parseBinary2"); return left;
     }
     token.prec = prec;
     lex();
@@ -3994,7 +4028,7 @@ Node parseBinaryExpression() { DEBUGIN(" parseBinaryExpression()");
     }
 
 
-  DEBUGOUT("parseBinary"); return expr;
+  DEBUGOUT("parseBinary3"); return expr;
 }
 
 
@@ -4014,7 +4048,7 @@ Node parseConditionalExpression() { DEBUGIN(" parseConditionalExpression()");
         //? ever supposed to eval. to true? cause it might in some cases
         //? even tho it seems in javascript it never ever will.
         
-      DEBUGOUT("parseCondExpr"); return expr;
+      DEBUGOUT("parseCondExpr1"); return expr;
     }
     if (match(u"?")) {
         lex();
@@ -4027,10 +4061,10 @@ Node parseConditionalExpression() { DEBUGIN(" parseConditionalExpression()");
 
         tmpnode = WrappingNode(startToken);
         tmpnode.finishConditionalExpression(expr, consequent, alternate);
-      DEBUGOUT("parseCondExpr"); return tmpnode;
+      DEBUGOUT("parseCondExpr2"); return tmpnode;
     }
 
-  DEBUGOUT("parseCondExpr"); return expr;
+  DEBUGOUT("parseCondExpr3"); return expr;
 }
 
 // [ES6] 14.2 Arrow Function
@@ -4116,7 +4150,6 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node >& expressions) {
     if (defaultCount == 0) {
         defaults.clear();
     }
-
     reOut.params = params;
     reOut.defaults = defaults;
     reOut.rest = rest;
@@ -4181,7 +4214,7 @@ Node parseAssignmentExpression() { DEBUGIN(" parseAssignmentExpression()");
             if (expr.type == Syntax["Identifier"]) {
                 reIn.push_back(expr);
                 list = reinterpretAsCoverFormalsList(reIn); 
-            } else if (expr.type == Syntax["Assignmentxpression"]) {
+            } else if (expr.type == Syntax["AssignmentExpression"]) {
                 reIn.push_back(expr);
                 list = reinterpretAsCoverFormalsList(reIn);
             } else if (expr.type == Syntax["SequenceExpression"]) {
@@ -4190,7 +4223,7 @@ Node parseAssignmentExpression() { DEBUGIN(" parseAssignmentExpression()");
                 list = reinterpretAsCoverFormalsList(reIn); 
             }
             if (!(list.isNull)) {
-              return DEBUGRET("", parseArrowFunctionExpression(list, WrappingNode(startToken)));
+              return DEBUGRET("parseAssignExpr1", parseArrowFunctionExpression(list, WrappingNode(startToken)));
             }
         }
     }
@@ -4213,10 +4246,11 @@ Node parseAssignmentExpression() { DEBUGIN(" parseAssignmentExpression()");
         tmpnode = WrappingNode(startToken);
 
         tmpnode.finishAssignmentExpression(token.strvalue, expr, right); 
+        DEBUGOUT("parseAssignExpr2"); 
         return tmpnode;
     }
 
-  DEBUGOUT("parseAssignExpr"); return expr;
+  DEBUGOUT("parseAssignExpr3"); return expr;
 }
 
 // 11.14 Comma Operator
@@ -4242,8 +4276,9 @@ Node parseExpression() { DEBUGIN(" parseExpression()");
         expr = WrappingNode(startToken);
         expr.finishSequenceExpression(expressions);
     }
-
-  DEBUGOUT("parseExpr"); return expr;
+    string debugmsg = "parseExpr()";
+    debugmsg.append(toU8string(expr.type)); 
+    DEBUGOUT(debugmsg); return expr;
 }
 
 // 12.1 Block
@@ -4293,7 +4328,8 @@ Node parseVariableIdentifier() { DEBUGIN(" parseVariableIdentifier()");
     }
 
     node.finishIdentifier(token.strvalue);
-  DEBUGOUT("parseVariableIdent"); return node;
+    DEBUGOUT("parseVariableIdent"); 
+    return node;
 }
 
 //#CLEAR+
@@ -4567,11 +4603,12 @@ Node parseContinueStatement(Node node) { DEBUGIN(" parseContinueStatement(Node n
     }
 
     if (lookahead.type == Token["Identifier"]) {
+
         label = parseVariableIdentifier();
 
         key = u"$";
         key.append(label.name);
-        if (has<u16string>(key, state.labelSet)) {
+        if (!(has<u16string>(key, state.labelSet))) {
             throwError(NULLTOKEN, Messages["UnknownLabel"], {label.name});
         }
     }
@@ -4914,6 +4951,7 @@ Node parseStatement() { DEBUGIN(" parseStatement()");
 
         key = u"$";
         key.append(expr.name);
+        
         if (has<u16string>(key, state.labelSet)) {
             throwError(NULLTOKEN, Messages["Redeclaration"], 
                        {u"Label", expr.name}); 
@@ -5042,7 +5080,7 @@ void validateParam(ParseParamsOptions options,
 
 
 //#CLEAR
-bool parseParam(ParseParamsOptions options) { DEBUGIN(" parseParam(ParseParamsOptions options)");
+bool parseParam(ParseParamsOptions& options) { DEBUGIN(" parseParam(ParseParamsOptions options)");
     TokenStruct token; 
     Node param(false, true), def(false, true);
 
@@ -5632,9 +5670,9 @@ extern "C" {
 
 
 int main() {
-    string somecode = "var x = /[a-z]/i";
+    string somecode = "done: while (true) { continue done }";
 
-    string someopt = "{ 'loc':true, 'range':true }";
+    string someopt = "{ 'loc':true, 'range':true, 'tokens':true }";
     string result = string(parseExtern(somecode.data(), someopt.data()));
     result.append("\n");
     printf("%s", result.data());
