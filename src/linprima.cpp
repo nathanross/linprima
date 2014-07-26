@@ -628,6 +628,15 @@ public:
         json_put(root, "column", this->column);
       DEBUGOUT("Error::toJSON"); return root;
     }
+    json_object * toJsonTolerant() {
+                DEBUGIN("Error::toJSON");
+        json_object * root = json_newmap();
+        json_put(root, "description", description);
+        json_put(root, "index", this->index);
+        json_put(root, "lineNumber", this->lineNumber);
+        json_put(root, "column", this->column);
+      DEBUGOUT("Error::toJSON"); return root;
+    }
 };
 
 ExError retError;
@@ -5494,7 +5503,7 @@ json_object* tokenizeImpl(const u16string code,
     }
     if (extra.errorTolerant) {
         json_put(outJson, "errors",  vec2jsonCallback<ExError>(extra.errors,
-                                             &ExError::toJson));
+                                             &ExError::toJsonTolerant));
     }
 
   return outJson;
@@ -5617,7 +5626,7 @@ json_object* parseImpl(const u16string code,
     if (extra.errorTolerant) {
         json_put(programJson, "errors", 
                  vec2jsonCallback<ExError>(extra.errors,
-                                           &ExError::toJson));
+                                           &ExError::toJsonTolerant));
     }
 
 

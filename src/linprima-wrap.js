@@ -27,6 +27,25 @@
     //=ASM= Module.cwrap('tokenizeASMJS', 'string', ['string', 'number', 'string']),
     //=ASM= };
 
+    var genErrorObject = function(errJson) {
+        var e = new Error('Line ' + errJson['lineNumber'] +
+                          ': ' + errJson['description']);
+        e.description = errJson["description"];
+        e.index = errJson["index"];
+        e.lineNumber = errJson["lineNumber"];
+        e.column = errJson["column"];
+        return e;
+    };
+    var genErrorObjectList = function(errorTolerantArray) {
+        //errorTolerant returns in the 'errors' key an array
+        //of js Error objects. Here we convert a list of error
+        //jsons to js Error objects.
+        for (var i=0; i<errorTolerantArray.length; i++) {
+            errorTolerantArray[i] = genErrorObject(
+                errorTolerantArray[i]);
+        }
+    };
+
     var tokenize = function(code, options) {
         if (typeof code !== 'string' && !(code instanceof String)) {
             code = String(code);
@@ -37,20 +56,17 @@
                                                    //=ASM= code.length,
                                                          optStr));
         if ("isError" in out) {
-            var e = new Error('Line ' + out['lineNumber'] +
-                                ': ' + out['description']);
-            e.description = out["description"];
-            e.index = out["index"];
-            e.lineNumber = out["lineNumber"];
-            e.column = out["column"];
-            throw e;
+            throw genErrorObject(out);
+        }
+        if ('tolerant' in options && options['tolerant'] && 'errors' in out) {
+            genErrorObjectList(out['errors']);
         }
         var nodeRoot = out.tokenlist;
         if ("comments" in out) { nodeRoot.comments = out.comments; }
         if ("tokens" in out) { nodeRoot.tokens = out.tokens; }
         if ("errors" in out) { nodeRoot.errors = out.errors; }   
         return nodeRoot;
-    }
+    };
 
     var parse = function(code, options) {
         if (typeof code !== 'string' && !(code instanceof String)) {
@@ -62,16 +78,14 @@
                                             //=ASM=   code.length, 
                                                       optStr));
         if ("isError" in out) {
-            var e = new Error('Line ' + out['lineNumber'] +
-                                ': ' + out['description']);
-            e.description = out["description"];
-            e.index = out["index"];
-            e.lineNumber = out["lineNumber"];
-            e.column = out["column"];
-            throw e;
+            throw genErrorObject(out);
         }
-        var path,j,cursor, regex;
-        for (var i=0; i<out["regexp"].length; i++) {
+        if ('tolerant' in options && options['tolerant'] && 'errors' in out) {
+            genErrorObjectList(out['errors']);
+        }
+
+        var path,i, j,cursor, regex;
+        for (i=0; i<out["regexp"].length; i++) {
             path=out["regexp"][i]; 
             cursor = out["program"];
             for (j=0; j<path.length; j++) {
@@ -88,6 +102,7 @@
             }
         }
         delete out["regexp"];
+
         var programOut = out.program;
         if (out.comments != undefined) { programOut.comments = out["comments"]; }
         if (out.errors != undefined) { programOut.errors = out["errors"]; }
