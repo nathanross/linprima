@@ -848,7 +848,7 @@ struct OptionsStruct {
     bool hasSource;
     string source;
     OptionsStruct() {
-        DEBUGIN("OptionsStruct()");
+        DEBUGIN("OptionsStruct()", true);
         range = false;
         loc = false;
         comment = false;
@@ -856,7 +856,7 @@ struct OptionsStruct {
         attachComment = false;
         tokens = false;
         hasSource = false;
-        DEBUGOUT("OptionsStruct()");
+        DEBUGOUT("OptionsStruct()", true);
     }
     bool json_getbool(json_object* in, string key, bool defaultVal) {
         json_object* tmp;
@@ -867,7 +867,7 @@ struct OptionsStruct {
         return result;
     }
     OptionsStruct(const char *in_o) {
-        DEBUGIN("OptionsStruct(char*)");
+        DEBUGIN("OptionsStruct(char*)", true);
         json_tokener_error tkErr;
         json_object *in = json_tokener_parse_verbose(in_o, &tkErr);
         if (tkErr != json_tokener_success) {
@@ -896,7 +896,7 @@ struct OptionsStruct {
             }
         }
         json_object_put(in);
-        DEBUGOUT("OptionsStruct(char*)");
+        DEBUGOUT("OptionsStruct(char*)", true);
     }
 };
 
@@ -1193,11 +1193,11 @@ map<string, regex> Regex = {
 };
 
 
-void initglobals() { DEBUGIN(" initglobals()");
+void initglobals() { DEBUGIN(" initglobals()", true);
     PlaceHolders["ArrowParameterPlaceHolder"].type=u"ArrowParameterPlaceholder";
     NULLTOKEN.isNull = true;
     NULLNODE.isNull = true;
- DEBUGOUT("", false);
+ DEBUGOUT("", true);
 }
 
  // Ensure the condition is true, otherwise throw an error.
@@ -2276,28 +2276,31 @@ TokenStruct advanceSlash() { DEBUGIN(" advanceSlash()");
     // https://github.com/mozilla/sweet.js/wiki/design
     if (extra.tokenRecords.size() == 0) {
         // Nothing before that: it cannot be a division.
-      return DEBUGRET("advSlash", collectRegex()); 
+      return DEBUGRET("advSlash1", collectRegex()); 
     }    
     prevToken = extra.tokenRecords[extra.tokenRecords.size() - 1];
     
     if (prevToken.typestring == u"Punctuator") { 
         if (prevToken.valuestring == u"]") { 
-          return DEBUGRET("advSlash", scanPunctuator());
+          return DEBUGRET("advSlash2", scanPunctuator());
         }
-        if (prevToken.valuestring == u")" && extra.openParenToken > 0
-            && extra.tokenRecords.size() > (extra.openParenToken - 1)) { 
-            checkToken = extra.tokenRecords[extra.openParenToken - 1];
-            if (//checkToken && 
+        if (prevToken.valuestring == u")") {
+            //checkToken && 
                 //# instead of checking for existence, we add
                 //# the openParenToken value check to the condition above.
                 //# remember exta.tokens() is already size > 0 bcos 
                 //# check at top of func.
-                checkToken.typestring == u"Keyword" && 
-                has<u16string>(checkToken.valuestring, 
-                    {u"if", u"while", u"for", u"with"})) {
-              return DEBUGRET("advSlash", collectRegex()); 
+                
+            if (extra.openParenToken > 0
+                && extra.tokenRecords.size() > (extra.openParenToken - 1)) { 
+                checkToken = extra.tokenRecords[extra.openParenToken - 1];
+                if (checkToken.typestring == u"Keyword" && 
+                    has<u16string>(checkToken.valuestring, 
+                        {u"if", u"while", u"for", u"with"})) {
+                    return DEBUGRET("advSlash3", collectRegex()); 
+                }
             }
-          return DEBUGRET("advSlash", scanPunctuator());
+          return DEBUGRET("advSlash4", scanPunctuator());
         }
         if (prevToken.valuestring == u"}") {
             // Dividing a function by anything makes little sense,
@@ -2313,7 +2316,7 @@ TokenStruct advanceSlash() { DEBUGIN(" advanceSlash()");
                     (extra.openCurlyToken - 4)) {
                     checkToken = extra.tokenRecords[extra.openCurlyToken -4];
                 } else { 
-                  return DEBUGRET("advSlash", scanPunctuator());
+                  return DEBUGRET("advSlash5", scanPunctuator());
                 }
             } else if (extra.openCurlyToken >= 4 &&
                 extra.tokenRecords.size() > (extra.openCurlyToken -4) &&
@@ -2326,26 +2329,26 @@ TokenStruct advanceSlash() { DEBUGIN(" advanceSlash()");
                     (extra.openCurlyToken - 5)) {
                     checkToken = extra.tokenRecords[extra.openCurlyToken -5];
                 } else { 
-                  return DEBUGRET("advSlash", collectRegex());
+                  return DEBUGRET("advSlash6", collectRegex());
                 }
             } else {
-              return DEBUGRET("advSlash", scanPunctuator());
+              return DEBUGRET("advSlash7", scanPunctuator());
             }
             // checkToken determines whether the function is
             // a declaration or an expression.
             if (has<u16string>(checkToken.valuestring, FnExprTokens)) {
                 // It is an expression.
-              return DEBUGRET("advSlash", scanPunctuator());
+              return DEBUGRET("advSlash8", scanPunctuator());
             }
             // It is a declaration.
-            return DEBUGRET("advSlash", collectRegex()); 
+            return DEBUGRET("advSlash9", collectRegex()); 
         }
-        return DEBUGRET("advSlash", collectRegex());
+        return DEBUGRET("advSlash10", collectRegex());
     }
     if (prevToken.typestring == u"Keyword") { 
-      return DEBUGRET("advSlash", collectRegex()); 
+      return DEBUGRET("advSlash11", collectRegex()); 
     }
-  return DEBUGRET("advSlash", scanPunctuator());
+  return DEBUGRET("advSlash12", scanPunctuator());
 }
 
 //#CLEAR+
