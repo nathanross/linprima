@@ -529,7 +529,7 @@ json_object*  locToJson(Loc l) {
         json_put(root, "end", posToJson(l.end));
     }
     if (l.hasSource) {
-        json_put(root, "source", l.source.data());
+        json_put(root, "source", l.source);
     }
     //DEBUGOUT("locToJson"); 
     return root;
