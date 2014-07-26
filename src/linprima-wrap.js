@@ -58,7 +58,8 @@
         if ("isError" in out) {
             throw genErrorObject(out);
         }
-        if ('tolerant' in options && options['tolerant'] && 'errors' in out) {
+        if (options !== undefined &&
+            'tolerant' in options && options['tolerant'] && 'errors' in out) {
             genErrorObjectList(out['errors']);
         }
         var nodeRoot = out.tokenlist;
@@ -80,7 +81,8 @@
         if ("isError" in out) {
             throw genErrorObject(out);
         }
-        if ('tolerant' in options && options['tolerant'] && 'errors' in out) {
+        if (options !== undefined &&
+            'tolerant' in options && options['tolerant'] && 'errors' in out) {
             genErrorObjectList(out['errors']);
         }
 
