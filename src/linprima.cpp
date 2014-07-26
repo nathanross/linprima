@@ -1884,6 +1884,7 @@ TokenStruct scanOctalLiteral(const int start) { DEBUGIN(" scanOctalLiteral(const
     t.type = Token["NumericLiteral"];
     t.intvalue = parseInt(number, 8);
     t.literaltype = LiteralType["Int"];
+    t.octal = true;
     t.lineNumber = lineNumber;
     t.lineStart = lineStart;
     t.start = start;
@@ -5358,7 +5359,9 @@ json_require(json_require(sourceElement.jv, "expression", false),
         directive = slice(sourceraw, token.start + 1, token.end - 1);
         if (directive == u"use strict") {
             strict = true;
+
             if (!(firstRestricted.isNull)) { 
+
                 throwErrorTolerant(firstRestricted, Messages["StrictOctalLiteral"],{});
             }
         } else {
