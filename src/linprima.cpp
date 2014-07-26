@@ -187,8 +187,7 @@ json_object* json_push_newarr(json_object *a) {
 }
 
 void json_put_null(json_object *a, const char *b) { 
-    json_object_object_add(a, b, NULL);
-    
+    json_object_object_add(a, b, NULL);    
 }
 void json_push_null(json_object *a) { 
     json_object_array_add(a, NULL);
@@ -259,35 +258,66 @@ json_object* json_push(json_object *a, json_object *c) {
 //# again, if you return the json out of the function find is 
 //# called in, the object will still exist until put is called
 //# on a parent, but it makes for spaghetti freeing.
-json_object* json_find(json_object *a, const bool incrRef, 
-                       const char* eqkey, const json_type eqType) { 
-    json_object_object_foreach(a, jkey, jval) {
+
+bool json_find(json_object *root, const char * eqkey, 
+               json_object*& out, const bool incrRef, 
+               const json_type eqType) { 
+    json_object_object_foreach(root, jkey, jval) {
         if (strcmp(jkey, eqkey) == 0) {
             if (json_object_is_type(jval, eqType)) {
-                if (incrRef) { return json_object_get(jval); }
-                return jval;
+                if (incrRef) { out = json_object_get(jval); }
+                else { out = jval; }
+                return true;
             }
-            return nullptr;
+            return false;
         }
     }    
-    return nullptr;
+    return false;
+    /*    bool exists;
+    json_object ** value =0x0;
+    printf("a\n");
+    exists = json_object_object_get_ex(root, eqkey, value);
+    printf("bc\n");
+    if (! exists || 
+        !(json_object_is_type(*value, eqType))) {
+        return false;
+    }    
+    printf("b\n");
+    out = *value; 
+    if (incrRef) { json_object_get(out); }
+    return true; */
 }
 
-json_object* json_find(json_object *a, const bool incrRef, 
-                       const char* eqkey) { 
-    json_object_object_foreach(a, jkey, jval) {
+//# note: there is no json_any_type type
+bool json_find(json_object *root, const char* eqkey,
+                       json_object*& out, const bool incrRef) {
+    
+    json_object_object_foreach(root, jkey, jval) {
         if (strcmp(jkey, eqkey) == 0) {
-            if (incrRef) { return json_object_get(jval); }
-            return jval;
+            if (incrRef) { out = json_object_get(jval); }
+            else { out = jval; }
+            return true;
         }
     }    
-    return nullptr;
+    return false; 
+
+    /*bool exists;
+    json_object ** value = 0x0;
+    exists = json_object_object_get_ex(root, eqkey, value);
+    if ( !exists ) {
+        return false;
+    }
+
+    out = *value; 
+    if (incrRef) { json_object_get(out); }
+    return true; */
 }
 
-json_object* json_require(json_object *a, bool incrRef, 
-                          const char* eqkey) { 
-    json_object * out = json_find(a, incrRef, eqkey);
-    if (out == nullptr) {
+json_object* json_require(json_object *a, const char* eqkey,
+                          const bool incrRef) { 
+    json_object * out;
+    bool exists = json_find(a, eqkey, out, incrRef);
+    if (!exists) {
         string errormsg = "json_find failed to find key : ";
         errormsg.append(string(eqkey));
         throw runtime_error(errormsg);
@@ -312,7 +342,7 @@ void json_arrput(json_object* a, const int idx, json_object *c) {
 }
 
 void json_del(json_object *a, const char* key) { 
-    if (json_find(a, false, key) != nullptr) {
+    if (json_object_object_get_ex(a, key, NULL)) {
         json_object_object_del(a, key);
     }
     
@@ -829,9 +859,10 @@ struct OptionsStruct {
         DEBUGOUT("OptionsStruct()");
     }
     bool json_getbool(json_object* in, string key, bool defaultVal) {
-        json_object* tmp = json_find(in, false, 
-                                     key.data(), json_type_boolean);
-        if (tmp == nullptr) { return defaultVal; }
+        json_object* tmp;
+        bool exists = json_find(in, key.data(), tmp,
+                                false, json_type_boolean);
+        if (!exists) { return defaultVal; }
         bool result = (bool) json_object_get_boolean(tmp);
         return result;
     }
@@ -858,8 +889,8 @@ struct OptionsStruct {
             comment = json_getbool(in, "comment", false);
             tolerant = json_getbool(in, "tolerant", false);
             tokens = json_getbool(in, "tokens", false);
-            tmp = json_find(in, false, "source", json_type_string);     
-            hasSource = (tmp != nullptr);
+            hasSource = json_find(in, "source", tmp,
+                                    false, json_type_string);
             if (hasSource) { 
                 source = json_object_get_string(tmp); 
             }
@@ -2522,7 +2553,7 @@ void Node::regNoadd(vector<string> paths, Node &child) {
     debugmsg.append(paths[0]);
     //DEBUGIN(debugmsg);
     if (child.isNull) { 
-        child.jv = NULL;
+        child.jv = nullptr;
         //DEBUGOUT("", false); 
       return;
     }
@@ -2552,7 +2583,11 @@ void Node::regNoadd(vector<string> paths, Node &child) {
 void Node::reg(string path, Node &child) { 
     //DEBUGIN("reg(string path, Node &child)");
     regNoadd({path}, child);
-    json_put(jv, path.data(), child.jv);
+    if (child.jv != nullptr) {
+        json_put(jv, path.data(), child.jv);
+    } else {
+        json_put_null(jv, path.data());
+    }
     //DEBUGOUT("node::reg");
 }
 
@@ -2610,7 +2645,7 @@ void Node::processComment() { DEBUGIN("processComment()");
 
     if (type == Syntax["Program"]) {  
         if (json_object_array_length(
-                    json_require(jv,false, "body")) > 0) {
+                        json_require(jv,"body", false)) > 0) {
           DEBUGOUT("", false); return;
         }
     }
@@ -3536,19 +3571,19 @@ Node parseObjectInitialiser() { DEBUGIN(" parseObjectInitialiser()");
 
     while (!match(u"}")) {
         property = parseObjectProperty();
-        keyobj = json_require(property.jv, false, "key");
+        keyobj = json_require(property.jv, "key", false);
         keytype = json_object_get_string(
-                      json_require(keyobj, false, "type"));
+                       json_require(keyobj, "type", false));
 
         if (keytype == toU8string(Syntax["Identifier"])) {
             name = json_object_get_string(
-                      json_require(keyobj, false, "name"));
+                      json_require(keyobj,  "name", false));
         } else {
             name = json_tostring(
-                      json_require(keyobj, false, "value"));
+                      json_require(keyobj,  "value", false));
         }
         kindname = json_object_get_string(
-                      json_require(property.jv, false, "kind"));
+                      json_require(property.jv,  "kind", false));
         kind = (kindname == "init") ? PropertyKind["Data"] : (kindname == "get") ? PropertyKind["Get"] : PropertyKind["Set"];
 
         key = "$";
@@ -4511,7 +4546,7 @@ Node parseForStatement(Node node) { DEBUGIN(" parseForStatement(Node node)");
             state.allowIn = previousAllowIn;
 
             if (json_object_array_length(
-                   json_require(init.jv, false, "declarations")) == 1 
+                   json_require(init.jv,  "declarations", false)) == 1 
                 && matchKeyword(u"in")) { 
                 
                 lex();
@@ -4788,7 +4823,7 @@ Node parseSwitchStatement(Node node) { DEBUGIN(" parseSwitchStatement(Node node)
         }
         clause = parseSwitchCase();
         if (json_object_is_type(
-                  json_require(clause.jv, false, "test"), 
+                  json_require(clause.jv,  "test", false), 
                   json_type_null)) {
             if (defaultFound) {
                 throwError(NULLTOKEN, 
@@ -4994,8 +5029,8 @@ Node parseFunctionSourceElements() { DEBUGIN(" parseFunctionSourceElements()");
         sourceElements.push_back(sourceElement); 
         if (strcmp(
                    json_object_get_string(
-json_require(json_require(sourceElement.jv, false, "expression"),
-             false, "type")), 
+json_require(json_require(sourceElement.jv, "expression", false),
+             "type", false)), 
                    toU8string(Syntax["Literal"]).data()) != 0) {
             //? this one I doubt there's more an efficient way to do this
             //? then json-c accesses. Storing node hierarchies just to fix this call seems to 
@@ -5297,8 +5332,8 @@ vector< Node > parseSourceElements() { DEBUGIN(" parseSourceElementS() ");
         //#todo make a function that accepts vector of nested finds
         //#so we can make tests like this more legible.
         if (strcmp(json_object_get_string(
-json_require(json_require(sourceElement.jv, false,"expression"), 
-false,"type")), 
+json_require(json_require(sourceElement.jv, "expression", false), 
+             "type", false)), 
                    toU8string(Syntax["Literal"]).data()) != 0) {         
             // this is not directive
             break;
