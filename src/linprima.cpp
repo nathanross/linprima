@@ -1007,6 +1007,8 @@ char16_t source(int idx) { return *(sourceraw + idx); }
 
 json_object*  TokenRecord::toJson() { DEBUGIN(" TokenRecord::toJson()");
     json_object *root = json_newmap(), *rangearr;
+    //printf("TokenRecord::toJson--%s--\n",
+    //       (toU8string(this->typestring)).data());
     json_put(root, "type", toU8string(this->typestring));
     json_put(root, "value", toU8string(this->valuestring));
     if (extra.range) {
@@ -1070,7 +1072,7 @@ map<int, u16string> TokenName = {
     {Token["NumericLiteral"], u"Numeric"},
     {Token["Punctuator"], u"Punctuator"},
     {Token["StringLiteral"], u"String"},
-    {Token["RegularExrpession"], u"RegularExpression"}
+    {Token["RegularExpression"], u"RegularExpression"}
 };
 
 
@@ -2125,7 +2127,7 @@ RegexHalf scanRegExpBody() { DEBUGIN("scanRegExpBody()");
     body = str.substr(1, str.length() - 2);
     rh.value = body;
     rh.literal = str;
-  DEBUGOUT("scanRegExpBody"); return rh;
+    DEBUGOUT("scanRegExpBody"); return rh;
 }
 
 //#CLEAR+
