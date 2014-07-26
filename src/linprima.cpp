@@ -53,6 +53,7 @@ void DEBUGIN(string in, bool lowprio) {
     if (lowprio) { msg.append("\033[1;30m"); } 
     else { msg.append(colorHash(ltrim(in))); }
     msg.append(ltrim(in));
+    msg.append(to_string(debuglevel));
     msg.append("\033[0m\n");
     printf("%s", msg.data());
     stackfuncs.push_back(ltrim(in));
@@ -81,6 +82,7 @@ void DEBUGOUT(string in, bool lowprio) {
         msg.append("@@ ");
         msg.append(stackfuncs.back());
         stackfuncs.pop_back();
+        msg.append(to_string(debuglevel));
         debuglevel--;
     }
     msg.append("\033[0m\n");
@@ -5175,7 +5177,6 @@ ParseParamsOut parseParams(TokenStruct firstRestricted) { DEBUGIN(" parseParamS(
 
     
     expect(u")");
-    DEBUGIN(" aquel ");
     if (options.defaultCount == 0) {
         options.defaults.clear();
     }
@@ -5220,6 +5221,7 @@ Node parseFunctionDeclaration() { DEBUGIN(" parseFunctionDeclaration()");
     }
 
     tmp = parseParams(firstRestricted);
+
     params = tmp.params;
     defaults = tmp.defaults;
     stricted = tmp.stricted;
@@ -5247,6 +5249,7 @@ Node parseFunctionDeclaration() { DEBUGIN(" parseFunctionDeclaration()");
 //#partial
 Node parseFunctionExpression() { DEBUGIN(" parseFunctionExpression()");
     TokenStruct token, firstRestricted, stricted;
+    firstRestricted.isNull = true;
     u16string message, tokval;
     Node body(false, true), id(false, true), node(true, true);    
     ParseParamsOut tmp;
