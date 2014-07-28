@@ -1062,19 +1062,68 @@ json_object * Comment::toJson() {
 
 #ifdef ASM
 
-struct eu16  { bool err; u16string val; };
-struct eu8  { bool err; string val; };
-struct ech16  { bool err; char16_t val; };
-struct ech8  { bool err; char val; };
-struct ebool { bool err; bool val; };
-struct etkns { bool err; TokenStruct val; };
-struct etknr { bool err; TokenRecord val; };
-struct enode { bool err; Node val; };
-struct eint { bool err; int val; };
-struct edouble { bool err; double val; };
-struct eregexhalf { bool err; RegexHalf val; };
-struct ev { bool err; };
+//todo use templated class and typedefs.
 
+class eu16  {
+public:
+    bool err; u16string val; 
+    eu16(u16string in) { err = false; val = in; }
+};
+class eu8  {
+public:
+    bool err; string val; 
+    eu8(string in) { err = false; val = in; }
+};
+class ech16  {
+public:
+    bool err; char16_t val; 
+    ech16(char16_t in) { err = false; val = in; }
+};
+class ech8  {
+public:
+    bool err; char val; 
+    ech8(char in) { err = false; val = in; }
+};
+class ebool  {
+public:
+    bool err; bool val; 
+    ebool(bool in) { err = false; val = in; }
+};
+class etkns  {
+public:
+    bool err; TokenStruct val; 
+    etkns(TokenStruct in) { err = false; val = in; }
+};
+class etknr  {
+public:
+    bool err; TokenRecord val; 
+    etknr(TokenRecord in) { err = false; val = in; }
+};
+class enode  {
+public:
+    bool err; Node val; 
+    etknr(Node in) { err = false; val = in; }
+};
+class eint  {
+public:
+    bool err; int val; 
+    eint(int in) { err = false; val = in; }
+};
+class edouble  {
+public:
+    bool err; double val; 
+    edouble(double in) { err = false; val = in; }
+};
+class eregexhalf  {
+public:
+    bool err; RegexHalf val; 
+    eregexhalf(RegexHalf in) { err = false; val = in; }
+};
+class evoid { 
+public:
+    bool err; 
+    ev() { err = false; }
+};
 
 #endif 
 
@@ -1380,9 +1429,9 @@ map<string, u16string> Syntax = {
 
  // 7.4 Comments
 
- //#CLEAR+
- //# only called if extra.commentTracking
- void addComment(u16string type, u16string value, 
+
+//# only called if extra.commentTracking
+void addComment(u16string type, u16string value, 
                  int start, int end, Loc loc) { DEBUGIN(" addComment(u16string type, u16string value, int start, int end, Loc loc)");
      Comment comment;
 
@@ -1415,8 +1464,8 @@ map<string, u16string> Syntax = {
  }
 
 
- //#CLEAR+
- void skipSingleLineComment(const int offset) { DEBUGIN(" skipSingleLineComment(const int offset)");
+
+void skipSingleLineComment(const int offset) { DEBUGIN(" skipSingleLineComment(const int offset)");
      int start;
      Loc loc; 
      char16_t ch;
@@ -1458,8 +1507,8 @@ map<string, u16string> Syntax = {
      skipSingleLineComment(0);
  }
 
- //!
- void skipMultiLineComment() { DEBUGIN(" skipMultiLineComment()");
+//throw_
+void skipMultiLineComment() { DEBUGIN(" skipMultiLineComment()");
      int start;
      Loc loc;
      char16_t ch;
@@ -1507,8 +1556,8 @@ map<string, u16string> Syntax = {
   DEBUGOUT("", false);
  }
 
- //#CLEAR+
- void skipComment() { DEBUGIN(" skipComment()");
+//throw_
+void skipComment() { DEBUGIN(" skipComment()");
      char16_t ch;
      bool start;
      start = (idx == 0);
@@ -1535,7 +1584,7 @@ map<string, u16string> Syntax = {
              } else if (ch == 0x2A) {  // U+002A is '*'
                  ++idx;
                  ++idx;
-                 skipMultiLineComment();
+                 skipMultiLineComment(); 
              } else {
                  break;
              }
@@ -1584,45 +1633,45 @@ map<string, u16string> Syntax = {
    DEBUGOUT("scanHexEscape"); return code;
  }
 
- //!
- u16string scanUnicodeCodePointEscape() { DEBUGIN("scanUnicodeCodePointEscape");
-     char16_t ch;
-     int code;
-     char16_t cu[2];
+//throw_
+u16string scanUnicodeCodePointEscape() { DEBUGIN("scanUnicodeCodePointEscape");
+    char16_t ch;
+    int code;
+    char16_t cu[2];
 
-     ch = source(idx);
-     code = 0;
+    ch = source(idx);
+    code = 0;
 
-     // At least, one hex digit is required.
-     if (ch == u'}') {
-         throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
-     }
+    // At least, one hex digit is required.
+    if (ch == u'}') {
+        throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
+    }
 
-     while (idx < length) {
-         ch = source(idx++);
-         if (!isHexDigit(ch)) {
-             break;
-         }
-         code = code * 16 + u16string({u"0123456789abcdef"})
-             .find_first_of(toLowercaseHex(ch));
-     }
+    while (idx < length) {
+        ch = source(idx++);
+        if (!isHexDigit(ch)) {
+            break;
+        }
+        code = code * 16 + u16string({u"0123456789abcdef"})
+            .find_first_of(toLowercaseHex(ch));
+    }
 
-     if (code > 0x10FFFF || ch != u'}') {
-         throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
-     }
+    if (code > 0x10FFFF || ch != u'}') {
+        throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
+    }
 
-     // UTF-16 Encoding
-     if (code <= 0xFFFF) {
-       DEBUGOUT("", false); return u16string({(char16_t) code});
-     }
+    // UTF-16 Encoding
+    if (code <= 0xFFFF) {
+        DEBUGOUT("", false); return u16string({(char16_t) code});
+    }
 
-     cu[0] = ((code - 0x10000) >> 10) + 0xD800; 
-     cu[1] = ((code - 0x10000) & 1023) + 0xDC00;
-     DEBUGOUT("scanUnicodeCodePointEscape"); 
-     return u16string({cu[0], cu[1]});
- }
+    cu[0] = ((code - 0x10000) >> 10) + 0xD800; 
+    cu[1] = ((code - 0x10000) & 1023) + 0xDC00;
+    DEBUGOUT("scanUnicodeCodePointEscape"); 
+    return u16string({cu[0], cu[1]});
+}
 
- //ec
+//throw_
  u16string getEscapedIdentifier() { DEBUGIN("getEscapedIdentifier");
      char16_t ch;
      u16string id;
@@ -1673,70 +1722,73 @@ map<string, u16string> Syntax = {
    DEBUGOUT("getEscapedIdentifier"); return id;
  }
 
- //ec
- u16string getIdentifier() { DEBUGIN("getIdentifier()");
-     int start;
-     char16_t ch;
+//throw_
+u16string getIdentifier() { DEBUGIN("getIdentifier()");
+    int start;
+    char16_t ch;
 
-     start = idx++;
-     while (idx < length) {
-         ch = source(idx);
-         if (ch == 0x5C) {
-             // Blackslash (U+005C) marks Unicode escape sequence.
-             idx = start;
-           return DEBUGRET("", getEscapedIdentifier());
-         }
-         if (isIdentifierPart(ch)) {
-             ++idx;
-         } else {
-             break;
-         }
-     }
+    start = idx++;
+    while (idx < length) {
+        ch = source(idx);
+        if (ch == 0x5C) {
+            // Blackslash (U+005C) marks Unicode escape sequence.
+            idx = start;
+          return DEBUGRET("", getEscapedIdentifier());
+        }
+        if (isIdentifierPart(ch)) {
+            ++idx;
+        } else {
+            break;
+        }
+    }
 
-   return DEBUGRET("getIdentifier", slice(sourceraw, start, idx)); 
- }
+  return DEBUGRET("getIdentifier", slice(sourceraw, start, idx)); 
+}
 
+//throw_
+TokenStruct scanIdentifier() { DEBUGIN(" scanIdentifier()");
+    TokenStruct t;
+    int start, type;
+    u16string id; 
 
+    start = idx;
 
+    // Backslash (U+005C) starts an escaped character.
+    //#ternary operator interferes with throw52
+    if (source(idx) == 0x5C) {
+        id = getEscapedIdentifier();
+    } else {
+        id = getIdentifier();
+    }
 
- //#ec
- TokenStruct scanIdentifier() { DEBUGIN(" scanIdentifier()");
-     TokenStruct t;
-     int start, type;
-     u16string id; 
+    // There is no keyword or literal with only one character.
+    // Thus, it must be an identifier.
+    if (id.length() == 1) {
+        type = Token["Identifier"];
+    } else if (isKeyword(id)) {
+        type = Token["Keyword"];
+    } else if (id == u"null") {
+        type = Token["NullLiteral"];
+    } else if (id == u"true" || id == u"false") {
+        type = Token["BooleanLiteral"];
+    } else {
+        type = Token["Identifier"];
+    }
 
-     start = idx;
+    t.type = type;
+    t.strvalue = id;
+    t.literaltype = LiteralType["String"];
+    t.lineNumber = lineNumber;
+    t.lineStart = lineStart;
+    t.start = start;
+    t.end = idx;
+  DEBUGOUT("scanIdentifier"); return t;
+}
 
-     // Backslash (U+005C) starts an escaped character.
-     id = (source(idx) == 0x5C) ? //e_ u16
-         getEscapedIdentifier() : getIdentifier();
+u16string emccu16str;
 
-     // There is no keyword or literal with only one character.
-     // Thus, it must be an identifier.
-     if (id.length() == 1) {
-         type = Token["Identifier"];
-     } else if (isKeyword(id)) {
-         type = Token["Keyword"];
-     } else if (id == u"null") {
-         type = Token["NullLiteral"];
-     } else if (id == u"true" || id == u"false") {
-         type = Token["BooleanLiteral"];
-     } else {
-         type = Token["Identifier"];
-     }
-
-     t.type = type;
-     t.strvalue = id;
-     t.literaltype = LiteralType["String"];
-     t.lineNumber = lineNumber;
-     t.lineStart = lineStart;
-     t.start = start;
-     t.end = idx;
-   DEBUGOUT("scanIdentifier"); return t;
- }
- u16string emccu16str;
  // 7.7 Punctuators
- //ec
+ //throw_
  TokenStruct scanPunctuator() { DEBUGIN(" scanPunctuator()");
      TokenStruct t;
      int start = idx;
@@ -1898,7 +1950,7 @@ TokenStruct scanHexLiteral(const int start) { DEBUGIN(" scanHexLiteral(const int
     DEBUGOUT("scanHexLiteral"); return t;
 }
 
-//ec
+//throw_
 TokenStruct scanOctalLiteral(const int start) { DEBUGIN(" scanOctalLiteral(const int start)");
     u16string number = u"0";
     TokenStruct t;
@@ -1927,7 +1979,7 @@ TokenStruct scanOctalLiteral(const int start) { DEBUGIN(" scanOctalLiteral(const
     DEBUGOUT("scanOctalLiteral"); return t;
 }
 
-//#ec
+//#throw_
 TokenStruct scanNumericLiteral() { DEBUGIN(" scanNumericLiteral()");
     int start;
     char16_t ch;
@@ -2016,7 +2068,7 @@ TokenStruct scanNumericLiteral() { DEBUGIN(" scanNumericLiteral()");
 
 
 // 7.8.4 String Literals
-//ec
+//throw_
 TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
     TokenStruct t;
     bool octal = false;
@@ -2045,7 +2097,7 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
                     if (source(idx) == u'{') {
                         ++idx;
 #if defined ASM
-                        eu16 tmp = scanUnicodeCodePointEscape(); //t_
+                        u16string tmp = scanUnicodeCodePointEscape();
                         str.append(tmp);
 #else
                         str.append(scanUnicodeCodePointEscape());
@@ -2133,286 +2185,289 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
     DEBUGOUT("scanStringLiteral"); return t;
 }
 
- //ec
- RegexHalf scanRegExpBody() { DEBUGIN("scanRegExpBody()");
-     char16_t ch;
-     u16string str = u"", body;
-     bool classMarker, terminated;
-     RegexHalf rh;
+//throw_
+RegexHalf scanRegExpBody() { DEBUGIN("scanRegExpBody()");
+    char16_t ch;
+    u16string str = u"", body;
+    bool classMarker, terminated;
+    RegexHalf rh;
 
-     ch = source(idx);
-     assert(ch == u'/', //ev
-            "Regular expression literal must start with a slash");
-     append(str, source(idx++)); //ev
+    ch = source(idx);
+    softAssert(ch == u'/',
+           "Regular expression literal must start with a slash");
+    append(str, source(idx++)); 
 
-     classMarker = false;
-     terminated = false;
-     while (idx < length) {
-         ch = source(idx++);
-         append(str, ch);
-         if (ch == u'\\') {
-             ch = source(idx++);
-             // ECMA-262 7.8.5
-             if (isLineTerminator(ch)) {
-                 throwError(NULLTOKEN, Messages["UnterminatedRegExp"], {});
-             }
-             append(str, ch);
-         } else if (isLineTerminator(ch)) {
-             throwError(NULLTOKEN, Messages["UnterminatedRegExp"], {});
-         } else if (classMarker) {
-             if (ch == u']') {
-                 classMarker = false;
-             }
-         } else {
-             if (ch == u'/') {
-                 terminated = true;
-                 break;
-             } else if (ch == u'[') {
-                 classMarker = true;
-             }
-         }
-     }
+    classMarker = false;
+    terminated = false;
+    while (idx < length) {
+        ch = source(idx++);
+        append(str, ch);
+        if (ch == u'\\') {
+            ch = source(idx++);
+            // ECMA-262 7.8.5
+            if (isLineTerminator(ch)) {
+                throwError(NULLTOKEN, Messages["UnterminatedRegExp"], {});
+            }
+            append(str, ch);
+        } else if (isLineTerminator(ch)) {
+            throwError(NULLTOKEN, Messages["UnterminatedRegExp"], {});
+        } else if (classMarker) {
+            if (ch == u']') {
+                classMarker = false;
+            }
+        } else {
+            if (ch == u'/') {
+                terminated = true;
+                break;
+            } else if (ch == u'[') {
+                classMarker = true;
+            }
+        }
+    }
 
-     if (!terminated) {
-         throwError(NULLTOKEN, Messages["UnterminatedRegExp"], {});
-     }
+    if (!terminated) {
+        throwError(NULLTOKEN, Messages["UnterminatedRegExp"], {});
+    }
 
-     // Exclude leading and trailing slash.
-     body = str.substr(1, str.length() - 2);
-     rh.value = body;
-     rh.literal = str;
-     DEBUGOUT("scanRegExpBody"); return rh;
- }
+    // Exclude leading and trailing slash.
+    body = str.substr(1, str.length() - 2);
+    rh.value = body;
+    rh.literal = str;
+    DEBUGOUT("scanRegExpBody"); return rh;
+}
 
- //#CLEAR+
- RegexHalf scanRegExpFlags() { DEBUGIN("scanRegExpFlags()");
-     char16_t ch;
-     u16string str, flags;
-     int restore;
-     RegexHalf rh;
+//throw_
+RegexHalf scanRegExpFlags() { DEBUGIN("scanRegExpFlags()");
+    char16_t ch;
+    u16string str, flags;
+    int restore;
+    RegexHalf rh;
 
-     str = u"";
-     flags = u"";
-     while (idx < length) {
-         ch = source(idx);
-         if (!isIdentifierPart(ch)) {
-             break;
-         }
+    str = u"";
+    flags = u"";
+    while (idx < length) {
+        ch = source(idx);
+        if (!isIdentifierPart(ch)) {
+            break;
+        }
 
-         ++idx;
-         if (ch == u'\\' && idx < length) {
-             ch = source(idx);
-             if (ch == u'u') {
-                 ++idx;
-                 restore = idx;
-                 ch = scanHexEscape(u'u');
-                 if (ch) {
-                     append(flags, ch);
-                     for (str.append(u16string({u'\\', u'u'})); 
-                          restore < idx; ++restore) {                         
-                         append(str, source(restore));
-                     }
-                 } else {
-                     idx = restore;
-                     append(flags, u'u');
-                     str.append(u"\\u");
-                 }
+        ++idx;
+        if (ch == u'\\' && idx < length) {
+            ch = source(idx);
+            if (ch == u'u') {
+                ++idx;
+                restore = idx;
+                ch = scanHexEscape(u'u');
+                if (ch) {
+                    append(flags, ch);
+                    for (str.append(u16string({u'\\', u'u'})); 
+                         restore < idx; ++restore) {                         
+                        append(str, source(restore));
+                    }
+                } else {
+                    idx = restore;
+                    append(flags, u'u');
+                    str.append(u"\\u");
+                }
 
-                 throwErrorTolerant(NULLTOKEN, 
-                                    Messages["UnexpectedToken"], 
-                                    {u"ILLEGAL"});
-             } else {
-                 append(str, u'\\');
-                 throwErrorTolerant(NULLTOKEN, 
-                                    Messages["UnexpectedToken"],
-                                    {u"ILLEGAL"});
-             }
-         } else {
-             append(flags, ch);
-             append(str, ch);
-         }
-     }
+                throwErrorTolerant(NULLTOKEN, 
+                                   Messages["UnexpectedToken"], 
+                                   {u"ILLEGAL"});
+            } else {
+                append(str, u'\\');
+                throwErrorTolerant(NULLTOKEN, 
+                                   Messages["UnexpectedToken"],
+                                   {u"ILLEGAL"});
+            }
+        } else {
+            append(flags, ch);
+            append(str, ch);
+        }
+    }
 
-     rh.value = flags;
-     rh.literal = str;
-   DEBUGOUT("scanRegExpFlags"); return rh;
- }
+    rh.value = flags;
+    rh.literal = str;
+  DEBUGOUT("scanRegExpFlags"); return rh;
+}
 
-//ec
- TokenStruct scanRegExp() { DEBUGIN(" scanRegExp()");
-     int start;
-     RegexHalf body; 
-     RegexHalf flags; 
-     TokenStruct t;
-     //? value is int? to think on. 
-     //testRegExp is I think supposed to normally return a regex object.
+//throw_
+TokenStruct scanRegExp() { DEBUGIN(" scanRegExp()");
+    int start;
+    RegexHalf body; 
+    RegexHalf flags; 
+    TokenStruct t;
+    //? value is int? to think on. 
+    //testRegExp is I think supposed to normally return a regex object.
 
-     lookahead = NULLTOKEN;
-     skipComment();
-     start = idx;
+    lookahead = NULLTOKEN;
+    skipComment(); 
+    start = idx;
 
-     body = scanRegExpBody(); //eregexhalf
-     flags = scanRegExpFlags(); //eregexhalf
+    body = scanRegExpBody(); //eregexhalf
+    flags = scanRegExpFlags(); //eregexhalf
 
-     //value = testRegExp(body.value, flags.value);
+    //value = testRegExp(body.value, flags.value);
 
-     if (extra.tokenize) {
-         t.type = Token["RegularExpression"];
-         t.strvalue = u"regexDummy"; //?
-         t.lineNumber = lineNumber;
-         t.lineStart = lineStart;
-         t.start = start;
-         t.end = idx;
-       DEBUGOUT("", false); return t; //not polymorphic right now. not going to work... :!
-     }
+    if (extra.tokenize) {
+        t.type = Token["RegularExpression"];
+        t.strvalue = u"regexDummy"; //?
+        t.lineNumber = lineNumber;
+        t.lineStart = lineStart;
+        t.start = start;
+        t.end = idx;
+      DEBUGOUT("", false); return t; //not polymorphic right now. not going to work... :!
+    }
 
-     t.literal = body.literal; 
-     t.literal.append(flags.literal);
-     t.literaltype = LiteralType["Regexp"];
-     t.strvalue = body.value;
-     t.flags = flags.value;
-     t.start = start;
-     t.end = idx;
-   DEBUGOUT("scanRegExp"); return t;
- }
+    t.literal = body.literal; 
+    t.literal.append(flags.literal);
+    t.literaltype = LiteralType["Regexp"];
+    t.strvalue = body.value;
+    t.flags = flags.value;
+    t.start = start;
+    t.end = idx;
+  DEBUGOUT("scanRegExp"); return t;
+}
 
- //#CLEAR
- TokenStruct collectRegex() { DEBUGIN(" collectRegex()");
-     int pos;
-     Loc loc;
-     TokenStruct regex;
-     u16string tokval;
+//throw_
+TokenStruct collectRegex() { DEBUGIN(" collectRegex()");
+    int pos;
+    Loc loc;
+    TokenStruct regex;
+    u16string tokval;
 
-     skipComment();
+    skipComment();
 
-     pos = idx;
-     loc.start.line = lineNumber;
-     loc.start.column = idx - lineStart;
+    pos = idx;
+    loc.start.line = lineNumber;
+    loc.start.column = idx - lineStart;
 
-     regex = scanRegExp();
-     loc.end.line = lineNumber;
-     loc.end.column = idx - lineStart;
+    regex = scanRegExp(); //etkns
+    loc.end.line = lineNumber;
+    loc.end.column = idx - lineStart;
 
-     if (!extra.tokenize) {
-         TokenRecord token, tr;
-         // Pop the previous token, which is likely '/' or '/='
-         if (extra.tokenRecords.size() > 0) {
-             token = extra.tokenRecords[extra.tokenRecords.size() - 1];
-             if (token.range[0] == pos && token.typestring == u"Punctuator") {
-                 tokval = token.valuestring; 
-                 if (tokval == u"/" || tokval == u"/=") {
-                     extra.tokenRecords.pop_back();
-                 }
-             }
-         }
+    if (!extra.tokenize) {
+        TokenRecord token, tr;
+        // Pop the previous token, which is likely '/' or '/='
+        if (extra.tokenRecords.size() > 0) {
+            token = extra.tokenRecords[extra.tokenRecords.size() - 1];
+            if (token.range[0] == pos 
+                && token.typestring == u"Punctuator") {
+                
+                tokval = token.valuestring; 
+                if (tokval == u"/" || tokval == u"/=") {
+                    extra.tokenRecords.pop_back();
+                }
+            }
+        }
 
-         tr.typestring = u"RegularExpression";
-         tr.valuestring = regex.literal;
-         tr.range[0] = pos;
-         tr.range[1] = idx;
-         tr.loc = loc;
-         extra.tokenRecords.push_back(tr);
-     }
+        tr.typestring = u"RegularExpression";
+        tr.valuestring = regex.literal;
+        tr.range[0] = pos;
+        tr.range[1] = idx;
+        tr.loc = loc;
+        extra.tokenRecords.push_back(tr);
+    }
 
-   DEBUGOUT("collectRegex"); return regex;
- }
+  DEBUGOUT("collectRegex"); return regex;
+}
 
- //#CLEAR+
- bool isIdentifierName(TokenStruct token) { DEBUGIN("   isIdentifierName(TokenStruct token)");
+bool isIdentifierName(TokenStruct token) { DEBUGIN("   isIdentifierName(TokenStruct token)");
    DEBUGOUT("", false); return has<int>(token.type, { Token["Identifier"], Token["Keyword"],
                  Token["BooleanLiteral"], Token["NullLiteral"]});
  }
 
- //#CLEAR+
- TokenStruct advanceSlash() { DEBUGIN(" advanceSlash()");
-     //# only gets called if extra.tokenize == true
+//throw_
+TokenStruct advanceSlash() { DEBUGIN(" advanceSlash()");
+    //# only gets called if extra.tokenize == true
 
-     TokenRecord prevToken, checkToken;
-     // Using the following algorithm:
-     // https://github.com/mozilla/sweet.js/wiki/design
-     if (extra.tokenRecords.size() == 0) {
-         // Nothing before that: it cannot be a division.
-       return DEBUGRET("advSlash1", collectRegex()); 
-     }    
-     prevToken = extra.tokenRecords[extra.tokenRecords.size() - 1];
+    TokenRecord prevToken, checkToken;
+    // Using the following algorithm:
+    // https://github.com/mozilla/sweet.js/wiki/design
+    if (extra.tokenRecords.size() == 0) {
+        // Nothing before that: it cannot be a division.
+        return DEBUGRET("advSlash1", collectRegex()); 
+    }    
+    prevToken = extra.tokenRecords[extra.tokenRecords.size() - 1];
 
-     if (prevToken.typestring == u"Punctuator") { 
-         if (prevToken.valuestring == u"]") { 
-           return DEBUGRET("advSlash2", scanPunctuator());
-         }
-         if (prevToken.valuestring == u")") {
-             //checkToken && 
-                 //# instead of checking for existence, we add
-                 //# the openParenToken value check to the condition above.
-                 //# remember exta.tokens() is already size > 0 bcos 
-                 //# check at top of func.
+    if (prevToken.typestring == u"Punctuator") { 
+        if (prevToken.valuestring == u"]") { 
+            return DEBUGRET("advSlash2", scanPunctuator());
+        }
+        if (prevToken.valuestring == u")") {
+            //checkToken && 
+            //# instead of checking for existence, we add
+            //# the openParenToken value check to the condition above.
+            //# remember exta.tokens() is already size > 0 bcos 
+            //# check at top of func.
 
-             if (extra.openParenToken > 0
-                 && extra.tokenRecords.size() > (extra.openParenToken - 1)) { 
-                 checkToken = extra.tokenRecords[extra.openParenToken - 1];
-                 if (checkToken.typestring == u"Keyword" && 
-                     has<u16string>(checkToken.valuestring, 
-                         {u"if", u"while", u"for", u"with"})) {
-                     return DEBUGRET("advSlash3", collectRegex()); 
-                 }
-             }
-           return DEBUGRET("advSlash4", scanPunctuator());
-         }
-         if (prevToken.valuestring == u"}") {
-             // Dividing a function by anything makes little sense,
-             // but we have to check for that.
-             if (extra.openCurlyToken >= 3 &&
-                 extra.tokenRecords.size() > (extra.openCurlyToken -3) &&
-                 extra.tokenRecords[extra.openCurlyToken - 3].typestring 
-                 == u"Keyword") { 
-                 // Anonymous function.
+            if (extra.openParenToken > 0
+                && extra.tokenRecords.size() > (extra.openParenToken - 1)) { 
+                checkToken = extra.tokenRecords[extra.openParenToken - 1];
+                if (checkToken.typestring == u"Keyword" && 
+                    has<u16string>(checkToken.valuestring, 
+                        {u"if", u"while", u"for", u"with"})) {
+                    return DEBUGRET("advSlash3", collectRegex()); 
+                }
+            }
+            return DEBUGRET("advSlash4", scanPunctuator());
+        }
+        if (prevToken.valuestring == u"}") {
+            // Dividing a function by anything makes little sense,
+            // but we have to check for that.
+            if (extra.openCurlyToken >= 3 &&
+                extra.tokenRecords.size() > (extra.openCurlyToken -3) &&
+                extra.tokenRecords[extra.openCurlyToken - 3].typestring 
+                == u"Keyword") { 
+                // Anonymous function.
 
-                 if (extra.openCurlyToken > 3
-                     && extra.tokenRecords.size() > 
-                     (extra.openCurlyToken - 4)) {
-                     checkToken = extra.tokenRecords[extra.openCurlyToken -4];
-                 } else { 
-                   return DEBUGRET("advSlash5", scanPunctuator());
-                 }
-             } else if (extra.openCurlyToken >= 4 &&
-                 extra.tokenRecords.size() > (extra.openCurlyToken -4) &&
-                 extra.tokenRecords[extra.openCurlyToken - 4].typestring
-                        == u"Keyword") {
-                 // again previously had checked type against string in this cond.
-                 // Named function.
-                 if (extra.openCurlyToken > 4
-                     && extra.tokenRecords.size() > 
-                     (extra.openCurlyToken - 5)) {
-                     checkToken = extra.tokenRecords[extra.openCurlyToken -5];
-                 } else { 
-                   return DEBUGRET("advSlash6", collectRegex());
-                 }
-             } else {
-               return DEBUGRET("advSlash7", scanPunctuator());
-             }
-             // checkToken determines whether the function is
-             // a declaration or an expression.
-             if (has<u16string>(checkToken.valuestring, FnExprTokens)) {
-                 // It is an expression.
-               return DEBUGRET("advSlash8", scanPunctuator());
-             }
-             // It is a declaration.
-             return DEBUGRET("advSlash9", collectRegex()); 
-         }
-         return DEBUGRET("advSlash10", collectRegex());
-     }
-     if (prevToken.typestring == u"Keyword") { 
-       return DEBUGRET("advSlash11", collectRegex()); 
-     }
-   return DEBUGRET("advSlash12", scanPunctuator());
- }
+                if (extra.openCurlyToken > 3
+                    && extra.tokenRecords.size() > 
+                    (extra.openCurlyToken - 4)) {
+                    checkToken = 
+                        extra.tokenRecords[extra.openCurlyToken -4];
+                } else { 
+                    return DEBUGRET("advSlash5", scanPunctuator());
+                }
+            } else if (extra.openCurlyToken >= 4 
+                       && extra.tokenRecords.size()
+                       > (extra.openCurlyToken -4) 
+                       && extra.tokenRecords[extra.openCurlyToken - 4].typestring
+                       == u"Keyword") {
+                // again previously had checked type against string in this cond.
+                // Named function.
+                if (extra.openCurlyToken > 4
+                    && extra.tokenRecords.size() > 
+                    (extra.openCurlyToken - 5)) {
+                    checkToken = extra.tokenRecords[extra.openCurlyToken -5];
+                } else { 
+                    return DEBUGRET("advSlash6", collectRegex());
+                }
+            } else {
+                return DEBUGRET("advSlash7", scanPunctuator());
+            }
+            // checkToken determines whether the function is
+            // a declaration or an expression.
+            if (has<u16string>(checkToken.valuestring, FnExprTokens)) {
+                // It is an expression.
+                return DEBUGRET("advSlash8", scanPunctuator());
+            }
+            // It is a declaration.
+            return DEBUGRET("advSlash9", collectRegex()); 
+        }
+        return DEBUGRET("advSlash10", collectRegex());
+    }
+    if (prevToken.typestring == u"Keyword") { 
+        return DEBUGRET("advSlash11", collectRegex()); 
+    }
+    return DEBUGRET("advSlash12", scanPunctuator());
+}
 
- //#CLEAR+
+ //ec
  TokenStruct advance() { DEBUGIN(" advance()");
      char16_t ch;
      TokenStruct t;
 
-     skipComment();
+     skipComment(); //ev
 
      if (idx >= length) {
          t.type = Token["EOF"];
@@ -2470,11 +2525,11 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
      TokenRecord tr;
      u16string value;
 
-     skipComment();
+     skipComment(); //ev
      loc.start.line = lineNumber;
      loc.start.column = idx - lineStart;
 
-     token = advance();
+     token = advance(); //etkns
      loc.end.line = lineNumber;
      loc.end.column = idx - lineStart;
 
@@ -2499,7 +2554,7 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
      lineNumber = token.lineNumber;
      lineStart = token.lineStart;
 
-     lookahead = (extra.tokenTracking) ? collectToken() : advance(); 
+     lookahead = (extra.tokenTracking) ? collectToken() : advance(); //etkns
 
      idx = token.end;
      lineNumber = token.lineNumber;
@@ -2514,7 +2569,7 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
      pos = idx;
      line = lineNumber;
      start = lineStart;
-     lookahead = (extra.tokenTracking) ? collectToken() : advance(); 
+     lookahead = (extra.tokenTracking) ? collectToken() : advance(); //etkns
      idx = pos;
      lineNumber = line;
      lineStart = start;
@@ -3226,7 +3281,7 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
          line = lineNumber,
          start = lineStart;
      bool found;
-     skipComment();
+     skipComment(); //ev
      found = (lineNumber != line);
      idx = pos;
      lineNumber = line;
@@ -3451,7 +3506,7 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
      }
 
      line = lineNumber;
-     skipComment();
+     skipComment(); //ev
      if (lineNumber != line) {
        DEBUGOUT("", false); return;
      }
@@ -4816,7 +4871,7 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
 
      if (strict) {
          // TODO(ikarienator): Should we update the test cases instead?
-         skipComment();
+         skipComment(); //ev
          throwErrorTolerant(NULLTOKEN, Messages["StrictModeWith"], {});
      }
 
@@ -5435,7 +5490,7 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
      Node node(false, true);
      vector< Node > body;
 
-     skipComment();
+     skipComment(); //ev
      peek();
      node.lookavailInit();
      strict = false;
