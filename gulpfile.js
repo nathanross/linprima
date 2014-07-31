@@ -40,6 +40,12 @@ gulp.task('prepareSource', function() {
     .pipe(gulp.dest('tmp'));
 });
 
+gulp.task('prepareSourceEx', function() {
+    return gulp.src('src/linprima.cpp')
+    .pipe(concat('src.cpp'))
+    .pipe(gulp.dest('tmp'));
+});
+
 function completeWrapper(mixMode, mixSnippetPath, dest) {
    return gulp.src('src/linprima-wrap.js')
     .pipe(mixotroph({mode:mixMode, snippetPath:mixSnippetPath}))
@@ -65,24 +71,26 @@ function makeExecCallback(func) {
 
 
 gulp.task('ffigcall', ['prepareSource'], function(callback) { //gperftools
-    exec("clang++ -g -fno-builtin -O0 -Wall -std=c++11 -stdlib=libc++  -ltcmalloc tmp/src.cpp -o test.out", 
+    exec("clang++ -fno-builtin -g -O0 -Wall -D THROWABLE -std=c++11 -stdlib=libc++  -ltcmalloc tmp/src.cpp -o test.out", 
 
         makeExecCallback(callback));
 });
 gulp.task('ffidcall', ['prepareSource'], function(callback) { //gdb, valgrind
-    exec("clang++ -g -O0 -Wall -std=c++11 -stdlib=libc++ tmp/src.cpp -o test.out", 
+    exec("clang++ -g -O0 -Wall -D THROWABLE -std=c++11 -stdlib=libc++ tmp/src.cpp -o test.out", 
 
         makeExecCallback(callback));
 });
 gulp.task('fficcall', ['prepareSource'], function(callback) {
-    exec("clang++ -Wall -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so", 
+    exec("clang++ -Wall -D THROWABLE -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so", 
         makeExecCallback(callback));
 });
 
-gulp.task('ffipcall', ['prepareSource'], function() {
-    exec("clang++ -O2 -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so", 
+gulp.task('ffipcall', ['prepareSource'], function(callback) {
+    exec("clang++ -O2 -D THROWABLE -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so", 
         makeExecCallback(callback));
 });
+
+
 
 gulp.task('ffiWrapper', function() {
     return completeWrapper('FFI', 'src/snippets', 'build/ffi');
@@ -104,7 +112,7 @@ gulp.task('ffip', function() {
     //as code is substituted into wrapper.
 gulp.task('asmccall', ['prepareSource'], function(callback) {
     var cb = function(a,b,c) { toShell(a,b,c); callback(); };
-    exec("emcc -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js", 
+    exec("emcc -std=c++11 -O2 -s DISABLE_EXCEPTION_CATCHING=2 -s RELOOPER_BUFFER_SIZE=419430400 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS', '_someTest']\" tmp/src.cpp -o tmp/linprima.asm.0.js", 
         makeExecCallback(callback));
 });
 
@@ -120,9 +128,10 @@ gulp.task('asmpcall', ['prepareSource'], function(callback) {
     //leading the emscripten module itself to be returned 
     //rather than the wrapper.
 
-gulp.task('umdNodeAsmFix', function() {
+gulp.task('umdFixes', function() {
     var b = gulp.src('tmp/linprima.asm.0.js')
-    .pipe(replace('export','emscport'))
+    .pipe(replace('export','emscport')) //nodejs module importing
+    .pipe(replace(/  +header =/g, ' var header =')) //exceptions in strict mode
     .pipe(rename('linprima.asm.js'))
     .pipe(gulp.dest('tmp'));
 });
@@ -140,9 +149,13 @@ gulp.task('passToTest', function() {
 //gulp.task('asmdebug', function(callback) {
 //    runSequence('cleanASM', 'asmdebugcall', 'sync', 'asmWrapper', 'passToTest', callback);
 //});
-gulp.task('asmc', function(callback) {
-    runSequence('cleanASM', 'asmccall', 'umdNodeAsmFix', 'sync', 'asmWrapper', 'passToTest', callback);
+gulp.task('asmq', function(callback) {
+    runSequence('umdNodeAsmFix', 'sync', 'asmWrapper', 'passToTest', callback);
 });
+gulp.task('asmc', function(callback) {
+    runSequence('cleanASM', 'asmccall', 'umdFixes', 'sync', 'asmWrapper',  'passToTest', callback);
+});
+
 gulp.task('asmp', function(callback) {
-    runSequence('cleanASM', 'asmpcall', 'umdNodeAsmFix', 'sync', 'asmWrapper', 'passToTest', callback);
+    runSequence('cleanASM', 'asmpcall', 'umdFixes', 'sync', 'asmWrapper', 'passToTest', callback);
 });
