@@ -99,6 +99,7 @@ void DEBUGOUT(string in, bool lowprio) {
 #ifndef THROWABLE
 
 //todo use templated class and typedefs.
+/*
 template <class T> class ErrWrap {
 public:
     bool err; T val;
@@ -110,8 +111,51 @@ public:
         err = false;
     }
 };
+ErrWrap<int> noErr; */
 
-ErrWrap<int> noErr;
+
+class ErrWrapint {
+public:
+    bool err;
+    int val;
+    ErrWrapint() {
+        err = false;
+    }
+    ErrWrapint(int in) {
+        val = in;
+        err = false;
+    }
+};
+ErrWrapint noErr;
+
+
+class ErrWrapbool {
+public:
+    bool err;
+    bool val;
+    ErrWrapbool() {
+        err = false;
+    }
+    ErrWrapbool(bool in) {
+        val = in;
+        err = false;
+    }
+};
+
+class ErrWrapu16string {
+public:
+    bool err;
+    u16string val;
+    ErrWrapu16string() {
+        err = false;
+    }
+    ErrWrapu16string(u16string in) {
+        val = in;
+        err = false;
+    }
+};
+
+
 
 #endif
 
@@ -497,9 +541,18 @@ bool strict = false; //? remove initialization?
 struct RegexHalf {
     u16string value;
     u16string literal;
+#ifndef THROWABLE
+    bool err;
+#endif
     int start;
     int end;
-    RegexHalf() { start = -1; end = -1; }
+    RegexHalf() { 
+#ifndef THROWABLE
+        err = false;
+#endif
+        start = -1; 
+        end = -1; 
+    }
 };
 
 struct Position {
@@ -700,6 +753,9 @@ struct TokenStruct {
     double dblvalue;
     int intvalue;
     bool bvalue;
+#ifndef THROWABLE
+    bool err;
+#endif
 
     int literaltype; //lin only.
 
@@ -722,6 +778,9 @@ struct TokenStruct {
     Loc loc;
     TokenStruct() {
         DEBUGIN("TokenStruct()", true);
+#ifndef THROWABLE
+        err = false;
+#endif
         isNull = false;
         type = -1;
         lineNumber = -1;
@@ -763,7 +822,9 @@ public:
     bool hasJv;
     json_object * jv;
     Loc loc;
-
+#ifndef THROWABLE
+    bool err;
+#endif
     bool hasLoc;
     bool hasRange;
     int range[2];
@@ -843,7 +904,20 @@ public:
 
 }; 
 
-
+#ifndef THROWABLE
+class ErrWrapvectorNode {
+public:
+    bool err;
+    vector<Node> val;
+    ErrWrapvectorNode() {
+        err = false;
+    }
+    ErrWrapvectorNode(vector<Node> in) {
+        val = in;
+        err = false;
+    }
+};
+#endif
 
 TokenStruct NULLTOKEN;
 Node NULLNODE(false,false);
@@ -977,12 +1051,18 @@ struct ParseParamsOptions {
 
 
 struct ParseParamsOut {
+#ifndef THROWABLE
+    bool err;
+#endif
     TokenStruct firstRestricted;
     TokenStruct stricted;
     u16string message;
     vector< Node > params;
     vector< Node > defaults;
     ParseParamsOut() {
+#ifndef THROWABLE
+        err = false;
+#endif
         message=u"";
         stricted.isNull = true;
         firstRestricted.isNull = true;
@@ -1012,8 +1092,14 @@ struct ReinterpretOut {
     u16string message;
     vector< Node > params;
     vector< Node > defaults;
+#ifndef THROWABLE
+    bool err;
+#endif
     void* rest; //seems to be a dummy var?
     ReinterpretOut() {
+#ifndef THROWABLE
+        err = false;
+#endif
         isNull=false;
         firstRestricted = NULLNODE;
         stricted = NULLNODE;
@@ -1348,10 +1434,11 @@ int softAssert(bool condition, string message) { DEBUGIN(" assert(bool condition
 
     errorType = 2;
     retAssertError.description = providedMessage;
-    ErrWrap<int> tmp;
+    ErrWrapint tmp;
     tmp.err = (! condition);
+    DEBUGOUT("assert", false);
     return tmp;
-  DEBUGOUT("", false);
+
 }
 
 #endif
@@ -2674,6 +2761,9 @@ void peek() { DEBUGIN(" peek()");
 //#1:1 updates.
 Node::Node(bool lookaheadAvail, bool storeStats) { 
     //DEBUGIN("Node::Node(bool, bool)", true);
+#ifndef THROWABLE
+    err = false;
+#endif
     hasJv = false;
     isNull = false;
     hasRange = false;
@@ -3374,8 +3464,9 @@ bool peekLineTerminator() { DEBUGIN(" peekLineTerminator()");
 int throwToJS(ExError err) { DEBUGIN(" throwToJS(ExError err)");
     retError = err;
     errorType = 0;
-    ErrWrap<int> evoid;
+    ErrWrapint evoid;
     evoid.err = true;
+    DEBUGOUT("throwToJs", false);
     return evoid;
 }
 #endif
@@ -5771,7 +5862,7 @@ json_object* tokenizeImpl(const u16string code,
     lex();
     while (lookahead.type != Token["EOF"]) {
 #ifndef THROWABLE
-        ErrWrap<TokenStruct> out = lex();
+        TokenStruct out = lex();
         if (out.err) { 
             if (extra.errorTolerant) {
                 extra.errors.push_back(retError); 
@@ -5908,15 +5999,14 @@ json_object* parseImpl(const u16string code,
     }
 
 #ifndef THROWABLE
-    ErrWrap<Node> tmp = parseProgram();
-    if (tmp.err) {
+    programNode = parseProgram();
+    if (programNode.err) {
         json_object_put(programJson);
         if (errorType == 0) {
             return retError.toJson();
         }
         return retAssertError.toJson();        
     }
-    programNode = tmp.val;
 #endif
 #ifdef THROWABLE
     try {

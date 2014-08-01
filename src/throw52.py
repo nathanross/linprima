@@ -166,14 +166,18 @@ def _getDefaultParams():
         "igblock_close": "#ENDIF",
         "throws_indicator":"#?throw_",
         "error_class":"ErrWrap",
-        "extra_tests":False
+        "extra_tests":False,
+        "use_templates":False,
+        "gen_ec":False
+        #templates: ErrWrap<int>
+        #no templates: ErrWrapint
     }
 
 def _createTask(instream, outstream, paramdeltas={}):
     params = _getDefaultParams()
-    for k in paramdeltas:
+    for k in paramdeltas: 
         params[k] = paramdeltas[k]
-        return Throw52Task(instream, outstream, params)
+    return Throw52Task(instream, outstream, params)
 
 class Throw52Task:
     def __init__(self, instream, outstream, params):
@@ -208,8 +212,7 @@ class Throw52Task:
                 _logger.log(_Logger.ERROR,
                             str(num) + ": exception throwing func '" + f + "' is present in line " + \
                             " but " + whyUnusable + " output not tested! must be fixed.")
-        
-        
+          
     def processCalls(self):
         #ASSUMES:
         #1. left var and assignment occurs on the SAME line as the function call
@@ -258,6 +261,15 @@ class Throw52Task:
         outer_throws = False
         funcname = ""
 
+        outer_func_name = ""
+        #good for generating list of error classes needed.
+        gen_ec = self._params['gen_ec']
+        error_class_set = set()
+        returned_class_set = set()
+
+        use_templates = self._params['use_templates']
+        no_wrap = False
+
         for i in range(0, len(text)):
             line = self.stripToCode(text[i])
             if in_ignored_block:
@@ -275,13 +287,33 @@ class Throw52Task:
                 outer_ret_type = newret 
                 outer_is_void = (newret == 'void')
                 outer_throws = re.match(re_header, text[i-1])
+                outer_func_name = m.group('name')
                 if outer_throws:     
-                    if not m.group('class'):
-                        f_map[m.group('name')] = newret             
+                    if m.group('class'):
+                        raise "don't know what to do with throwing class member"
+                    f_map[m.group('name')] = {'name':"", 
+                                              'wrap':True, 
+                                              'void':False}
                     if outer_is_void:
+                        f_map[m.group('name')]['void'] = True
                         newret = 'int'
-                    outer_ret_type = "".join([self._params['error_class'],
+
+                    if newret[0].upper() == newret[0]:
+                        f_map[m.group('name')]['wrap'] = False
+                        returned_class_set.add(newret)
+                        outer_ret_type = newret
+                    elif use_templates:
+                        outer_ret_type = "".join([self._params['error_class'],
                                               '<', newret, '>' ])
+                    else:
+                        if gen_ec:
+                            error_class_set.add(newret)
+                        newret = newret.replace("<","")
+                        newret = newret.replace(">","")
+                        newret = newret.replace(" ","")
+                        outer_ret_type = "".join([self._params['error_class'],
+                                                  newret])
+                    f_map[m.group('name')]['name'] = outer_ret_type
                     text[i] = re.sub(re_sig, 
                                      outer_ret_type + \
                                      " \g<class>\g<name>(\g<rest>", 
@@ -290,6 +322,7 @@ class Throw52Task:
 
             if not outer_throws and not self._params['extra_tests']:
                 continue
+
             if begun_call:
                 pos = line.find(";")
                 if pos >= 0:
@@ -312,6 +345,7 @@ class Throw52Task:
                                                 funcname,
                                                 " hasn't closed "]))
                 continue
+
             if outer_throws and outer_is_void:
                 if text[i].find("return") != -1:                        
                     text[i] = text[i].replace(" return ", " return noErr")
@@ -320,6 +354,7 @@ class Throw52Task:
                 print(" no such thing ")
             if begun_call or line.find("(") == -1:
                 continue
+
             newvar = "th52" + str(varnum)
             varnum += 1 
             m = re.search(re_func_name, line)
@@ -340,26 +375,27 @@ class Throw52Task:
                                  " throwable func found: '",
                                  funcname,
                                  "'"]))                    
-            callret_type = f_map[funcname]
-            if callret_type == 'void':
-                callret_type = 'int'
-            if line.find("=") != -1 and f_map[funcname] == 'void':
+            callret_type = f_map[funcname]['name']
+            use_wrap = f_map[funcname]['wrap']
+            is_void = f_map[funcname]['void']
+            if line.find("=") != -1 and is_void:
                 _logger.log(_Logger.WARN, 
                             "".join([str(i), 
                                      ": error-throwing function ",
                                      funcname,
                                      ASSIGN_OF_VOID]) )
-                continue
             retvar = "th52" + str(varnum)
-            callret_type_errwrap = "".join([ERROR_CLASS, 
-                                            "<", callret_type, ">"]) 
             #we don't need to wrap the signature's ret type
             #because we already wrapped that in the 
             #signature processing pass.
             varnum += 1
             finish_call = "".join([" if (", newvar, ".err) { ", 
                                    outer_ret_type, " ", retvar, "; ", 
-                                   retvar, ".err = true; return ", 
+                                   retvar, ".err = true; ",
+                                   #"DEBUGOUT(\"",
+                                   #outer_func_name,
+                                   #"\", false); ",
+                                   " return ", 
                                    retvar, "; } "])
             m = re.match(void_call, line)
             
@@ -369,7 +405,7 @@ class Throw52Task:
                                      DBG_NOT_ASSIGNED]))
                 pos = line.find(funcname)
                 text[i] = "".join([text[i][:pos],
-                                   callret_type_errwrap, " ",
+                                   callret_type, " ",
                                    newvar, " = ",
                                    text[i][pos:] ])
             elif not line.find("="):
@@ -392,12 +428,25 @@ class Throw52Task:
                                          STATEMENT_NUM]))
                     continue
                 normalvar = m.group('normalvar')
-                text[i] = text[i].replace(normalvar, 
-                                          callret_type_errwrap + \
-                                          " " + newvar)
-                finish_call = "".join([finish_call, 
-                                       normalvar, " = ", 
-                                       newvar, ".val; "])
+                if use_wrap:
+                    text[i] = text[i].replace(normalvar, 
+                                              callret_type + \
+                                              " " + newvar)
+                    finish_call = "".join([finish_call, 
+                                           normalvar, " = ", 
+                                           newvar, ".val; "])
+                else:                    
+                    ensure_no_type = normalvar.split(" ")[-1]
+                    finish_call = "".join([" if (", 
+                                           ensure_no_type, 
+                                           ".err) { ", 
+                                   outer_ret_type, " ", retvar, "; ", 
+                                   retvar, ".err = true; ",
+                                   #"DEBUGOUT(\"",
+                                   #outer_func_name,
+                                   #"\", false); ",
+                                   " return ", 
+                                   retvar, "; } "])
             if line[-1] == ';':
                 _logger.log(_Logger.VALUES, str(i) + \
                             " found statement end (sameline) ")
@@ -407,6 +456,31 @@ class Throw52Task:
                 finish_call = "DEFAULT_FINISH_CALL"
             else:
                 begun_call = True
+        if not gen_ec:
+            return
+        print("// ensure there are bool .err members, initialized with false\n" +\
+              "// in the following classes:")
+        for rc in returned_class_set:
+            print("// "+rc)
+        print("")
+        
+        for typename in error_class_set:
+            typecleaned = typename.replace("<", "")
+            typecleaned = typecleaned.replace(">", "")
+            typecleaned = typecleaned.replace(" ", "")
+            print("".join(["class ",
+                           ERROR_CLASS, typecleaned,
+                           " {\npublic:\n    ",
+                           "bool err;\n    ",
+                           typename, " val;\n    ",
+                           ERROR_CLASS, typecleaned, 
+                           "() {\n        ",
+                           "err = false;\n    }\n    ",
+                           ERROR_CLASS, typecleaned,
+                           "(", typename, " in) {\n        ",
+                           "val = in;\n        ",
+                           "err = false;\n    }\n"
+                           "};\n"]))
                 
 
 if __name__ == "__main__":
@@ -429,6 +503,14 @@ if __name__ == "__main__":
                     action="store_true",default=False,
                         help="check more thoroughly for potential sources of processing errors. You should use this " + \
                         "option at least once if you make any heavy additions or refactors")
+    parser.add_argument("-t","--use_templates", dest="use_templates",
+                    action="store_true",default=False,
+                        help="use templates with the error class (e.g. ErrWrap<int> instead of ErrWrapint) advantages: don't need to include variant of each class in source. disadvantage: slower performance.")
+
+    parser.add_argument("-g","--generate_errorclasses", dest="gen_ec",
+                    action="store_true",default=False,
+                        help="If you're not using templates, you will want to include code in your source with a wrapping errorclass for each return type of an exception-throwing function. This option will output that code to stdout. implies no templates")
+
     parser.add_argument("--ignored-block-opener", dest="igblock_open",
     action="store", default="#IFDEF THROWABLE",
 	help=" line that if detected, throw52 will skip all lines of code " + \
@@ -491,7 +573,10 @@ parser.add_argument("path_instr", action="store",
         "verbosity":args.verbosity+1,
         "igblock_open":args.igblock_open,
         "igblock_close":args.igblock_close,
-        "extra_tests":args.extra_tests}
+        "extra_tests":args.extra_tests,
+        "use_templates":args.use_templates and not args.gen_ec,
+        "gen_ec":args.gen_ec}
+
     #			"debug_mode":args.debug_mode,
     #			"joomla_mode":args.joomla_mode,
     #			"maincache_dir":args.maincache_dir,
