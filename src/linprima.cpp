@@ -96,6 +96,24 @@ void DEBUGOUT(string in, bool lowprio) {
      DEBUGOUT("", false);
  }
 
+#ifndef THROWABLE
+
+//todo use templated class and typedefs.
+template <class T> class ErrWrap {
+public:
+    bool err; T val;
+    ErrWrap<T>() {
+        err = false;
+    }
+    ErrWrap<T>(T val) {
+        this->val = val;
+        err = false;
+    }
+};
+
+ErrWrap<int> noErr;
+
+#endif
 
  string toU8string(u16string input){ 
      std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
@@ -612,7 +630,12 @@ public:
 
 //# called ExError to prevent forseeable 
 //# exception-handling namespace conflict.
+#ifndef THROWABLE
+class ExError {
+#endif
+#ifdef THROWABLE
 class ExError : public exception {
+#endif
 public:
     string description;
     int index;
@@ -645,8 +668,29 @@ public:
     }
 };
 
-ExError retError;
+#ifndef THROWABLE
 
+ExError retError;
+int errorType = 0;
+
+class AssertError {
+public:
+    string description;
+    AssertError() {
+        description = "";
+    }
+    json_object * toJson() {
+        json_object * root = json_newmap();
+        json_put(root, "message", description);
+        json_put(root, "isAssert", true);
+        return root;
+    }
+};
+
+AssertError retAssertError;
+
+
+#endif
 
 //used in initial scannig
 struct TokenStruct {
@@ -1009,10 +1053,13 @@ public:
 //---- ----------  -----------------------------
 // signatures (temporary until we set up a header file):
 
+//throw_
 void throwError(TokenStruct token, u16string messageFormat, 
                 vector<u16string> args);
+//throw_
 void throwErrorTolerant(TokenStruct token, u16string messageFormat, 
                         vector<u16string> args);
+//throw_
 void throwUnexpected(TokenStruct token);
 
 template<typename T> T DEBUGRET(string a, T b) { DEBUGOUT(a); return b; }
@@ -1061,12 +1108,6 @@ json_object * Comment::toJson() {
 }
 
 #ifndef THROWABLE
-
-//todo use templated class and typedefs.
-template <class T> class ErrWrap {
-public:
-    bool err; T val;
-};
 
 /*
 class eu16  {
@@ -1296,14 +1337,35 @@ map<string, u16string> Syntax = {
   // to catch a logic error. The condition shall be fulfilled in normal case.
   // Do NOT use this to enforce a certain condition on any user input.
 
- void assert(bool condition, string message) { DEBUGIN(" assert(bool condition, string message)");
-     string providedMessage = "ASSERT: ";
-     providedMessage.append(message);
-     if (!condition) {
-         throw std::runtime_error(providedMessage);
-     }
+
+
+#ifndef THROWABLE
+//throw_
+int softAssert(bool condition, string message) { DEBUGIN(" assert(bool condition, string message)");
+
+    string providedMessage = "ASSERT: ";
+    providedMessage.append(message);
+
+    errorType = 2;
+    retAssertError.description = providedMessage;
+    ErrWrap<int> tmp;
+    tmp.err = (! condition);
+    return tmp;
+  DEBUGOUT("", false);
+}
+
+#endif
+#ifdef THROWABLE
+void softAssert(bool condition, string message) { DEBUGIN(" assert(bool condition, string message)");
+
+    string providedMessage = "ASSERT: ";
+    providedMessage.append(message);
+    if (! condition)
+        { throw runtime_error(providedMessage); }
   DEBUGOUT("", false);
  }
+
+#endif
 
  bool isDecimalDigit(const char16_t ch) { DEBUGIN("   isDecimalDigit(const char16_t ch)");
    DEBUGOUT("", false); return (ch >= 0x30 && ch <= 0x39); //0..9
@@ -1549,7 +1611,8 @@ void skipMultiLineComment() { DEBUGIN(" skipMultiLineComment()");
                      loc.end.column = idx - lineStart;
                      addComment(u"Block", comment, start, idx, loc);
                  }
-               DEBUGOUT("", false); return;
+               DEBUGOUT("", false); 
+               return;
              }
              ++idx;
          } else {
@@ -1559,6 +1622,7 @@ void skipMultiLineComment() { DEBUGIN(" skipMultiLineComment()");
 
      throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
   DEBUGOUT("", false);
+  return; //#throw52
  }
 
 //throw_
@@ -1617,6 +1681,7 @@ void skipComment() { DEBUGIN(" skipComment()");
          }
      }
   DEBUGOUT("", false);
+  return; //throw52; 
  }
 
  
@@ -1924,7 +1989,7 @@ u16string emccu16str;
    //# return avoids compile warnings bcos clang doesn't look into throwError.
  }
      // 7.8.3 Numeric Literals
-//ec
+//throw_
 TokenStruct scanHexLiteral(const int start) { DEBUGIN(" scanHexLiteral(const int start)");
     u16string number;
     TokenStruct t;
@@ -1993,7 +2058,7 @@ TokenStruct scanNumericLiteral() { DEBUGIN(" scanNumericLiteral()");
 
 
     ch = source(idx);
-    assert(isDecimalDigit(ch) || (ch == u'.'),
+    softAssert(isDecimalDigit(ch) || (ch == u'.'),
            "Numeric literal must start with a decimal digit or a decimal point");
 
     start = idx;
@@ -2084,7 +2149,7 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
     int startLineStart = lineStart;
 
     quote = source(idx);
-    assert((quote == u'\'' || quote == u'"'),
+    softAssert((quote == u'\'' || quote == u'"'),
            "String literal must starts with a quote");
 
     start = idx;
@@ -2199,7 +2264,7 @@ RegexHalf scanRegExpBody() { DEBUGIN("scanRegExpBody()");
     RegexHalf rh;
 
     ch = source(idx);
-    assert(ch == u'/',
+    softAssert(ch == u'/',
            "Regular expression literal must start with a slash");
     append(str, source(idx++)); 
 
@@ -2589,6 +2654,7 @@ void peek() { DEBUGIN(" peek()");
     lineNumber = line;
     lineStart = start;
     DEBUGOUT("peek");
+    return; //#throw52
 }
 
  //# Position and SourceLocation are defined as structs near the top.
@@ -3303,19 +3369,22 @@ bool peekLineTerminator() { DEBUGIN(" peekLineTerminator()");
   DEBUGOUT("", false); return found;
 }
 
-
-//throw_
-void throwToJS(ExError err) { DEBUGIN(" throwToJS(ExError err)");
-    //throw runtime_error(err.description);
 #ifndef THROWABLE
+//throw_
+int throwToJS(ExError err) { DEBUGIN(" throwToJS(ExError err)");
+    retError = err;
+    errorType = 0;
     ErrWrap<int> evoid;
     evoid.err = true;
     return evoid;
+}
 #endif
 #ifdef THROWABLE
+void throwToJS(ExError err) { DEBUGIN(" throwToJS(ExError err)");
     throw err;
-#endif
 }
+#endif
+
 
 ExError genExError(TokenStruct token, u16string messageFormat, 
                    vector<u16string> args) { DEBUGIN(" genExError");
@@ -3328,7 +3397,7 @@ ExError genExError(TokenStruct token, u16string messageFormat,
         //#be simpler here to work with just strings.
         searchkey.append(toU16string(to_string(i)));
         searchresult = msg.find(searchkey);
-        assert(searchresult != u16string::npos, 
+        softAssert(searchresult != u16string::npos, 
               "args to genExError exceeded substitutable values in message format");
         msg.erase(searchresult, 2);
         msg.insert(searchresult, args[i]);
@@ -3351,6 +3420,7 @@ ExError genExError(TokenStruct token, u16string messageFormat,
 //throw_
 void throwError(TokenStruct token, u16string messageFormat, vector<u16string> args) { DEBUGIN(" throwError(TokenStruct token, u16string messageFormat, vector<u16string> args)");
     throwToJS(genExError(token, messageFormat, args));
+    return;
 }
 
 //throw_
@@ -3362,6 +3432,7 @@ void throwErrorTolerant(TokenStruct token, u16string messageFormat, vector<u16st
         throwToJS(result);
     }
  DEBUGOUT("throwErrTol");
+    return;
 }
 
 // Throw an exception because of the token.
@@ -3395,6 +3466,7 @@ void throwUnexpected(TokenStruct token) { DEBUGIN(" throwUnexpected(TokenStruct 
 
     // BooleanLiteral, NullLiteral, or Punctuator.
     throwError(token, Messages["UnexpectedToken"], {token.strvalue});
+    return; //#throw52
 }
     // Expect the next token to match the specified punctuator.
     // If not, an exception will be thrown.
@@ -3417,6 +3489,7 @@ void expect(u16string value) {
         throwUnexpected(token); 
     }
     // DEBUGOUT("expect");
+    return;
 }
 
 
@@ -3445,7 +3518,7 @@ void expectTolerant(u16string value) {
         expect(value);
     }
     // DEBUGOUT("expectTol");
-
+    return;
 }
 
 // Expect the next token to match the specified keyword.
@@ -3457,7 +3530,7 @@ void expectKeyword(const u16string keyword) {
         token.strvalue != keyword) {
         throwUnexpected(token);
     }
-
+    return;
 }
 
 
@@ -3547,6 +3620,7 @@ void consumeSemicolon() { DEBUGIN(" consumeSemicolon()");
         throwUnexpected(lookahead); 
     }
  DEBUGOUT("consumeSemi");
+ return;
 }
 
     // Return true if provided expression is LeftHandSideExpression
@@ -4001,7 +4075,7 @@ Node parseLeftHandSideExpression() { DEBUGIN(" parseLeftHandSideExpression()");
     Node tmpnode(false, true), expr(false, true), property(false, true);
     TokenStruct startToken;
 
-    assert(state.allowIn, "callee of new expression always allow in keyword.");
+    softAssert(state.allowIn, "callee of new expression always allow in keyword.");
     startToken = lookahead;
     if (matchKeyword(u"new")) { 
         expr = parseNewExpression();
@@ -5333,7 +5407,8 @@ void validateParam(ParseParamsOptions& options,
      }
      options.paramSet.insert(key);
   DEBUGOUT("validateParam");
- }
+  return;
+}
 
 
 //throw_ 
@@ -5629,6 +5704,7 @@ void filterTokenLocation() { DEBUGIN(" filterTokenLocation()");
     extra.tokenRecords = tokens;
 
  DEBUGOUT("filterToken");    
+ return;
 }
 
 
@@ -5642,7 +5718,6 @@ void filterTokenLocation() { DEBUGIN(" filterTokenLocation()");
 //# -1. json hierarchy in esprima the tokenlist is the noderoot
 //# -2. no js regex validation unless passed through a js environment 
 //#    afterwards for validation with a tool like linprima-wrapfuncs.js
-ExError errorshim;
  
 json_object* tokenizeImpl(const u16string code, 
                           OptionsStruct options,
@@ -5695,19 +5770,35 @@ json_object* tokenizeImpl(const u16string code,
 
     lex();
     while (lookahead.type != Token["EOF"]) {
+#ifndef THROWABLE
+        ErrWrap<TokenStruct> out = lex();
+        if (out.err) { 
+            if (extra.errorTolerant) {
+                extra.errors.push_back(retError); 
+            } else {
+                json_object_put(outJson);
+                if (errorType == 0) {
+                    return retError.toJson();
+                }
+                return retAssertError.toJson();   
+            }
+        }
+#endif
+#ifdef THROWABLE
         try {
             lex();
-        } catch (...) { //! catch(LexError
+        } catch (ExError& e) { 
             if (extra.errorTolerant) {
-                extra.errors.push_back(errorshim); 
+                extra.errors.push_back(e); 
             } else {
                 if (retErrorsAsJson) {
                     json_object_put(outJson);
-                    return errorshim.toJson();
+                    return e.toJson();
                 }
-                throw errorshim;
+                throw e;
             }
         }
+#endif
     }
 
     filterTokenLocation();
@@ -5816,7 +5907,18 @@ json_object* parseImpl(const u16string code,
         extra.commentTracking = true;
     }
 
-
+#ifndef THROWABLE
+    ErrWrap<Node> tmp = parseProgram();
+    if (tmp.err) {
+        json_object_put(programJson);
+        if (errorType == 0) {
+            return retError.toJson();
+        }
+        return retAssertError.toJson();        
+    }
+    programNode = tmp.val;
+#endif
+#ifdef THROWABLE
     try {
         programNode = parseProgram();
     } catch(ExError& e) {        
@@ -5826,9 +5928,8 @@ json_object* parseImpl(const u16string code,
 
         }
         throw e;
-    } catch(runtime_error re) {
-        return errorshim.toJson();
-   }
+    }
+#endif
    json_put(programJson, "program", programNode.jv);
    json_put(programJson, "regexp", programNode.regexPaths2json());
 
@@ -5898,25 +5999,6 @@ char* strToChar(string in) {
   return outchars;
 }
 
-string nestfunc2() {
-    errorshim.description = "foo";
-    errorshim.index = 100;
-    errorshim.lineNumber = 200;
-    errorshim.column = 300;
-    throw errorshim;
-}
-
-
-string nestfunc1() {
-    try { 
-        nestfunc2();
-    } catch(...) {
-        return json_object_to_json_string_ext(
-                                          errorshim.toJson(),
-                                          JSON_C_TO_STRING_PRETTY);
-    }
-    return "bar";
-}
 
 extern "C" {
     char* tokenizeExtern(const char *code, const char* options) {
@@ -5967,10 +6049,6 @@ extern "C" {
 
     }
 
-    char* someTest(const char *code, int codelen, 
-                      const char* options) {        
-        return strToChar(nestfunc1());
-    }
 }
 
 

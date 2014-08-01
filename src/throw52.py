@@ -144,7 +144,7 @@ _logger = _Logger(1)
 
 
 
-class Throw52:
+
     #instructions will include an extra column for a minify bit, 
     # which will only be valid with anything above NO_REQUEST
     # actually wait, no i need to think about this more.
@@ -152,232 +152,262 @@ class Throw52:
     #	I don't think the users want to keep track of two separate overlapping
     # trees of inheritance in their head. perhaps the original method is best.
     
-    @staticmethod
-    def getDefaultParams():
-        return {
-            # capitalized parameters are parameters that for most users
-            # won't be that useful to know about (vs. say, knowing how to
-            # use debug mode for rapid testing that you've set up
-            # includes and tilthSrc() calls right)
-            
-            #when changing these, be sure to edit corresponding value
-            #in argparse cmd-line code (at bottom)
-            "verbosity": _Logger.DEFAULT,
-            "igblock_open": "#IFDEF THROWABLE",
-            "igblock_close": "#ENDIF",
-            "throws_indicator":"#?throw_",
-            "error_class":"ErrWrap"
-        }
-    
-    @staticmethod
-    def createTask(instream, outstream, paramdeltas={}):
-        params = Throw52.getDefaultParams()
-        for k in paramdeltas:
-            params[k] = paramdeltas[k]
-            return Throw52.Throw52Task(instream, outstream, params)
-    
-    class Throw52Task:
-        def __init__(self, instream, outstream, params):
-            # on creation, stores a snapshot of parameters
-            
-            #behavior which should be able to be applied to some blocks and 
-            # files but not others should be integrated into instructions
-            # rather than through piecewise changing of configuration.
+def _getDefaultParams():
+    return {
+        # capitalized parameters are parameters that for most users
+        # won't be that useful to know about (vs. say, knowing how to
+        # use debug mode for rapid testing that you've set up
+        # includes and tilthSrc() calls right)
         
-            self._params = copy.deepcopy(params)
+        #when changing these, be sure to edit corresponding value
+        #in argparse cmd-line code (at bottom)
+        "verbosity": _Logger.DEFAULT,
+        "igblock_open": "#IFDEF THROWABLE",
+        "igblock_close": "#ENDIF",
+        "throws_indicator":"#?throw_",
+        "error_class":"ErrWrap",
+        "extra_tests":False
+    }
+
+def _createTask(instream, outstream, paramdeltas={}):
+    params = _getDefaultParams()
+    for k in paramdeltas:
+        params[k] = paramdeltas[k]
+        return Throw52Task(instream, outstream, params)
+
+class Throw52Task:
+    def __init__(self, instream, outstream, params):
+        # on creation, stores a snapshot of parameters
+        
+        #behavior which should be able to be applied to some blocks and 
+        # files but not others should be integrated into instructions
+        # rather than through piecewise changing of configuration.
+    
+        self._params = copy.deepcopy(params)
+        
+        global _logger
+        _logger.verbosity = self._params['verbosity']
+        
+        # this program doesn't aspire to deal with C++ files > 100k lines,
+        # so storing the text in memory is fine
+        # text is stored as an array of the lines of the program.
+        self.text = instream.read().split("\n")
+        self.processCalls()
+        outstream.write("\n".join(self.text))
+
+    def stripToCode(self, line):
+        return (line.split("//")[0]).rstrip()
+
+    def checkUnusableLine(self, line, num, whyUnusable):
+        #making this optional and disabled by default saves us a serious amount of time,
+        #otherwise for a 5k size file we're calling ~50 regex searches on every second or third line.
+        if not self._params['extra_tests']:
+            return
+        for f in self.f_map:
+            if line.find(f) and re.search(f + "\s*\(", line):
+                _logger.log(_Logger.ERROR,
+                            str(num) + ": exception throwing func '" + f + "' is present in line " + \
+                            " but " + whyUnusable + " output not tested! must be fixed.")
+        
+        
+    def processCalls(self):
+        #ASSUMES:
+        #1. left var and assignment occurs on the SAME line as the function call
+        # (though the function call arguments may be spread over several lines
+        #2. all assignment operators assign simple function call results, NOT ternary operators.
+        _logger.log(_Logger.OUTLINE, "----processCalls()----")
+        text = self.text
+        varnum = 1 
+        f_map = {}
+        void_funcs = [ x for x in f_map if f_map[x] == 'void' ]
+        asign_funcs = [ x for x in f_map if f_map[x] != 'void' ]
+        ident = "[a-zA-Z_](?:[a-zA-Z_0-9]*|[a-zA-Z_0-9]*\.[a-zA-Z_][a-zA-Z_0-9]*)?"
+        typestr = "[a-zA-Z_](?:[a-zA-Z_0-9\*]*|[a-zA-Z_0-9]*<[a-zA-Z_0-9\*\s]+>\*?)?"
+        #'a', 'ab', and 'a.b' are all valid. 'a.' is not,
+        #ident = "[a-zA-Z_]"  #'a', 'ab', and 'a.b' are all valid. 'a.' is not,
+        re_header = re.compile("\s?//\s?" + self._params['throws_indicator'])
+        re_signature = re.compile("^\s?(?P<rettype>"+typestr+")\s[a-zA-Z_][a-zA-Z0-9_:]*\(.*?")
+        re_func_name = re.compile("(" + ident + ")\s*\(")
+        void_call = re.compile("^\s*(" +ident +")\s*\([^;]*;?")
+        assign_call = re.compile("^\s*(?P<normalvar>(?:" + ident + "\s+" + ident + "|" + ident + "))\s*=\s*(" +ident +")\s*\([^;]*;?")
+        ERROR_CLASS=self._params['error_class']
+
+        ident_sig = "[a-zA-Z_][a-zA-Z_0-9]*"
+        re_sig = re.compile("^\s?(?P<ret>" + typestr + ")\s+" \
+                            "(?:" + ident_sig + "\s+)?"
+                                     "(?P<class>(?:" + ident_sig + \
+                                     "::)?)(?P<name>"+ ident_sig + \
+                                     ")\((?P<rest>.*)")
+
+        AFTER_SEMICOLON = "it occurs after a semicolon (against throw52 convention)"
+        ASSIGN_OF_VOID = " is of void return but may be assigned to a var in this line. skipping."
+        DBG_ASSIGNED = " function result assigned to a var in source "
+        DBG_NOT_ASSIGNED = " function result NOT assigned to a var in source "
+        STATEMENT_NUM = " is called in this line but is not the only statement in the line (throw52 convention expects it to be). skipping."
+
+        begun_call = False
+        line = ""
+        finish_call = ""
+
+        igblock_open = self._params['igblock_open']
+        igblock_close = self._params['igblock_close']
+        in_ignored_block = False
+
+        outer_is_void = False
+        outer_ret_type = ""
+        outer_throws = False
+        funcname = ""
+
+        for i in range(0, len(text)):
+            line = self.stripToCode(text[i])
+            if in_ignored_block:
+                if (line.upper()).find(igblock_close) != -1:
+                    in_ignored_block = False
+                continue
+            if (line.upper()).find(igblock_open) != -1:
+                in_ignored_block = True
+                continue    
+            m = re.match(re_sig, text[i])
+            if m:
+                newret = m.group("ret")
+                #this assignshouldn't ever be used anyway... 
+                #no need to know ret. type if no throwing func calls w/in.
+                outer_ret_type = newret 
+                outer_is_void = (newret == 'void')
+                outer_throws = re.match(re_header, text[i-1])
+                if outer_throws:     
+                    if not m.group('class'):
+                        f_map[m.group('name')] = newret             
+                    if outer_is_void:
+                        newret = 'int'
+                    outer_ret_type = "".join([self._params['error_class'],
+                                              '<', newret, '>' ])
+                    text[i] = re.sub(re_sig, 
+                                     outer_ret_type + \
+                                     " \g<class>\g<name>(\g<rest>", 
+                                     text[i])
+                continue
+
+            if not outer_throws and not self._params['extra_tests']:
+                continue
+            if begun_call:
+                pos = line.find(";")
+                if pos >= 0:
+                    #_logger.log(_Logger.VALUES, str(i) + " found statement end ")
+                    text[i] = "".join([text[i][:pos+1], " ", 
+                                       finish_call, 
+                                       text[i][pos+1:] ])
+                    line = line[pos+1:]
+                    if outer_is_void: #if we're here outer throws by definition.
+                        if line[pos+1:].find("return") != -1:
+                            text[i] = text[i].replace(" return ", 
+                                                      " return noErr")
+                            text[i] = text[i].replace(" return;", 
+                                                      " return noErr;")
+                    self.checkUnusableLine(line[pos+1:], i, 
+                                           AFTER_SEMICOLON)
+                    begun_call = False
+                self.checkUnusableLine(line, i, 
+                                       "".join([" call to funcname ",
+                                                funcname,
+                                                " hasn't closed "]))
+                continue
+            if outer_throws and outer_is_void:
+                if text[i].find("return") != -1:                        
+                    text[i] = text[i].replace(" return ", " return noErr")
+                    text[i] = text[i].replace(" return;", " return noErr;")
+            elif outer_is_void:
+                print(" no such thing ")
+            if begun_call or line.find("(") == -1:
+                continue
+            newvar = "th52" + str(varnum)
+            varnum += 1 
+            m = re.search(re_func_name, line)
+            if not m:
+                continue
+            funcname = m.group(1)
+            if not (funcname in f_map):
+                _logger.log(_Logger.DEBUG, 
+                            "".join([str(i),
+                                     " func found, but not in f_map: '",
+                                     funcname, "'"]) )                    
+                if not (funcname == "DEBUGRET"):
+                    self.checkUnusableLine(line, i, 
+                                           " is not the first function call.")
+                continue
+            _logger.log(_Logger.VALUES, 
+                        "".join([str(i),
+                                 " throwable func found: '",
+                                 funcname,
+                                 "'"]))                    
+            callret_type = f_map[funcname]
+            if callret_type == 'void':
+                callret_type = 'int'
+            if line.find("=") != -1 and f_map[funcname] == 'void':
+                _logger.log(_Logger.WARN, 
+                            "".join([str(i), 
+                                     ": error-throwing function ",
+                                     funcname,
+                                     ASSIGN_OF_VOID]) )
+                continue
+            retvar = "th52" + str(varnum)
+            callret_type_errwrap = "".join([ERROR_CLASS, 
+                                            "<", callret_type, ">"]) 
+            #we don't need to wrap the signature's ret type
+            #because we already wrapped that in the 
+            #signature processing pass.
+            varnum += 1
+            finish_call = "".join([" if (", newvar, ".err) { ", 
+                                   outer_ret_type, " ", retvar, "; ", 
+                                   retvar, ".err = true; return ", 
+                                   retvar, "; } "])
+            m = re.match(void_call, line)
             
-            global _logger
-            _logger.verbosity = self._params['verbosity']
-            
-            # this program doesn't aspire to deal with C++ files > 100k lines,
-            # so storing the text in memory is fine
-            # text is stored as an array of the lines of the program.
-            self.text = instream.read().split("\n")
-            self.f_map = self.processReturnValues()
-            self.processCalls()
-            outstream.write("\n".join(self.text))
-
-        def processReturnValues(self):
-            KEYWORD = self._params["throws_indicator"] 
-            PREPEND = "e"
-            # ASSUMES:
-            # 1.
-            # presence of //KEYWORD (example if keyword is 'throw_', //throw_
-            # at beginnning of line, one line above any signature for a function
-            # (including forward signatures) that might possibly return an exception.
-            # the next line must include at least the return type and function name
-            # parts of the signature.
-            # 2.
-            # that the function is of non-template type. just not supported as of now.
-            # try using typedefs / 'using' keyword.
-            # 3. 
-            # for every return type among these functions, there is a class named
-            # PREPEND + type T which can be implicitly cast from T and has a bool
-            # property .err which is true on error, and a T property .val which contains
-            # any implicitly cast T return values (on non-err)
-            # example: PREPEND = "e", return type is "int", function will now return
-            # type of eint 
-            f_map = {}
-
-            text = self.text
-            re_header = re.compile("\s?//\s?" + KEYWORD)
-            ident = "[a-zA-Z_][a-zA-Z_0-9]*"
-            re_ret_and_name = re.compile("\s*(?P<ret>" + ident + \
-                                         ")\s+(?P<class>(?:" + ident + \
-                                         "::)?)(?P<name>"+ ident + \
-                                         ")(?P<rest>.*)")
-            next_line_is_throw=False
-            for i in range(0, len(text)):
-                if (re.match(re_header, text[i])):
-                    next_line_is_throw = True
-                    continue
-                if (next_line_is_throw):
-                    m = re.match(re_ret_and_name, text[i])
-                    if(m):
-                        #print(repr(m.group('class')))
-                        if not m.group('class'):
-                            f_map[m.group('name')] = m.group('ret')
-                        newret = m.group('ret')
-                        if newret == 'void':
-                            newret = 'int'
-                        text[i] = re.sub(re_ret_and_name, self._params['error_class']+"<" + newret + "> \g<class>\g<name>\g<rest>", text[i])                        
-                next_line_is_throw = False
-            self.text = text
-            return f_map
-
-        def stripToCode(self, line):
-            return (line.split("//")[0]).rstrip()
-
-        def checkUnusableLine(self, line, num, whyUnusable):
-            for f in self.f_map:
-                if line.find(f) and re.search(f + "\s*\(", line):
+            if m:
+                _logger.log(_Logger.DEBUG, 
+                            "".join([str(i),
+                                     DBG_NOT_ASSIGNED]))
+                pos = line.find(funcname)
+                text[i] = "".join([text[i][:pos],
+                                   callret_type_errwrap, " ",
+                                   newvar, " = ",
+                                   text[i][pos:] ])
+            elif not line.find("="):
+                _logger.log(_Logger.ERROR,
+                            "".join([str(i),
+                                     ": error-throwing function ",
+                                     funcname,
+                                     STATEMENT_NUM]))
+                continue
+            else:
+                _logger.log(_Logger.DEBUG,
+                            "".join([str(i),
+                                     DBG_ASSIGNED]))
+                m = re.match(assign_call, line)
+                if not m:
                     _logger.log(_Logger.ERROR,
-                                str(num) + ": exception throwing func '" + f + "' is present in line " + \
-                                " but " + whyUnusable + " output not tested! must be fixed.")
-            
-            
-        def processCalls(self):
-            #ASSUMES:
-            #1. left var and assignment occurs on the SAME line as the function call
-            # (though the function call arguments may be spread over several lines
-            #2. all assignment operators assign simple function call results, NOT ternary operators.
-            _logger.log(_Logger.OUTLINE, "----processCalls()----")
-            text = self.text
-            varnum = 1 
-            f_map = self.f_map
-            void_funcs = [ x for x in f_map if f_map[x] == 'void' ]
-            asign_funcs = [ x for x in f_map if f_map[x] != 'void' ]
-            ident = "[a-zA-Z_](?:[a-zA-Z_0-9]*|[a-zA-Z_0-9]*\.[a-zA-Z_][a-zA-Z_0-9]*)?"
-            typestr = "[a-zA-Z_](?:[a-zA-Z_0-9]*|[a-zA-Z_0-9]*<[a-zA-Z_0-9]+>)?"
-            #'a', 'ab', and 'a.b' are all valid. 'a.' is not,
-            #ident = "[a-zA-Z_]"  #'a', 'ab', and 'a.b' are all valid. 'a.' is not,
-            re_signature = re.compile("^\s?(?P<rettype>"+typestr+")\s[a-zA-Z_][a-zA-Z0-9_:]*\(.*?")
-            re_func_name = re.compile("(" + ident + ")\s*\(")
-            void_call = re.compile("^\s*(" +ident +")\s*\([^;]*;?")
-            assign_call = re.compile("^\s*(?P<normalvar>(?:" + ident + "\s+" + ident + "|" + ident + "))\s*=\s*(" +ident +")\s*\([^;]*;?")
-            ERROR_CLASS=self._params['error_class']
-
-            begun_call = False
-            line = ""
-            finish_call = ""
-
-            igblock_open = self._params['igblock_open']
-            igblock_close = self._params['igblock_close']
-            in_ignored_block = False
-
-            outer_ret_type = ""
-            funcname = ""
-
-            for i in range(0, len(text)):
-                m = re.match(re_signature, text[i])
-                if m:
-                    outer_ret_type = m.group("rettype")
-                    if outer_ret_type == 'void':
-                        outer_ret_type = 'int'
+                                "".join([str(i),
+                                         " error-throwing function ",
+                                         funcname,
+                                         STATEMENT_NUM]))
                     continue
-                line = self.stripToCode(text[i])
-                if in_ignored_block:
-                    if (line.upper()).find(igblock_close) != -1:
-                        in_ignored_block = False
-                    continue
-                if (line.upper()).find(igblock_open) != -1:
-                    in_ignored_block = True
-                    continue    
-                if begun_call:
-                    pos = line.find(";")
-                    if pos >= 0:
-                        _logger.log(_Logger.VALUES, str(i) + " found statement end ")
-                        text[i] = text[i][:pos+1] + " " + finish_call + text[i][pos+1:]
-                        line = line[:pos+1]
-                        self.checkUnusableLine(line, i, "it occurs after a semicolon (against throw52 convention)")
-                        begun_call = False
-                    self.checkUnusableLine(line, i, " call to funcname " + funcname + " hasn't closed ")
-                    continue
-                if line.find("(") == -1:
-                    continue
-                if not begun_call:
-                    newvar = "th52" + str(varnum)
-                    varnum += 1 
-                    m = re.search(re_func_name, line)
-                    if not m:
-                        continue
-                    funcname = m.group(1)
-                    if not (funcname in f_map):
-                        _logger.log(_Logger.DEBUG, str(i) + " func found, but not in f_map: '" + funcname + "'")                    
-                        if not (funcname == "DEBUGRET"):
-                            self.checkUnusableLine(line, i, " is not the first function call.")
-                        continue
-                    _logger.log(_Logger.VALUES, str(i) + " throwable func found: '" + funcname + "'")                    
-                    callret_type = f_map[funcname]
-                    if callret_type == 'void':
-                        callret_type = 'int'
-                    if line.find("=") != -1 and f_map[funcname] == 'void':
-                        _logger.log(_Logger.WARN, 
-                                    str(i) + ": error-throwing function " + funcname + " is of void return " + \
-                                    "but may be assigned to a var in this line. skipping.")
-                        continue
-                    retvar = "th52" + str(varnum)
-                    callret_type_errwrap = ERROR_CLASS + "<" + callret_type + ">" 
-                    #we don't need to wrap the signature's ret type
-                    #because we already wrapped that in the 
-                    #signature processing pass.
-                    varnum += 1
-                    finish_call = " if (" + newvar + ".err) { " + outer_ret_type +" " + retvar + "; " + retvar + ".err = true; return " + retvar + "; } " 
-
-                        
-                    m = re.match(void_call, line)
-                    
-                    if m:
-                        _logger.log(_Logger.DEBUG, str(i) + " function result NOT assigned to a var in source ")
-                        pos = line.find(funcname)
-                        text[i] = text[i][:pos] + callret_type_errwrap + " " + newvar + " = " + text[i][pos:]
-                    elif not line.find("="):
-                        _logger.log(_Logger.ERROR,
-                                    str(i) + ": error-throwing function " + funcname + " is called in this line " + \
-                                        "but is not the only statement " + \
-                                        "in the line (throw52 convention expects it to be). skipping.")
-                        continue
-                    else:
-                        _logger.log(_Logger.DEBUG, str(i) + " function result assigned to a var in source ")
-                        m = re.match(assign_call, line)
-                        if not m:
-                            _logger.log(_Logger.ERROR,
-                                        str(i) + " error-throwing function " + funcname + " is called in this line " + \
-                                        "but is not the only statement " + \
-                                        "in the line (throw52 convention expects it to be). skipping.")
-                            continue
-                        normalvar = m.group('normalvar')
-                        text[i] = text[i].replace(normalvar, callret_type_errwrap + " " + newvar)
-                        finish_call += normalvar + " = " + newvar + ".val; "
-                    if line[-1] == ';':
-                        _logger.log(_Logger.VALUES, str(i) + " found statement end (sameline) ")
-                        text[i] = self.stripToCode(text[i]) + " " + finish_call + text[i][len(self.stripToCode(text[i])):]
-                        finish_call = "DEFAULT_FINISH_CALL"
-                    else:
-                        begun_call = True
-                    
-
-
+                normalvar = m.group('normalvar')
+                text[i] = text[i].replace(normalvar, 
+                                          callret_type_errwrap + \
+                                          " " + newvar)
+                finish_call = "".join([finish_call, 
+                                       normalvar, " = ", 
+                                       newvar, ".val; "])
+            if line[-1] == ';':
+                _logger.log(_Logger.VALUES, str(i) + \
+                            " found statement end (sameline) ")
+                text[i] = "".join([self.stripToCode(text[i]),
+                                   " ", finish_call, 
+                                   text[i][len(self.stripToCode(text[i])):] ])
+                finish_call = "DEFAULT_FINISH_CALL"
+            else:
+                begun_call = True
+                
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Throw52 web workflow")
@@ -387,12 +417,18 @@ if __name__ == "__main__":
     #	in most cases, it wouldn't be alright to just change the output
     #	of just getDefaultParams.
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
-                        default=sys.stdin)
+                        default="/home/n/coding/esp3/src/linprima.cpp")
+                        #default=sys.stdin)
     parser.add_argument('outfile', nargs='?', type=argparse.FileType('w'),
-                        default=sys.stdout)
+                        default="/home/n/coding/esp3/tmp/linprima.cpp")
+                        #default=sys.stdout)
     parser.add_argument("-v ", type=int, choices=range(0,6), dest="verbosity",
-                    default=1,
+                    default=0,
                     help="verbosity. 0 is only display errors, 1 is default (warnings), 5 is max")
+    parser.add_argument("-e","--extra_tests", dest="extra_tests",
+                    action="store_true",default=False,
+                        help="check more thoroughly for potential sources of processing errors. You should use this " + \
+                        "option at least once if you make any heavy additions or refactors")
     parser.add_argument("--ignored-block-opener", dest="igblock_open",
     action="store", default="#IFDEF THROWABLE",
 	help=" line that if detected, throw52 will skip all lines of code " + \
@@ -454,7 +490,8 @@ parser.add_argument("path_instr", action="store",
     paramdeltas = {
         "verbosity":args.verbosity+1,
         "igblock_open":args.igblock_open,
-        "igblock_close":args.igblock_close}
+        "igblock_close":args.igblock_close,
+        "extra_tests":args.extra_tests}
     #			"debug_mode":args.debug_mode,
     #			"joomla_mode":args.joomla_mode,
     #			"maincache_dir":args.maincache_dir,
@@ -462,4 +499,4 @@ parser.add_argument("path_instr", action="store",
     #			"path_closure_compiler":args.path_closure,
     #			"path_yui_compressor":args.path_yui,
     #			"path_instructions":args.path_instr}
-    Throw52.createTask(args.infile, args.outfile, paramdeltas)
+    _createTask(args.infile, args.outfile, paramdeltas)
