@@ -26,7 +26,7 @@ static inline std::string &ltrim(std::string &s) {
 }
 
 
-bool DEBUG_ON= (bool) 0;
+bool DEBUG_ON= (bool) 1;
 bool HIPRI_ONLY= (bool) 1;
 
 string colorHash(string text) {
@@ -4205,26 +4205,28 @@ Node parsePostfixExpression() { DEBUGIN(" parsePostfixExpression()");
     TokenStruct token, startToken = lookahead;
 
     expr = parseLeftHandSideExpressionAllowCall();
-
+    
     if (lookahead.type == Token["Punctuator"]) {
-        pltresult = peekLineTerminator(); //#throw52
-        if ((match(u"++") || match(u"--")) && !pltresult) {
-            // 11.3.1, 11.3.2
-            if (strict && expr.type == Syntax["Identifier"] && 
-                isRestrictedWord(expr.name)) {
-                throwErrorTolerant(NULLTOKEN,
-                                   Messages["StrictLHSPostfix"],{});
-            }
+        if (match(u"++") || match(u"--")) {
+            pltresult = peekLineTerminator(); //#throw52
+            if (!pltresult) {
+                // 11.3.1, 11.3.2
+                if (strict && expr.type == Syntax["Identifier"] && 
+                    isRestrictedWord(expr.name)) {
+                    throwErrorTolerant(NULLTOKEN,
+                                       Messages["StrictLHSPostfix"],{});
+                }
 
-            if (!isLeftHandSide(expr)) {
-                throwErrorTolerant(NULLTOKEN,
-                                   Messages["InvalidLHSInAssignment"],{});
-            }
+                if (!isLeftHandSide(expr)) {
+                    throwErrorTolerant(NULLTOKEN,
+                                       Messages["InvalidLHSInAssignment"],{});
+                }
 
-            token = lex();
-            tmpnode = WrappingNode(startToken);
-            tmpnode.finishPostfixExpression(token.strvalue, expr);
-          DEBUGOUT("parsePostfix"); return tmpnode;
+                token = lex();
+                tmpnode = WrappingNode(startToken);
+                tmpnode.finishPostfixExpression(token.strvalue, expr);
+                DEBUGOUT("parsePostfix"); return tmpnode;
+            }
         }
     }
 
