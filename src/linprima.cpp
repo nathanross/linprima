@@ -26,7 +26,7 @@ static inline std::string &ltrim(std::string &s) {
 }
 
 
-bool DEBUG_ON= (bool) 1;
+bool DEBUG_ON= (bool) 0;
 bool HIPRI_ONLY= (bool) 1;
 
 string colorHash(string text) {
@@ -4473,7 +4473,7 @@ Node parseConciseBody() { DEBUGIN(" parseConciseBody()");
   return DEBUGRET("parseConciseBody", parseAssignmentExpression());
 }
 
-void validateParamNode(ReinterpretOptions options,
+void validateParamNode(ReinterpretOptions& options,
                        Node param, u16string name) {
     DEBUGIN("validateParamNode(Reinterp, Node, u16str)");
     u16string key = u"$";
@@ -4505,7 +4505,7 @@ void validateParamNode(ReinterpretOptions options,
 
 //throw_
 ReinterpretOut reinterpretAsCoverFormalsList(vector< Node >& expressions) { 
-    DEBUGIN("Reinterpret");
+    DEBUGIN("reinterpretAsCover");
     int i, len, defaultCount;
     Node param(false, true);
     vector< Node > params;
