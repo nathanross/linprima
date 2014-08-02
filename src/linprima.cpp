@@ -850,68 +850,99 @@ public:
     void jvput(const string path, const bool b);
     void jvput_dbl(const string path, const string b);
     void jvput_null(const string path); 
-    void regNoadd(vector<string> paths, Node&child);
-    void reg(const string path, Node& child);
-    void nodeVec(const string path, vector<Node>& nodes);
-    void addType(Synt in);
+    void regNoadd(const vector<string> paths, 
+                  const Node&child);
+    void reg(const string path, 
+             const Node& child);
+    void nodeVec(const string path, 
+                 const vector<Node>& nodes);
+    void addType(const Synt in);
     json_object* regexPaths2json();
     void commentsIntoJson(const bool leading);
     void processComment();
     void finish();
-    void finishArrayExpression(vector< Node >& elements);
-    void finishArrowFunctionExpression(vector< Node >& params, 
-                                       vector< Node >& defaults, 
-                                       Node& body, 
-                                       bool expression);
+    void finishArrayExpression(const vector< Node >& elements);
+    void finishArrowFunctionExpression(const vector< Node >& params, 
+                                       const vector< Node >& defaults, 
+                                       const Node& body, 
+                                       const bool expression);
     void finishAssignmentExpression(const u16string oper,
-                                    Node& left, 
-                                    Node& right);
+                                    const Node& left, 
+                                    const Node& right);
     void finishBinaryExpression(const u16string oper, 
-                                Node& left, 
-                                Node& right);
-    void finishBlockStatement(vector< Node >& body);
-    void finishBreakStatement(Node& label);
-    void finishCallExpression(Node& callee, vector< Node >& args);
-    void finishCatchClause(Node& param, Node& body);
-    void finishConditionalExpression(Node& test,
-                                     Node& consequent, 
-                                     Node& alternate);
-    void finishContinueStatement(Node& label);
+                                const Node& left, 
+                                const Node& right);
+    void finishBlockStatement(const vector< Node >& body);
+    void finishBreakStatement(const Node& label);
+    void finishCallExpression(const Node& callee, 
+                              const vector< Node >& args);
+    void finishCatchClause(const Node& param, 
+                           const Node& body);
+    void finishConditionalExpression(const Node& test,
+                                     const Node& consequent, 
+                                     const Node& alternate);
+    void finishContinueStatement(const Node& label);
     void finishDebuggerStatement();
-    void finishDoWhileStatement(Node& body, Node& test);
+    void finishDoWhileStatement(const Node& body,
+                                const Node& test);
     void finishEmptyStatement();
-    void finishExpressionStatement(Node expression);
-    void finishForStatement(Node& init, Node& test, Node& update, Node& body);
-    void finishForInStatement(Node& left, Node& right, Node& body);
-    void finishFunctionDeclaration(Node& id, vector< Node >& params, 
-                                   vector< Node >& defaults, Node& body);
-    void finishFunctionExpression(Node& id, 
-                                  vector< Node >& params, 
-                                  vector< Node >& defaults, 
-                                  Node& body);
+    void finishExpressionStatement(const Node expression);
+    void finishForStatement(const Node& init, 
+                            const Node& test, 
+                            const Node& update, 
+                            const Node& body);
+    void finishForInStatement(const Node& left, 
+                              const Node& right, 
+                              const Node& body);
+    void finishFunctionDeclaration(const Node& id, 
+                                   const vector< Node >& params, 
+                                   const vector< Node >& defaults, 
+                                   const Node& body);
+    void finishFunctionExpression(const Node& id, 
+                                  const vector< Node >& params, 
+                                  const vector< Node >& defaults, 
+                                  const Node& body);
     void finishIdentifier(const u16string name);
-    void finishIfStatement(Node& test, Node& consequent, Node& alternate); 
-    void finishLabeledStatement(Node& label, Node& body);
+    void finishIfStatement(const Node& test, 
+                           const Node& consequent, 
+                           const Node& alternate); 
+    void finishLabeledStatement(const Node& label, 
+                                const Node& body);
     void finishLiteral(TokenStruct& token);
-    void finishMemberExpression(char16_t accessor, Node& object, Node& property);
-    void finishNewExpression(Node& callee, vector<Node>& args);
-    void finishObjectExpression(vector<Node>& properties);
-    void finishPostfixExpression(const u16string oper, Node& argument);
-    void finishProgram(vector<Node>& body);
-    void finishProperty(const u16string kind, Node& key, Node& value);
-    void finishReturnStatement(Node& argument);
-    void finishSequenceExpression(vector<Node>& expressions);
-    void finishSwitchCase(Node& test, vector<Node>& consequent);
-    void finishSwitchStatement(Node& discriminant, vector<Node>& cases);
+    void finishMemberExpression(const char16_t accessor, 
+                                const Node& object, 
+                                const Node& property);
+    void finishNewExpression(const Node& callee, 
+                             const vector<Node>& args);
+    void finishObjectExpression(const vector<Node>& properties);
+    void finishPostfixExpression(const u16string oper, 
+                                 const Node& argument);
+    void finishProgram(const vector<Node>& body);
+    void finishProperty(const u16string kind, 
+                        const Node& key, 
+                        const Node& value);
+    void finishReturnStatement(const Node& argument);
+    void finishSequenceExpression(const vector<Node>& expressions);
+    void finishSwitchCase(const Node& test, 
+                          const vector<Node>& consequent);
+    void finishSwitchStatement(const Node& discriminant, 
+                               const vector<Node>& cases);
     void finishThisExpression();
-    void finishThrowStatement(Node& argument);
-    void finishTryStatement(Node& block, vector<Node>& guardedHandlers, 
-                            vector<Node>& handlers, Node& finalizer);
-    void finishUnaryExpression(const u16string oper, Node& argument);
-    void finishVariableDeclaration(vector<Node>& declarations, const u16string kind);
-    void finishVariableDeclarator(Node& id, Node& init);
-    void finishWhileStatement(Node& test, Node& body);
-    void finishWithStatement(Node& object, Node& body);
+    void finishThrowStatement(const Node& argument);
+    void finishTryStatement(const Node& block, 
+                            const vector<Node>& guardedHandlers, 
+                            const vector<Node>& handlers, 
+                            const Node& finalizer);
+    void finishUnaryExpression(const u16string oper, 
+                               const Node& argument);
+    void finishVariableDeclaration(const vector<Node>& declarations, 
+                                   const u16string kind);
+    void finishVariableDeclarator(const Node& id, 
+                                  const Node& init);
+    void finishWhileStatement(const Node& test,
+                              const Node& body);
+    void finishWithStatement(const Node& object, 
+                             const Node& body);
 
 }; 
 
@@ -2949,15 +2980,11 @@ void Node::jvput_null(const string path)
 
 //# different name to prevent easy bug of forgetting the string.
 //# root path, should be first in vector, then path within it, etc.
-void Node::regNoadd(vector<string> paths, Node &child) { 
+void Node::regNoadd(const vector<string> paths, const Node &child) { 
     string debugmsg = " Node::regNoadd(vector<string> paths, Node &child) :::";
     debugmsg.append(paths[0]);
     //DEBUGIN(debugmsg);
-    if (child.isNull) { 
-        child.jv = nullptr;
-        //DEBUGOUT("", false); 
-      return;
-    }
+
     if (child.hasRange) {
         json_put(child.jv, "range", 
                  vec2json<int>({child.range[0], child.range[1]}));
@@ -2977,14 +3004,13 @@ void Node::regNoadd(vector<string> paths, Node &child) {
             }
         }
     }
-    child.clear();
     //DEBUGOUT("Node::regNoAdd");
 }
 
-void Node::reg(const string path, Node &child) { 
+void Node::reg(const string path, const Node &child) { 
     //DEBUGIN("reg(string path, Node &child)");
     regNoadd({path}, child);
-    if (child.jv != nullptr) {
+    if (! child.isNull && child.jv != nullptr) {
         json_put(jv, path.data(), child.jv);
     } else {
         json_put_null(jv, path.data());
@@ -2992,7 +3018,7 @@ void Node::reg(const string path, Node &child) {
     //DEBUGOUT("node::reg");
 }
 
-void Node::nodeVec(const string path, vector< Node > & nodes) { 
+void Node::nodeVec(const string path, const vector< Node > & nodes) { 
     //DEBUGIN("nodeVec(string path, vector< Node > & nodes)");
     json_object * root = json_newarr();
     for (int i=0; i<nodes.size(); i++) {
@@ -3135,14 +3161,17 @@ void Node::finish() { DEBUGIN("finish()");
 }
 
 
-void Node::finishArrayExpression(vector< Node >& elements) { DEBUGIN("finishArrayExpression(vector< Node >& elements)");
+void Node::finishArrayExpression(const vector< Node >& elements) { DEBUGIN("finishArrayExpression(vector< Node >& elements)");
     addType(Synt::ArrayExpression);
     nodeVec("elements", elements);
     this->finish();
  DEBUGOUT("", false);
 }
 
-void Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression) { DEBUGIN("finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression)");
+void Node::finishArrowFunctionExpression(const vector< Node >& params,
+                                         const vector< Node >& defaults, 
+                                         const Node& body, 
+                                         const bool expression) { DEBUGIN("finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression)");
     addType(Synt::ArrowFunctionExpression);
 
     jvput_null("id");
@@ -3158,8 +3187,8 @@ void Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >&
 
 
 void Node::finishAssignmentExpression(const u16string oper, 
-                                      Node& left, 
-                                      Node& right) { DEBUGIN("finishAssignmentExpression(u16string oper, Node& left, Node& right)");
+                                      const Node& left, 
+                                      const Node& right) { DEBUGIN("finishAssignmentExpression(u16string oper, Node& left, Node& right)");
 
     addType(Synt::AssignmentExpression);
     jvput("operator", s(oper));
@@ -3181,8 +3210,8 @@ void Node::finishAssignmentExpression(const u16string oper,
 
 
 void Node::finishBinaryExpression(const u16string oper, 
-                                  Node& left, 
-                                  Node& right) { DEBUGIN("finishBinaryExpression(u16string oper, Node& left, Node& right)");
+                                  const Node& left, 
+                                  const Node& right) { DEBUGIN("finishBinaryExpression(u16string oper, Node& left, Node& right)");
     addType((oper == u"||" || oper == u"&&") ? 
             Synt::LogicalExpression : Synt::BinaryExpression);
     jvput("operator", s(oper));
@@ -3195,7 +3224,7 @@ void Node::finishBinaryExpression(const u16string oper,
 }
 
 
-void Node::finishBlockStatement(vector< Node >& body) { DEBUGIN("finishBlockStatement(vector< Node >& body)");
+void Node::finishBlockStatement(const vector< Node >& body) { DEBUGIN("finishBlockStatement(vector< Node >& body)");
     addType(Synt::BlockStatement);
     nodeVec("body", body);
     this->finish();
@@ -3203,14 +3232,15 @@ void Node::finishBlockStatement(vector< Node >& body) { DEBUGIN("finishBlockStat
 }
 
 
-void Node::finishBreakStatement(Node& label) { DEBUGIN("finishBreakStatement(Node& label)");
+void Node::finishBreakStatement(const Node& label) { DEBUGIN("finishBreakStatement(Node& label)");
     addType(Synt::BreakStatement);
     reg("label", label);
     this->finish();  DEBUGOUT("", false);
 }
 
 
-void Node::finishCallExpression(Node& callee, vector< Node >& args) { DEBUGIN("finishCallExpression(Node& callee, vector< Node >& args)");
+void Node::finishCallExpression(const Node& callee, 
+                                const vector< Node >& args) { DEBUGIN("finishCallExpression(Node& callee, vector< Node >& args)");
     addType(Synt::CallExpression);
     reg("callee", callee);
     nodeVec("arguments", args);
@@ -3218,7 +3248,8 @@ void Node::finishCallExpression(Node& callee, vector< Node >& args) { DEBUGIN("f
 }
 
 
-void Node::finishCatchClause(Node& param, Node& body) { DEBUGIN("finishCatchClause(Node& param, Node& body)");
+void Node::finishCatchClause(const Node& param, 
+                             const Node& body) { DEBUGIN("finishCatchClause(Node& param, Node& body)");
     addType(Synt::CatchClause);
     reg("param", param);
     reg("body", body);
@@ -3226,7 +3257,9 @@ void Node::finishCatchClause(Node& param, Node& body) { DEBUGIN("finishCatchClau
 }
 
 
-void Node::finishConditionalExpression(Node& test, Node& consequent, Node& alternate) { DEBUGIN("finishConditionalExpression(Node& test, Node& consequent, Node& alternate)");
+void Node::finishConditionalExpression(const Node& test, 
+                                       const Node& consequent,
+                                       const Node& alternate) { DEBUGIN("finishConditionalExpression(Node& test, Node& consequent, Node& alternate)");
     addType(Synt::ConditionalExpression);
     reg("test", test);
     reg("consequent", consequent);
@@ -3235,7 +3268,7 @@ void Node::finishConditionalExpression(Node& test, Node& consequent, Node& alter
 }
 
 
-void Node::finishContinueStatement(Node& label) { DEBUGIN("finishContinueStatement(Node& label)");
+void Node::finishContinueStatement(const Node& label) { DEBUGIN("finishContinueStatement(Node& label)");
     addType(Synt::ContinueStatement);
     reg("label", label);
     this->finish();  DEBUGOUT("", false);
@@ -3248,7 +3281,7 @@ void Node::finishDebuggerStatement() { DEBUGIN("finishDebuggerStatement()");
 }
 
 
-void Node::finishDoWhileStatement(Node& body, Node& test) { DEBUGIN("finishDoWhileStatement(Node& body, Node& test)");
+void Node::finishDoWhileStatement(const Node& body, const Node& test) { DEBUGIN("finishDoWhileStatement(Node& body, Node& test)");
     addType(Synt::DoWhileStatement);
     reg("body", body);
     reg("test", test);
@@ -3262,14 +3295,17 @@ void Node::finishEmptyStatement() { DEBUGIN("finishEmptyStatement()");
 }
 
 
-void Node::finishExpressionStatement(Node expression) { DEBUGIN("finishExpressionStatement(Node expression)");
+void Node::finishExpressionStatement(const Node expression) { DEBUGIN("finishExpressionStatement(Node expression)");
     addType(Synt::ExpressionStatement);
     reg("expression", expression);
     this->finish();  DEBUGOUT("", false);
 }
 
 
-void Node::finishForStatement(Node& init, Node& test, Node& update, Node& body) { DEBUGIN("finishForStatement(Node& init, Node& test, Node& update, Node& body)");
+void Node::finishForStatement(const Node& init, 
+                              const Node& test, 
+                              const Node& update, 
+                              const Node& body) { DEBUGIN("finishForStatement(Node& init, Node& test, Node& update, Node& body)");
     addType(Synt::ForStatement);
     reg("init", init);
     reg("test", test);
@@ -3279,7 +3315,9 @@ void Node::finishForStatement(Node& init, Node& test, Node& update, Node& body) 
 }
 
 
-void Node::finishForInStatement(Node& left, Node& right, Node& body) { DEBUGIN("finishForInStatement(Node& left, Node& right, Node& body)");
+void Node::finishForInStatement(const Node& left, 
+                                const Node& right, 
+                                const Node& body) { DEBUGIN("finishForInStatement(Node& left, Node& right, Node& body)");
     addType(Synt::ForInStatement);
     reg("left", left);
     reg("right", right);
@@ -3289,8 +3327,10 @@ void Node::finishForInStatement(Node& left, Node& right, Node& body) { DEBUGIN("
 }
 
 
-void Node::finishFunctionDeclaration(Node& id, vector< Node >& params, 
-                               vector< Node >& defaults, Node& body) { DEBUGIN("Node::finishFunctionDeclaration(Node, vector<Node>, vector<Node>, Node");
+void Node::finishFunctionDeclaration(const Node& id, 
+                                     const vector< Node >& params, 
+                                     const vector< Node >& defaults, 
+                                     const Node& body) { DEBUGIN("Node::finishFunctionDeclaration(Node, vector<Node>, vector<Node>, Node");
     addType(Synt::FunctionDeclaration);
     reg("id", id);
     nodeVec("params", params);
@@ -3303,8 +3343,10 @@ void Node::finishFunctionDeclaration(Node& id, vector< Node >& params,
 }
 
 
-void Node::finishFunctionExpression(Node& id, vector< Node >& params, 
-                                    vector< Node >& defaults, Node& body) {  DEBUGIN("Node::finishFunctionExpression(Node, vector<Node>, vector<Node>, Node");
+void Node::finishFunctionExpression(const Node& id, 
+                                    const vector< Node >& params, 
+                                    const vector< Node >& defaults, 
+                                    const Node& body) {  DEBUGIN("Node::finishFunctionExpression(Node, vector<Node>, vector<Node>, Node");
     addType(Synt::FunctionExpression);
     reg("id", id);
     nodeVec("params", params);
@@ -3329,7 +3371,9 @@ void Node::finishIdentifier(const u16string name) { DEBUGIN("finishIdentifier(u1
 }
 
 
-void Node::finishIfStatement(Node& test, Node& consequent, Node& alternate) { DEBUGIN("finishIfStatement(Node& test, Node& consequent, Node& alternate)");
+void Node::finishIfStatement(const Node& test, 
+                             const Node& consequent, 
+                             const Node& alternate) { DEBUGIN("finishIfStatement(Node& test, Node& consequent, Node& alternate)");
     addType(Synt::IfStatement);
     reg("test", test);
     reg("consequent", consequent);
@@ -3338,7 +3382,8 @@ void Node::finishIfStatement(Node& test, Node& consequent, Node& alternate) { DE
 }
 
 
-void Node::finishLabeledStatement(Node& label, Node& body) { DEBUGIN("finishLabeledStatement(Node label, Node body)");
+void Node::finishLabeledStatement(const Node& label, 
+                                  const Node& body) { DEBUGIN("finishLabeledStatement(Node label, Node body)");
     addType(Synt::LabeledStatement);
     reg("label", label);
     reg("body", body);
@@ -3371,7 +3416,9 @@ void Node::finishLiteral(TokenStruct& token) { DEBUGIN("finishLiteral(TokenStruc
 }
 
 
-void Node::finishMemberExpression(char16_t accessor, Node& object, Node& property) { DEBUGIN("finishMemberExpression(char16_t accessor, Node& object, Node& property)");
+void Node::finishMemberExpression(const char16_t accessor, 
+                                  const Node& object, 
+                                  const Node& property) { DEBUGIN("finishMemberExpression(char16_t accessor, Node& object, Node& property)");
     addType(Synt::MemberExpression);
     jvput("computed", (accessor == u'['));
     reg("object", object);
@@ -3380,7 +3427,8 @@ void Node::finishMemberExpression(char16_t accessor, Node& object, Node& propert
 }
 
 
-void Node::finishNewExpression(Node& callee, vector<Node>& args) { DEBUGIN("finishNewExpression(Node& callee, vector<Node>& args)");
+void Node::finishNewExpression(const Node& callee, 
+                               const vector<Node>& args) { DEBUGIN("finishNewExpression(Node& callee, vector<Node>& args)");
     addType(Synt::NewExpression);
     reg("callee", callee);
     nodeVec("arguments", args);
@@ -3388,14 +3436,15 @@ void Node::finishNewExpression(Node& callee, vector<Node>& args) { DEBUGIN("fini
 }
 
 
-void Node::finishObjectExpression(vector<Node>& properties) { DEBUGIN("finishObjectExpression(vector<Node>& properties)");
+void Node::finishObjectExpression(const vector<Node>& properties) { DEBUGIN("finishObjectExpression(vector<Node>& properties)");
     addType(Synt::ObjectExpression);
     nodeVec("properties", properties);
     this->finish(); DEBUGOUT("", false);
 }
 
 
-void Node::finishPostfixExpression(const u16string oper, Node& argument) { DEBUGIN("finishPostfixExpression(u16string oper, Node& argument)");
+void Node::finishPostfixExpression(const u16string oper, 
+                                   const Node& argument) { DEBUGIN("finishPostfixExpression(u16string oper, Node& argument)");
     addType(Synt::UpdateExpression);
     jvput("operator", s(oper));
     reg("argument", argument);
@@ -3404,7 +3453,7 @@ void Node::finishPostfixExpression(const u16string oper, Node& argument) { DEBUG
 }
 
 
-void Node::finishProgram(vector< Node >& body) { DEBUGIN("finishProgram(vector< Node >& body)");
+void Node::finishProgram(const vector< Node >& body) { DEBUGIN("finishProgram(vector< Node >& body)");
     addType(Synt::Program);
     nodeVec("body", body);
     this->finish(); 
@@ -3419,7 +3468,9 @@ void Node::finishProgram(vector< Node >& body) { DEBUGIN("finishProgram(vector< 
 }
 
 
-void Node::finishProperty(const u16string kind, Node& key, Node& value) { DEBUGIN("finishProperty(u16string kind, Node& key, Node& value)");
+void Node::finishProperty(const u16string kind,
+                          const Node& key, 
+                          const Node& value) { DEBUGIN("finishProperty(u16string kind, Node& key, Node& value)");
     addType(Synt::Property);
     reg("key", key);
     reg("value", value);
@@ -3428,14 +3479,14 @@ void Node::finishProperty(const u16string kind, Node& key, Node& value) { DEBUGI
 }
 
 
-void Node::finishReturnStatement(Node& argument) { DEBUGIN("finishReturnStatement(Node& argument)");
+void Node::finishReturnStatement(const Node& argument) { DEBUGIN("finishReturnStatement(Node& argument)");
     addType(Synt::ReturnStatement);
     reg("argument", argument);
     this->finish(); DEBUGOUT("", false);
 }
 
 
-void Node::finishSequenceExpression(vector< Node >& expressions) { DEBUGIN("finishSequenceExpression(vector< Node >& expressions)");
+void Node::finishSequenceExpression(const vector< Node >& expressions) { DEBUGIN("finishSequenceExpression(vector< Node >& expressions)");
     addType(Synt::SequenceExpression);
     this->expressions = expressions;
     nodeVec("expressions", expressions);
@@ -3443,7 +3494,8 @@ void Node::finishSequenceExpression(vector< Node >& expressions) { DEBUGIN("fini
 }
 
 
-void Node::finishSwitchCase(Node& test, vector< Node >& consequent) { DEBUGIN("finishSwitchCase(Node& test, vector< Node >& consequent)");
+void Node::finishSwitchCase(const Node& test, 
+                            const vector< Node >& consequent) { DEBUGIN("finishSwitchCase(Node& test, vector< Node >& consequent)");
     addType(Synt::SwitchCase);
     reg("test", test);
     nodeVec("consequent", consequent);
@@ -3451,7 +3503,8 @@ void Node::finishSwitchCase(Node& test, vector< Node >& consequent) { DEBUGIN("f
 }
 
 
-void Node::finishSwitchStatement(Node& discriminant, vector < Node >& cases) { DEBUGIN("finishSwitchStatement(Node& discriminant, vector < Node >& cases)");
+void Node::finishSwitchStatement(const Node& discriminant, 
+                                 const vector < Node >& cases) { DEBUGIN("finishSwitchStatement(Node& discriminant, vector < Node >& cases)");
     addType(Synt::SwitchStatement);
     reg("discriminant", discriminant);
     nodeVec("cases", cases);
@@ -3465,15 +3518,17 @@ void Node::finishThisExpression() { DEBUGIN("finishThisExpression()");
 }
 
 
-void Node::finishThrowStatement(Node& argument) { DEBUGIN("finishThrowStatement(Node& argument)");
+void Node::finishThrowStatement(const Node& argument) { DEBUGIN("finishThrowStatement(Node& argument)");
     addType(Synt::ThrowStatement);
     reg("argument", argument);
     this->finish(); DEBUGOUT("", false);
 }
 
 
-void Node::finishTryStatement(Node& block, vector<Node>& guardedHandlers, 
-                        vector<Node>& handlers, Node& finalizer) {
+void Node::finishTryStatement(const Node& block, 
+                              const vector<Node>& guardedHandlers, 
+                              const vector<Node>& handlers, 
+                              const Node& finalizer) {
     addType(Synt::TryStatement);
     reg("block", block);
     nodeVec("guardedHandlers", guardedHandlers);
@@ -3483,7 +3538,8 @@ void Node::finishTryStatement(Node& block, vector<Node>& guardedHandlers,
 }
 
 
-void Node::finishUnaryExpression(const u16string oper, Node& argument) { DEBUGIN("finishUnaryExpression(u16string oper, Node& argument)");
+void Node::finishUnaryExpression(const u16string oper, 
+                                 const Node& argument) { DEBUGIN("finishUnaryExpression(u16string oper, Node& argument)");
     addType((oper == u"++" || oper == u"--") ? 
             Synt::UpdateExpression : Synt::UnaryExpression);
     jvput("operator", s(oper));
@@ -3493,7 +3549,7 @@ void Node::finishUnaryExpression(const u16string oper, Node& argument) { DEBUGIN
 }
 
 
-void Node::finishVariableDeclaration(vector< Node >& declarations, 
+void Node::finishVariableDeclaration(const vector< Node >& declarations, 
                                      const u16string kind) {
 
     addType(Synt::VariableDeclaration);
@@ -3503,7 +3559,8 @@ void Node::finishVariableDeclaration(vector< Node >& declarations,
 }
 
 
-void Node::finishVariableDeclarator(Node& id, Node& init) { DEBUGIN("finishVariableDeclarator(Node& id, Node& init)");
+void Node::finishVariableDeclarator(const Node& id, 
+                                    const Node& init) { DEBUGIN("finishVariableDeclarator(Node& id, Node& init)");
     addType(Synt::VariableDeclarator);
     reg("id", id);
     reg("init", init);
@@ -3511,7 +3568,8 @@ void Node::finishVariableDeclarator(Node& id, Node& init) { DEBUGIN("finishVaria
 }
 
 
-void Node::finishWhileStatement(Node& test, Node& body) { DEBUGIN("finishWhileStatement(Node& test, Node& body)");
+void Node::finishWhileStatement(const Node& test, 
+                                const Node& body) { DEBUGIN("finishWhileStatement(Node& test, Node& body)");
     addType(Synt::WhileStatement);
     reg("test", test);
     reg("body", body);
@@ -3519,7 +3577,8 @@ void Node::finishWhileStatement(Node& test, Node& body) { DEBUGIN("finishWhileSt
 }
 
 
-void Node::finishWithStatement(Node& object, Node& body) { DEBUGIN("finishWithStatement(Node& object, Node& body)");
+void Node::finishWithStatement(const Node& object, 
+                               const Node& body) { DEBUGIN("finishWithStatement(Node& object, Node& body)");
     addType(Synt::WithStatement);
     reg("object", object);
     reg("body", body);
