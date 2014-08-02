@@ -116,9 +116,9 @@
             } catch (e) {
                 throw genErrorObject({
                     'description':'Invalid regular expression',
-                    'lineNumber': cursor["value"][2],
-                    'index': cursor["value"][3],
-                    'column': cursor["value"][4]
+                    'lineNumber': parseInt(cursor["value"][2]),
+                    'index': parseInt(cursor["value"][3]),
+                    'column': parseInt(cursor["value"][4])
                     });
             }
         }
