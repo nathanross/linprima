@@ -7,14 +7,16 @@
     // Rhino, and plain browser loading.
 
     if (typeof define === 'function' && define.amd) {
-        define(['exports'], factory);
+        define(['exports'], function(a) { factory(a, root); });
     } else if (typeof exports !== 'undefined') {
-        factory(exports);
+        factory(exports, root);
     } else {
-        factory((root.esprima = {}));
+        factory((root.esprima = {}), root);
     }
-}(this, function (exports) {
+}(this, function (exports, root) {
     'use strict';
+
+    
 
     //=FFI= //%FFIsnippet.js%
 
@@ -70,6 +72,14 @@
     };
 
     var parse = function(code, options) {
+        /*if ('console' in root && code == 'var x = /(s/g') {
+            root.console.log(code);
+            if (options === 'undefined') {
+                console.log("undefined options");
+            } else {
+                root.console.log(JSON.stringify(options));
+            }
+        }*/
         if (typeof code !== 'string' && !(code instanceof String)) {
             code = String(code);
         }
@@ -79,7 +89,12 @@
                                             //=ASM=   code.length, 
                                                       optStr));
         if ("isError" in out) {
+ //           return out;
             throw genErrorObject(out);
+        }
+        if ("isAssert" in out) {
+            var e = new Error(out.description);
+            return e;
         }
         if (options !== undefined &&
             'tolerant' in options && options['tolerant'] && 'errors' in out) {
@@ -99,8 +114,12 @@
                 cursor["value"] = regex;
 //                delete cursor["flags"];
             } catch (e) {
-                return { "a": cursor["value"][0] + "::" + cursor["value"][1]};
-                    //Messages["InvalidRegexp"]); //!
+                throw genErrorObject({
+                    'description':'Invalid regular expression',
+                    'lineNumber': cursor["value"][2],
+                    'index': cursor["value"][3],
+                    'column': cursor["value"][4]
+                    });
             }
         }
         delete out["regexp"];

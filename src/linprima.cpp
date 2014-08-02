@@ -3240,7 +3240,9 @@ void Node::finishLiteral(TokenStruct token) { DEBUGIN("finishLiteral(TokenStruct
         jvput_null("value");
     } else if (token.literaltype == LiteralType["Regexp"]) {
         json_put(jv, "value", 
-                 vec2json<string>({s(token.strvalue), s(token.flags)}));
+                 vec2json<string>({s(token.strvalue), s(token.flags),
+                             to_string(lineNumber),
+                             to_string(token.end), to_string(token.end+1)}));
         regexPaths.push_back({"."});
     }
     jvput("raw", s(slice(sourceraw, token.start, token.end)));
