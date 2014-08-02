@@ -813,7 +813,7 @@ struct TokenRecord {
     json_object * toJson();
 };
 
-
+enum class Synt;
 class Node {
 public:
     bool isNull;
@@ -853,7 +853,7 @@ public:
     void regNoadd(vector<string> paths, Node&child);
     void reg(string path, Node& child);
     void nodeVec(string path, vector<Node>& nodes);
-    void addType(string in);
+    void addType(Synt in);
     json_object* regexPaths2json();
     void commentsIntoJson(const bool leading);
     void processComment();
@@ -1269,7 +1269,7 @@ map<string, int> LiteralType = {
     {"Null", 6}
 };
 
-map<string, int> Token = {
+    /* map<string, int> Token = {
     {"BooleanLiteral", 1},
     {"EOF", 2},
     {"Identifier", 3},
@@ -1279,18 +1279,29 @@ map<string, int> Token = {
     {"Punctuator", 7},
     {"StringLiteral", 8},
     {"RegularExpression", 9}
+}; */
+enum Token { 
+    BooleanLiteral=1,
+    EOFF=2,
+    Identifier=3,
+    Keyword=4,
+    NullLiteral=5,
+    NumericLiteral=6,
+    Punctuator=7,
+    StringLiteral=8,
+    RegularExpression=9
 };
 
 map<int, u16string> TokenName = {
-    {Token["BooleanLiteral"], u"Boolean"},
-    {Token["EOF"], u"<end>"},
-    {Token["Identifier"], u"Identifier"},
-    {Token["Keyword"], u"Keyword"},
-    {Token["NullLiteral"], u"Null"},
-    {Token["NumericLiteral"], u"Numeric"},
-    {Token["Punctuator"], u"Punctuator"},
-    {Token["StringLiteral"], u"String"},
-    {Token["RegularExpression"], u"RegularExpression"}
+    {Token::BooleanLiteral, u"Boolean"},
+    {Token::EOFF, u"<end>"},
+    {Token::Identifier, u"Identifier"},
+    {Token::Keyword, u"Keyword"},
+    {Token::NullLiteral, u"Null"},
+    {Token::NumericLiteral, u"Numeric"},
+    {Token::Punctuator, u"Punctuator"},
+    {Token::StringLiteral, u"String"},
+    {Token::RegularExpression, u"RegularExpression"}
 };
 
 
@@ -1307,48 +1318,92 @@ unordered_set< u16string > FnExprTokens = {
     u"<=", u"<", u">", u"!=", u"!=="
 };
 
-map<string, u16string> Syntax = {
-    {"AssignmentExpression", u"AssignmentExpression"},
-    {"ArrayExpression", u"ArrayExpression"},
-    {"ArrowFunctionExpression", u"ArrowFunctionExpression"},
-    {"BlockStatement", u"BlockStatement"},
-    {"BinaryExpression", u"BinaryExpression"},
-    {"BreakStatement", u"BreakStatement"},
-    {"CallExpression", u"CallExpression"},
-    {"CatchClause", u"CatchClause"},
-    {"ConditionalExpression", u"ConditionalExpression"},
-    {"ContinueStatement", u"ContinueStatement"},
-    {"DoWhileStatement", u"DoWhileStatement"},
-    {"DebuggerStatement", u"DebuggerStatement"},
-    {"EmptyStatement", u"EmptyStatement"},
-    {"ExpressionStatement", u"ExpressionStatement"},
-    {"ForStatement", u"ForStatement"},
-    {"ForInStatement", u"ForInStatement"},
-    {"FunctionDeclaration", u"FunctionDeclaration"},
-    {"FunctionExpression", u"FunctionExpression"},
-    {"Identifier", u"Identifier"},
-    {"IfStatement", u"IfStatement"},
-    {"Literal", u"Literal"},
-    {"LabeledStatement", u"LabeledStatement"},
-    {"LogicalExpression", u"LogicalExpression"},
-    {"MemberExpression", u"MemberExpression"},
-    {"NewExpression", u"NewExpression"},
-    {"ObjectExpression", u"ObjectExpression"},
-    {"Program", u"Program"},
-    {"Property", u"Property"},
-    {"ReturnStatement", u"ReturnStatement"},
-    {"SequenceExpression", u"SequenceExpression"},
-    {"SwitchStatement", u"SwitchStatement"},
-    {"SwitchCase", u"SwitchCase"},
-    {"ThisExpression", u"ThisExpression"},
-    {"ThrowStatement", u"ThrowStatement"},
-    {"TryStatement", u"TryStatement"},
-    {"UnaryExpression", u"UnaryExpression"},
-    {"UpdateExpression", u"UpdateExpression"},
-    {"VariableDeclaration", u"VariableDeclaration"},
-    {"VariableDeclarator", u"VariableDeclarator"},
-    {"WhileStatement", u"WhileStatement"},
-    {"WithStatement", u"WithStatement"}
+enum class Synt {
+    AssignmentExpression,
+    ArrayExpression,
+    ArrowFunctionExpression,
+    BlockStatement,
+    BinaryExpression,
+    BreakStatement,
+    CallExpression,
+    CatchClause,
+    ConditionalExpression,
+    ContinueStatement,
+    DoWhileStatement,
+    DebuggerStatement,
+    EmptyStatement,
+    ExpressionStatement,
+    ForStatement,
+    ForInStatement,
+    FunctionDeclaration,
+    FunctionExpression,
+    Identifier,
+    IfStatement,
+    Literal,
+    LabeledStatement,
+    LogicalExpression,
+    MemberExpression,
+    NewExpression,
+    ObjectExpression,
+    Program,
+    Property,
+    ReturnStatement,
+    SequenceExpression,
+    SwitchStatement,
+    SwitchCase,
+    ThisExpression,
+    ThrowStatement,
+    TryStatement,
+    UnaryExpression,
+    UpdateExpression,
+    VariableDeclaration,
+    VariableDeclarator,
+    WhileStatement,
+    WithStatement
+};
+
+map<Synt, u16string> Syntax = {
+    {Synt::AssignmentExpression, u"AssignmentExpression"},
+    {Synt::ArrayExpression, u"ArrayExpression"},
+    {Synt::ArrowFunctionExpression, u"ArrowFunctionExpression"},
+    {Synt::BlockStatement, u"BlockStatement"},
+    {Synt::BinaryExpression, u"BinaryExpression"},
+    {Synt::BreakStatement, u"BreakStatement"},
+    {Synt::CallExpression, u"CallExpression"},
+    {Synt::CatchClause, u"CatchClause"},
+    {Synt::ConditionalExpression, u"ConditionalExpression"},
+    {Synt::ContinueStatement, u"ContinueStatement"},
+    {Synt::DoWhileStatement, u"DoWhileStatement"},
+    {Synt::DebuggerStatement, u"DebuggerStatement"},
+    {Synt::EmptyStatement, u"EmptyStatement"},
+    {Synt::ExpressionStatement, u"ExpressionStatement"},
+    {Synt::ForStatement, u"ForStatement"},
+    {Synt::ForInStatement, u"ForInStatement"},
+    {Synt::FunctionDeclaration, u"FunctionDeclaration"},
+    {Synt::FunctionExpression, u"FunctionExpression"},
+    {Synt::Identifier, u"Identifier"},
+    {Synt::IfStatement, u"IfStatement"},
+    {Synt::Literal, u"Literal"},
+    {Synt::LabeledStatement, u"LabeledStatement"},
+    {Synt::LogicalExpression, u"LogicalExpression"},
+    {Synt::MemberExpression, u"MemberExpression"},
+    {Synt::NewExpression, u"NewExpression"},
+    {Synt::ObjectExpression, u"ObjectExpression"},
+    {Synt::Program, u"Program"},
+    {Synt::Property, u"Property"},
+    {Synt::ReturnStatement, u"ReturnStatement"},
+    {Synt::SequenceExpression, u"SequenceExpression"},
+    {Synt::SwitchStatement, u"SwitchStatement"},
+    {Synt::SwitchCase, u"SwitchCase"},
+    {Synt::ThisExpression, u"ThisExpression"},
+    {Synt::ThrowStatement, u"ThrowStatement"},
+    {Synt::TryStatement, u"TryStatement"},
+    {Synt::UnaryExpression, u"UnaryExpression"},
+    {Synt::UpdateExpression, u"UpdateExpression"},
+    {Synt::VariableDeclaration, u"VariableDeclaration"},
+    {Synt::VariableDeclarator, u"VariableDeclarator"},
+    {Synt::WhileStatement, u"WhileStatement"},
+    {Synt::WithStatement, u"WithStatement"}
 };
 
  map<string, Node> PlaceHolders { 
@@ -1921,15 +1976,15 @@ TokenStruct scanIdentifier() { DEBUGIN(" scanIdentifier()");
     // There is no keyword or literal with only one character.
     // Thus, it must be an identifier.
     if (id.length() == 1) {
-        type = Token["Identifier"];
+        type = Token::Identifier;
     } else if (isKeyword(id)) {
-        type = Token["Keyword"];
+        type = Token::Keyword;
     } else if (id == u"null") {
-        type = Token["NullLiteral"];
+        type = Token::NullLiteral;
     } else if (id == u"true" || id == u"false") {
-        type = Token["BooleanLiteral"];
+        type = Token::BooleanLiteral;
     } else {
-        type = Token["Identifier"];
+        type = Token::Identifier;
     }
 
     t.type = type;
@@ -1956,7 +2011,7 @@ u16string emccu16str;
 
      code[0] = source(idx);
 
-     t.type = Token["Punctuator"];
+     t.type = Token::Punctuator;
      t.lineNumber = lineNumber;
      t.lineStart = lineStart;
      t.start = start;
@@ -2097,7 +2152,7 @@ TokenStruct scanHexLiteral(const int start) { DEBUGIN(" scanHexLiteral(const int
         throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
 
-    t.type = Token["NumericLiteral"];
+    t.type = Token::NumericLiteral;
     t.intvalue = parseInt(number, 16);
     t.literaltype = LiteralType["Int"];
     t.lineNumber = lineNumber;
@@ -2125,7 +2180,7 @@ TokenStruct scanOctalLiteral(const int start) { DEBUGIN(" scanOctalLiteral(const
         throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
 
-    t.type = Token["NumericLiteral"];
+    t.type = Token::NumericLiteral;
     t.intvalue = parseInt(number, 8);
     t.literaltype = LiteralType["Int"];
     t.octal = true;
@@ -2208,7 +2263,7 @@ TokenStruct scanNumericLiteral() { DEBUGIN(" scanNumericLiteral()");
     if (isIdentifierStart(source(idx))) {
         throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
-    t.type = Token["NumericLiteral"];
+    t.type = Token::NumericLiteral;
     t.strvalue = number;
     //t.dblvalue = //# want to allow browsers to use full allowance of whatever their local max int size is.
     //               //#which is same as it would work in esprima.
@@ -2330,7 +2385,7 @@ TokenStruct scanStringLiteral() { DEBUGIN(" scanStringLiteral()");
         throwError(NULLTOKEN, Messages["UnexpectedToken"], {u"ILLEGAL"});
     }
 
-    t.type = Token["StringLiteral"];
+    t.type = Token::StringLiteral;
     t.strvalue = str;
     t.literaltype = LiteralType["String"];            
     t.octal = octal;
@@ -2467,7 +2522,7 @@ TokenStruct scanRegExp() { DEBUGIN(" scanRegExp()");
     //value = testRegExp(body.value, flags.value);
 
     if (extra.tokenize) {
-        t.type = Token["RegularExpression"];
+        t.type = Token::RegularExpression;
         t.strvalue = u"regexDummy"; //?
         t.lineNumber = lineNumber;
         t.lineStart = lineStart;
@@ -2530,8 +2585,8 @@ TokenStruct collectRegex() { DEBUGIN(" collectRegex()");
 }
 
 bool isIdentifierName(TokenStruct token) { DEBUGIN("   isIdentifierName(TokenStruct token)");
-   DEBUGOUT("", false); return has<int>(token.type, { Token["Identifier"], Token["Keyword"],
-                 Token["BooleanLiteral"], Token["NullLiteral"]});
+   DEBUGOUT("", false); return has<int>(token.type, { Token::Identifier, Token::Keyword,
+                 Token::BooleanLiteral, Token::NullLiteral});
  }
 
 //throw_
@@ -2628,7 +2683,7 @@ TokenStruct advance() { DEBUGIN(" advance()");
     skipComment(); 
 
     if (idx >= length) {
-        t.type = Token["EOF"];
+        t.type = Token::EOFF;
         t.lineNumber = lineNumber;
         t.lineStart = lineStart;
         t.start = idx;
@@ -2688,7 +2743,7 @@ TokenStruct collectToken() { DEBUGIN(" collectToken()");
     loc.end.line = lineNumber;
     loc.end.column = idx - lineStart;
 
-    if (token.type != Token["EOF"]) { //this didn't check against string. is fine.
+    if (token.type != Token::EOFF) { //this didn't check against string. is fine.
         tr.valuestring = slice(sourceraw, token.start, token.end);
         tr.typestring = TokenName[token.type];
         tr.range[0] = token.start;
@@ -2799,7 +2854,7 @@ void Node::lookavailInit() {
     jv = json_newmap();
 
     idx = lookahead.start;
-    if (lookahead.type == Token["StringLiteral"]) {
+    if (lookahead.type == Token::StringLiteral) {
         lineNumber = lookahead.startLineNumber;
         lineStart = lookahead.startLineStart;
     } else {
@@ -2891,7 +2946,7 @@ void Node::nodeVec(string path, vector< Node > & nodes) {
     json_put(jv, path.data(), root);
     //DEBUGOUT("node::nodeVec");
 }
-void Node::addType(string in) { 
+void Node::addType(Synt in) { 
     type = Syntax[in];
     json_put(jv, "type", s(type));
 }
@@ -2929,7 +2984,7 @@ void Node::processComment() { DEBUGIN("processComment()");
         last = bottomRight->back();
     }
 
-    if (type == Syntax["Program"]) {  
+    if (type == Syntax[Synt::Program]) {  
         if (json_object_array_length(
                         json_require(jv,"body", false)) > 0) {
           DEBUGOUT("", false); return;
@@ -3021,14 +3076,14 @@ void Node::finish() { DEBUGIN("finish()");
 
 
 void Node::finishArrayExpression(vector< Node >& elements) { DEBUGIN("finishArrayExpression(vector< Node >& elements)");
-    addType("ArrayExpression");
+    addType(Synt::ArrayExpression);
     nodeVec("elements", elements);
     this->finish();
  DEBUGOUT("", false);
 }
 
 void Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression) { DEBUGIN("finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression)");
-    addType("ArrowFunctionExpression");
+    addType(Synt::ArrowFunctionExpression);
 
     jvput_null("id");
     nodeVec("params", params);
@@ -3044,7 +3099,7 @@ void Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >&
 
 void Node::finishAssignmentExpression(u16string oper, Node& left, Node& right) { DEBUGIN("finishAssignmentExpression(u16string oper, Node& left, Node& right)");
 
-    addType("AssignmentExpression");
+    addType(Synt::AssignmentExpression);
     jvput("operator", s(oper));
 
     reg("left", left);
@@ -3064,7 +3119,8 @@ void Node::finishAssignmentExpression(u16string oper, Node& left, Node& right) {
 
 
 void Node::finishBinaryExpression(u16string oper, Node& left, Node& right) { DEBUGIN("finishBinaryExpression(u16string oper, Node& left, Node& right)");
-    addType((oper == u"||" || oper == u"&&") ? "LogicalExpression" : "BinaryExpression");
+    addType((oper == u"||" || oper == u"&&") ? 
+            Synt::LogicalExpression : Synt::BinaryExpression);
     jvput("operator", s(oper));
 
 
@@ -3076,7 +3132,7 @@ void Node::finishBinaryExpression(u16string oper, Node& left, Node& right) { DEB
 
 
 void Node::finishBlockStatement(vector< Node >& body) { DEBUGIN("finishBlockStatement(vector< Node >& body)");
-    addType("BlockStatement");
+    addType(Synt::BlockStatement);
     nodeVec("body", body);
     this->finish();
  DEBUGOUT("", false);
@@ -3084,14 +3140,14 @@ void Node::finishBlockStatement(vector< Node >& body) { DEBUGIN("finishBlockStat
 
 
 void Node::finishBreakStatement(Node& label) { DEBUGIN("finishBreakStatement(Node& label)");
-    addType("BreakStatement");
+    addType(Synt::BreakStatement);
     reg("label", label);
     this->finish();  DEBUGOUT("", false);
 }
 
 
 void Node::finishCallExpression(Node& callee, vector< Node >& args) { DEBUGIN("finishCallExpression(Node& callee, vector< Node >& args)");
-    addType("CallExpression");
+    addType(Synt::CallExpression);
     reg("callee", callee);
     nodeVec("arguments", args);
     this->finish(); DEBUGOUT("", false);
@@ -3099,7 +3155,7 @@ void Node::finishCallExpression(Node& callee, vector< Node >& args) { DEBUGIN("f
 
 
 void Node::finishCatchClause(Node& param, Node& body) { DEBUGIN("finishCatchClause(Node& param, Node& body)");
-    addType("CatchClause");
+    addType(Synt::CatchClause);
     reg("param", param);
     reg("body", body);
     this->finish(); DEBUGOUT("", false);
@@ -3107,7 +3163,7 @@ void Node::finishCatchClause(Node& param, Node& body) { DEBUGIN("finishCatchClau
 
 
 void Node::finishConditionalExpression(Node& test, Node& consequent, Node& alternate) { DEBUGIN("finishConditionalExpression(Node& test, Node& consequent, Node& alternate)");
-    addType("ConditionalExpression");
+    addType(Synt::ConditionalExpression);
     reg("test", test);
     reg("consequent", consequent);
     reg("alternate", alternate);
@@ -3116,20 +3172,20 @@ void Node::finishConditionalExpression(Node& test, Node& consequent, Node& alter
 
 
 void Node::finishContinueStatement(Node& label) { DEBUGIN("finishContinueStatement(Node& label)");
-    addType("ContinueStatement");
+    addType(Synt::ContinueStatement);
     reg("label", label);
     this->finish();  DEBUGOUT("", false);
 }
 
 
 void Node::finishDebuggerStatement() { DEBUGIN("finishDebuggerStatement()");
-    addType("DebuggerStatement");
+    addType(Synt::DebuggerStatement);
     this->finish(); DEBUGOUT("", false);
 }
 
 
 void Node::finishDoWhileStatement(Node& body, Node& test) { DEBUGIN("finishDoWhileStatement(Node& body, Node& test)");
-    addType("DoWhileStatement");
+    addType(Synt::DoWhileStatement);
     reg("body", body);
     reg("test", test);
     this->finish(); DEBUGOUT("", false);
@@ -3137,20 +3193,20 @@ void Node::finishDoWhileStatement(Node& body, Node& test) { DEBUGIN("finishDoWhi
 
 
 void Node::finishEmptyStatement() { DEBUGIN("finishEmptyStatement()");
-    addType("EmptyStatement");
+    addType(Synt::EmptyStatement);
     this->finish(); DEBUGOUT("", false);
 }
 
 
 void Node::finishExpressionStatement(Node expression) { DEBUGIN("finishExpressionStatement(Node expression)");
-    addType("ExpressionStatement");
+    addType(Synt::ExpressionStatement);
     reg("expression", expression);
     this->finish();  DEBUGOUT("", false);
 }
 
 
 void Node::finishForStatement(Node& init, Node& test, Node& update, Node& body) { DEBUGIN("finishForStatement(Node& init, Node& test, Node& update, Node& body)");
-    addType("ForStatement");
+    addType(Synt::ForStatement);
     reg("init", init);
     reg("test", test);
     reg("update", update);
@@ -3160,7 +3216,7 @@ void Node::finishForStatement(Node& init, Node& test, Node& update, Node& body) 
 
 
 void Node::finishForInStatement(Node& left, Node& right, Node& body) { DEBUGIN("finishForInStatement(Node& left, Node& right, Node& body)");
-    addType("ForInStatement");
+    addType(Synt::ForInStatement);
     reg("left", left);
     reg("right", right);
     reg("body", body);
@@ -3171,7 +3227,7 @@ void Node::finishForInStatement(Node& left, Node& right, Node& body) { DEBUGIN("
 
 void Node::finishFunctionDeclaration(Node& id, vector< Node >& params, 
                                vector< Node >& defaults, Node& body) { DEBUGIN("Node::finishFunctionDeclaration(Node, vector<Node>, vector<Node>, Node");
-    addType("FunctionDeclaration");
+    addType(Synt::FunctionDeclaration);
     reg("id", id);
     nodeVec("params", params);
     nodeVec("defaults", defaults);
@@ -3185,7 +3241,7 @@ void Node::finishFunctionDeclaration(Node& id, vector< Node >& params,
 
 void Node::finishFunctionExpression(Node& id, vector< Node >& params, 
                                     vector< Node >& defaults, Node& body) {  DEBUGIN("Node::finishFunctionExpression(Node, vector<Node>, vector<Node>, Node");
-    addType("FunctionExpression");
+    addType(Synt::FunctionExpression);
     reg("id", id);
     nodeVec("params", params);
     nodeVec("defaults", defaults);
@@ -3202,7 +3258,7 @@ u16string Node::getName() {
 
 
 void Node::finishIdentifier(u16string name) { DEBUGIN("finishIdentifier(u16string name)");
-    addType("Identifier");
+    addType(Synt::Identifier);
     this->name = name;
     jvput("name", s(name));
     this->finish(); DEBUGOUT("", false);
@@ -3210,7 +3266,7 @@ void Node::finishIdentifier(u16string name) { DEBUGIN("finishIdentifier(u16strin
 
 
 void Node::finishIfStatement(Node& test, Node& consequent, Node& alternate) { DEBUGIN("finishIfStatement(Node& test, Node& consequent, Node& alternate)");
-    addType("IfStatement");
+    addType(Synt::IfStatement);
     reg("test", test);
     reg("consequent", consequent);
     reg("alternate", alternate);
@@ -3219,7 +3275,7 @@ void Node::finishIfStatement(Node& test, Node& consequent, Node& alternate) { DE
 
 
 void Node::finishLabeledStatement(Node label, Node body) { DEBUGIN("finishLabeledStatement(Node label, Node body)");
-    addType("LabeledStatement");
+    addType(Synt::LabeledStatement);
     reg("label", label);
     reg("body", body);
     this->finish(); DEBUGOUT("", false);
@@ -3227,7 +3283,7 @@ void Node::finishLabeledStatement(Node label, Node body) { DEBUGIN("finishLabele
 
 //# ?maybe check against js to make sure we're not missing anything.
 void Node::finishLiteral(TokenStruct token) { DEBUGIN("finishLiteral(TokenStruct token)");
-    addType("Literal");
+    addType(Synt::Literal);
     if (token.literaltype == LiteralType["String"]) {
         jvput("value", s(token.strvalue));
     } else if (token.literaltype == LiteralType["Int"]) {
@@ -3252,7 +3308,7 @@ void Node::finishLiteral(TokenStruct token) { DEBUGIN("finishLiteral(TokenStruct
 
 
 void Node::finishMemberExpression(char16_t accessor, Node& object, Node& property) { DEBUGIN("finishMemberExpression(char16_t accessor, Node& object, Node& property)");
-    addType("MemberExpression");
+    addType(Synt::MemberExpression);
     jvput("computed", (accessor == u'['));
     reg("object", object);
     reg("property", property);
@@ -3261,7 +3317,7 @@ void Node::finishMemberExpression(char16_t accessor, Node& object, Node& propert
 
 
 void Node::finishNewExpression(Node& callee, vector<Node>& args) { DEBUGIN("finishNewExpression(Node& callee, vector<Node>& args)");
-    addType("NewExpression");
+    addType(Synt::NewExpression);
     reg("callee", callee);
     nodeVec("arguments", args);
     this->finish(); DEBUGOUT("", false);
@@ -3269,14 +3325,14 @@ void Node::finishNewExpression(Node& callee, vector<Node>& args) { DEBUGIN("fini
 
 
 void Node::finishObjectExpression(vector<Node>& properties) { DEBUGIN("finishObjectExpression(vector<Node>& properties)");
-    addType("ObjectExpression");
+    addType(Synt::ObjectExpression);
     nodeVec("properties", properties);
     this->finish(); DEBUGOUT("", false);
 }
 
 
 void Node::finishPostfixExpression(u16string oper, Node& argument) { DEBUGIN("finishPostfixExpression(u16string oper, Node& argument)");
-    addType("UpdateExpression");
+    addType(Synt::UpdateExpression);
     jvput("operator", s(oper));
     reg("argument", argument);
     jvput("prefix", false);
@@ -3285,7 +3341,7 @@ void Node::finishPostfixExpression(u16string oper, Node& argument) { DEBUGIN("fi
 
 
 void Node::finishProgram(vector< Node >& body) { DEBUGIN("finishProgram(vector< Node >& body)");
-    addType("Program");
+    addType(Synt::Program);
     nodeVec("body", body);
     this->finish(); 
     //no parent node to call reg so add these atts. here.
@@ -3300,7 +3356,7 @@ void Node::finishProgram(vector< Node >& body) { DEBUGIN("finishProgram(vector< 
 
 
 void Node::finishProperty(u16string kind, Node& key, Node& value) { DEBUGIN("finishProperty(u16string kind, Node& key, Node& value)");
-    addType("Property");
+    addType(Synt::Property);
     reg("key", key);
     reg("value", value);
     jvput("kind", s(kind));
@@ -3309,14 +3365,14 @@ void Node::finishProperty(u16string kind, Node& key, Node& value) { DEBUGIN("fin
 
 
 void Node::finishReturnStatement(Node& argument) { DEBUGIN("finishReturnStatement(Node& argument)");
-    addType("ReturnStatement");
+    addType(Synt::ReturnStatement);
     reg("argument", argument);
     this->finish(); DEBUGOUT("", false);
 }
 
 
 void Node::finishSequenceExpression(vector< Node >& expressions) { DEBUGIN("finishSequenceExpression(vector< Node >& expressions)");
-    addType("SequenceExpression");
+    addType(Synt::SequenceExpression);
     this->expressions = expressions;
     nodeVec("expressions", expressions);
     this->finish(); DEBUGOUT("", false);
@@ -3324,7 +3380,7 @@ void Node::finishSequenceExpression(vector< Node >& expressions) { DEBUGIN("fini
 
 
 void Node::finishSwitchCase(Node& test, vector< Node >& consequent) { DEBUGIN("finishSwitchCase(Node& test, vector< Node >& consequent)");
-    addType("SwitchCase");
+    addType(Synt::SwitchCase);
     reg("test", test);
     nodeVec("consequent", consequent);
     this->finish(); DEBUGOUT("", false);
@@ -3332,7 +3388,7 @@ void Node::finishSwitchCase(Node& test, vector< Node >& consequent) { DEBUGIN("f
 
 
 void Node::finishSwitchStatement(Node& discriminant, vector < Node >& cases) { DEBUGIN("finishSwitchStatement(Node& discriminant, vector < Node >& cases)");
-    addType("SwitchStatement");
+    addType(Synt::SwitchStatement);
     reg("discriminant", discriminant);
     nodeVec("cases", cases);
     this->finish(); DEBUGOUT("", false);
@@ -3340,13 +3396,13 @@ void Node::finishSwitchStatement(Node& discriminant, vector < Node >& cases) { D
 
 
 void Node::finishThisExpression() { DEBUGIN("finishThisExpression()");
-    addType("ThisExpression");
+    addType(Synt::ThisExpression);
     this->finish(); DEBUGOUT("", false);
 }
 
 
 void Node::finishThrowStatement(Node& argument) { DEBUGIN("finishThrowStatement(Node& argument)");
-    addType("ThrowStatement");
+    addType(Synt::ThrowStatement);
     reg("argument", argument);
     this->finish(); DEBUGOUT("", false);
 }
@@ -3354,7 +3410,7 @@ void Node::finishThrowStatement(Node& argument) { DEBUGIN("finishThrowStatement(
 
 void Node::finishTryStatement(Node& block, vector<Node>& guardedHandlers, 
                         vector<Node>& handlers, Node& finalizer) {
-    addType("TryStatement");
+    addType(Synt::TryStatement);
     reg("block", block);
     nodeVec("guardedHandlers", guardedHandlers);
     nodeVec("handlers", handlers);
@@ -3365,7 +3421,7 @@ void Node::finishTryStatement(Node& block, vector<Node>& guardedHandlers,
 
 void Node::finishUnaryExpression(u16string oper, Node& argument) { DEBUGIN("finishUnaryExpression(u16string oper, Node& argument)");
     addType((oper == u"++" || oper == u"--") ? 
-            "UpdateExpression" : "UnaryExpression");
+            Synt::UpdateExpression : Synt::UnaryExpression);
     jvput("operator", s(oper));
     reg("argument", argument);
     jvput("prefix", true);
@@ -3376,7 +3432,7 @@ void Node::finishUnaryExpression(u16string oper, Node& argument) { DEBUGIN("fini
 void Node::finishVariableDeclaration(vector< Node >& declarations, 
                                      u16string kind) {
 
-    addType("VariableDeclaration");
+    addType(Synt::VariableDeclaration);
     nodeVec("declarations", declarations);
     jvput("kind", s(kind));
     this->finish(); DEBUGOUT("", false);
@@ -3384,7 +3440,7 @@ void Node::finishVariableDeclaration(vector< Node >& declarations,
 
 
 void Node::finishVariableDeclarator(Node& id, Node& init) { DEBUGIN("finishVariableDeclarator(Node& id, Node& init)");
-    addType("VariableDeclarator");
+    addType(Synt::VariableDeclarator);
     reg("id", id);
     reg("init", init);
     this->finish(); DEBUGOUT("", false);
@@ -3392,7 +3448,7 @@ void Node::finishVariableDeclarator(Node& id, Node& init) { DEBUGIN("finishVaria
 
 
 void Node::finishWhileStatement(Node& test, Node& body) { DEBUGIN("finishWhileStatement(Node& test, Node& body)");
-    addType("WhileStatement");
+    addType(Synt::WhileStatement);
     reg("test", test);
     reg("body", body);
     this->finish(); DEBUGOUT("", false);
@@ -3400,7 +3456,7 @@ void Node::finishWhileStatement(Node& test, Node& body) { DEBUGIN("finishWhileSt
 
 
 void Node::finishWithStatement(Node& object, Node& body) { DEBUGIN("finishWithStatement(Node& object, Node& body)");
-    addType("WithStatement");
+    addType(Synt::WithStatement);
     reg("object", object);
     reg("body", body);
     this->finish(); DEBUGOUT("", false);
@@ -3430,7 +3486,7 @@ public:
     Loc WrappingSourceLocation(TokenStruct startToken) {
         DEBUGIN("WrappingSourceLocation (Token)", true);
         Loc result;
-        if (startToken.type == Token["StringLiteral"]) {
+        if (startToken.type == Token::StringLiteral) {
             result.start.line = startToken.startLineNumber;
             result.start.column = 
                 startToken.start - startToken.startLineStart;
@@ -3533,23 +3589,23 @@ void throwErrorTolerant(TokenStruct token, u16string messageFormat, vector<u16st
 // Throw an exception because of the token.
 //throw_
 void throwUnexpected(TokenStruct token) { DEBUGIN(" throwUnexpected(TokenStruct token)");
-    if (token.type == Token["EOF"]) {
+    if (token.type == Token::EOFF) {
         throwError(token, Messages["UnexpectedEOS"], {});
     }
 
-    if (token.type == Token["NumericLiteral"]) {
+    if (token.type == Token::NumericLiteral) {
         throwError(token, Messages["UnexpectedNumber"], {});
     }
 
-    if (token.type == Token["StringLiteral"]) {
+    if (token.type == Token::StringLiteral) {
         throwError(token, Messages["UnexpectedString"], {});
     }
 
-    if (token.type == Token["Identifier"]) {
+    if (token.type == Token::Identifier) {
         throwError(token, Messages["UnexpectedIdentifier"], {});
     }
 
-    if (token.type == Token["Keyword"]) {
+    if (token.type == Token::Keyword) {
         if (isFutureReservedWord(token.strvalue)) {
             throwError(token, Messages["UnexpectedReserved"],{});
         } else if (strict && isStrictModeReservedWord(token.strvalue)) {
@@ -3575,11 +3631,11 @@ void expect(u16string value) {
     TokenStruct token = lex();
 
 
-    if (token.type != Token["Punctuator"] || 
+    if (token.type != Token::Punctuator || 
         /*!(has<int>(token.type, {NULLTOKEN.type, 
-                        Token["Keyword"],  //# don't include punctuator.
-                        Token["StringLiteral"],
-                        Token["Identifier"]})) ||*/
+                        Token::Keyword,  //# don't include punctuator.
+                        Token::StringLiteral,
+                        Token::Identifier})) ||*/
             token.strvalue != value) {
         throwUnexpected(token); 
     }
@@ -3596,13 +3652,13 @@ void expectTolerant(u16string value) {
         TokenStruct token = lookahead;
 
 
-        if (token.type != Token["Punctuator"] || 
+        if (token.type != Token::Punctuator || 
 
             /*!(has<int>(token.type, {
                         NULLTOKEN.type, 
-                            Token["Keyword"],  //# don't include punctuator.
-                            Token["StringLiteral"],
-                            Token["Identifier"]})) || */ 
+                            Token::Keyword,  //# don't include punctuator.
+                            Token::StringLiteral,
+                            Token::Identifier})) || */ 
                 token.strvalue != value) {
             throwErrorTolerant(token, Messages["UnexpectedToken"], 
                                {token.strvalue});
@@ -3621,7 +3677,7 @@ void expectTolerant(u16string value) {
 //throw_
 void expectKeyword(const u16string keyword) { 
     TokenStruct token = lex();
-    if (token.type != Token["Keyword"] || 
+    if (token.type != Token::Keyword || 
         token.strvalue != keyword) {
         throwUnexpected(token);
     }
@@ -3632,7 +3688,7 @@ void expectKeyword(const u16string keyword) {
 // Return true if the next token matches the specified punctuator.
 
 bool match(const u16string value) { 
-  return lookahead.type == Token["Punctuator"] && lookahead.strvalue == value;
+  return lookahead.type == Token::Punctuator && lookahead.strvalue == value;
 }
 
 // Return true if the next token matches the specified keyword
@@ -3641,14 +3697,14 @@ bool match(const u16string value) {
 bool matchKeyword(const u16string keyword) {
     // DEBUGIN(" matchKeyword(const u16string keyword)");
     //  DEBUGOUT("matchKey"); 
-return lookahead.type == Token["Keyword"] && lookahead.strvalue == keyword;
+return lookahead.type == Token::Keyword && lookahead.strvalue == keyword;
 }
 
     // Return true if the next token is an assignment operator
 
 
 bool matchAssign() { 
-    if (lookahead.type != Token["Punctuator"]) {
+    if (lookahead.type != Token::Punctuator) {
      return false;
     }
     u16string op = lookahead.strvalue;
@@ -3711,7 +3767,7 @@ void consumeSemicolon() { DEBUGIN(" consumeSemicolon()");
       DEBUGOUT("", false); return;
     }
 
-    if (lookahead.type != Token["EOF"] && !match(u"}")) { 
+    if (lookahead.type != Token::EOFF && !match(u"}")) { 
         throwUnexpected(lookahead); 
     }
  DEBUGOUT("consumeSemi");
@@ -3721,7 +3777,7 @@ void consumeSemicolon() { DEBUGIN(" consumeSemicolon()");
     // Return true if provided expression is LeftHandSideExpression
 
 bool isLeftHandSide(Node expr) { DEBUGIN("   isLeftHandSide(Node expr)");
-  DEBUGOUT("isLeft"); return expr.type == Syntax["Identifier"] || expr.type == Syntax["MemberExpression"];
+  DEBUGOUT("isLeft"); return expr.type == Syntax[Synt::Identifier] || expr.type == Syntax[Synt::MemberExpression];
 };
 
 
@@ -3787,8 +3843,8 @@ Node parseObjectPropertyKey() { DEBUGIN(" parseObjectPropertyKey()");
     // Note: This function is called only from parseObjectProperty(), where
     // EOF and Punctuator tokens are already filtered out.
 
-    if (token.type == Token["StringLiteral"] || 
-        token.type == Token["NumericLiteral"]) {
+    if (token.type == Token::StringLiteral || 
+        token.type == Token::NumericLiteral) {
         if (strict && token.octal) {
             throwErrorTolerant(token, Messages["StrictOctalLiteral"], {});
         }
@@ -3815,7 +3871,7 @@ Node parseObjectProperty() { DEBUGIN(" parseObjectProperty()");
 
     token = lookahead;
 
-    if (token.type == Token["Identifier"]) {
+    if (token.type == Token::Identifier) {
 
         id = parseObjectPropertyKey();
 
@@ -3834,7 +3890,7 @@ Node parseObjectProperty() { DEBUGIN(" parseObjectProperty()");
             key = parseObjectPropertyKey();
             expect(u"(");
             token = lookahead;
-            if (token.type != Token["Identifier"]) {
+            if (token.type != Token::Identifier) {
                 expect(u")");
                 throwErrorTolerant(token, 
                                    Messages["UnexpectedToken"], 
@@ -3860,7 +3916,7 @@ Node parseObjectProperty() { DEBUGIN(" parseObjectProperty()");
         node.finishProperty(u"init", id, value);
       DEBUGOUT("parseObjProp"); return node;
     }
-    if (token.type == Token["EOF"] || token.type == Token["Punctuator"]) {
+    if (token.type == Token::EOFF || token.type == Token::Punctuator) {
         throwUnexpected(token);
       DEBUGOUT("parseObjProp"); return NULLNODE; //#just to satisfy warnings.
     } else {
@@ -3902,7 +3958,7 @@ Node parseObjectInitialiser() { DEBUGIN(" parseObjectInitialiser()");
         keytype = json_object_get_string(
                        json_require(keyobj, "type", false));
 
-        if (keytype == toU8string(Syntax["Identifier"])) {
+        if (keytype == toU8string(Syntax[Synt::Identifier])) {
             name = json_object_get_string(
                       json_require(keyobj,  "name", false));
         } else {
@@ -4000,11 +4056,11 @@ Node parsePrimaryExpression() { DEBUGIN(" parsePrimaryExpression()");
 
     expr = node;
 
-    if (type == Token["Identifier"]) {
+    if (type == Token::Identifier) {
         TokenStruct tmp = lex();
         expr.finishIdentifier(tmp.strvalue);
-    } else if (type == Token["StringLiteral"] || 
-               type == Token["NumericLiteral"]) {
+    } else if (type == Token::StringLiteral || 
+               type == Token::NumericLiteral) {
 
         if (strict && lookahead.octal) {
             throwErrorTolerant(lookahead, 
@@ -4012,7 +4068,7 @@ Node parsePrimaryExpression() { DEBUGIN(" parsePrimaryExpression()");
         }
         TokenStruct tmp = lex();
         expr.finishLiteral(tmp);
-    } else if (type == Token["Keyword"]) {
+    } else if (type == Token::Keyword) {
         if (matchKeyword(u"function")) {
             expr.unused();
           return DEBUGRET("", parseFunctionExpression());
@@ -4024,12 +4080,12 @@ Node parsePrimaryExpression() { DEBUGIN(" parsePrimaryExpression()");
             TokenStruct tmp = lex();
             throwUnexpected(tmp);
         }
-    } else if (type == Token["BooleanLiteral"]) {
+    } else if (type == Token::BooleanLiteral) {
         token = lex();
         token.bvalue = (token.strvalue == u"true");
         token.literaltype = LiteralType["Bool"];
         expr.finishLiteral(token);
-    } else if (type == Token["NullLiteral"]) {
+    } else if (type == Token::NullLiteral) {
         token = lex();
         token.isNull = true;
         token.literaltype = LiteralType["Null"];
@@ -4206,12 +4262,12 @@ Node parsePostfixExpression() { DEBUGIN(" parsePostfixExpression()");
 
     expr = parseLeftHandSideExpressionAllowCall();
     
-    if (lookahead.type == Token["Punctuator"]) {
+    if (lookahead.type == Token::Punctuator) {
         if (match(u"++") || match(u"--")) {
             pltresult = peekLineTerminator(); //#throw52
             if (!pltresult) {
                 // 11.3.1, 11.3.2
-                if (strict && expr.type == Syntax["Identifier"] && 
+                if (strict && expr.type == Syntax[Synt::Identifier] && 
                     isRestrictedWord(expr.name)) {
                     throwErrorTolerant(NULLTOKEN,
                                        Messages["StrictLHSPostfix"],{});
@@ -4240,15 +4296,15 @@ Node parseUnaryExpression() { DEBUGIN(" parseUnaryExpression()");
     Node expr(false, true), tmpnode(false, true);
     u16string exprname;
 
-    if (lookahead.type != Token["Punctuator"] 
-        && lookahead.type != Token["Keyword"]) {
+    if (lookahead.type != Token::Punctuator 
+        && lookahead.type != Token::Keyword) {
         expr = parsePostfixExpression();
     } else if (match(u"++") || match(u"--")) {
         startToken = lookahead;
         token = lex();
         expr = parseUnaryExpression();
         // 11.4.4, 11.4.5
-        if (strict && expr.type == Syntax["Identifier"] 
+        if (strict && expr.type == Syntax[Synt::Identifier] 
             && isRestrictedWord(expr.name)) {
             throwErrorTolerant(NULLTOKEN, Messages["StrictLHSPrefix"],{});
         }
@@ -4277,7 +4333,7 @@ Node parseUnaryExpression() { DEBUGIN(" parseUnaryExpression()");
         tmpnode = WrappingNode(startToken);
         tmpnode.finishUnaryExpression(token.strvalue, expr);
         if (strict && token.strvalue == u"delete" 
-            && expr.type == Syntax["Identifier"]) {
+            && expr.type == Syntax[Synt::Identifier]) {
             throwErrorTolerant(NULLTOKEN, Messages["StrictDelete"], {});
         }
       DEBUGOUT("parseUnary"); return tmpnode;
@@ -4293,8 +4349,8 @@ int binaryPrecedence(TokenStruct token, bool allowIn) {
     int prec = 0;
     u16string tokval;
 
-    if (token.type != Token["Punctuator"] 
-        && token.type != Token["Keyword"]) {
+    if (token.type != Token::Punctuator 
+        && token.type != Token::Keyword) {
       DEBUGOUT("binaryPrec"); return 0;
     }
     tokval = token.strvalue;
@@ -4519,11 +4575,11 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node >& expressions) {
 
     for (i = 0, len = expressions.size(); i < len; i += 1) {
         param = expressions[i];
-        if (param.type == Syntax["Identifier"]) {
+        if (param.type == Syntax[Synt::Identifier]) {
             params.push_back(param);
             defaults.push_back(NULLNODE);
             validateParamNode(opts, param, param.name);
-        } else if (param.type == Syntax["AssignmentExpression"]) {
+        } else if (param.type == Syntax[Synt::AssignmentExpression]) {
             params.push_back(*(param.left));
             defaults.push_back(*(param.right));
             ++defaultCount;
@@ -4580,7 +4636,7 @@ Node parseArrowFunctionExpression(ReinterpretOut options, Node node) { DEBUGIN("
     node.finishArrowFunctionExpression(options.params, 
                                        options.defaults, 
                                        body, 
-                                       body.type != Syntax["BlockStatement"]);
+                                       body.type != Syntax[Synt::BlockStatement]);
   DEBUGOUT("parseArrowFuncExpr"); return node;
 }
 
@@ -4608,13 +4664,13 @@ Node parseAssignmentExpression() { DEBUGIN(" parseAssignmentExpression()");
 
         if (state.parenthesisCount == oldParenthesisCount ||
                 state.parenthesisCount == (oldParenthesisCount + 1)) {      
-            if (expr.type == Syntax["Identifier"]) {
+            if (expr.type == Syntax[Synt::Identifier]) {
                 reIn.push_back(expr);
                 list = reinterpretAsCoverFormalsList(reIn); 
-            } else if (expr.type == Syntax["AssignmentExpression"]) {
+            } else if (expr.type == Syntax[Synt::AssignmentExpression]) {
                 reIn.push_back(expr);
                 list = reinterpretAsCoverFormalsList(reIn);
-            } else if (expr.type == Syntax["SequenceExpression"]) {
+            } else if (expr.type == Syntax[Synt::SequenceExpression]) {
                 list = reinterpretAsCoverFormalsList(expr.expressions);
             } else if (expr.type == PlaceHolders["ArrowParameterPlaceHolder"].type) {
                 list = reinterpretAsCoverFormalsList(reIn); 
@@ -4634,7 +4690,7 @@ Node parseAssignmentExpression() { DEBUGIN(" parseAssignmentExpression()");
         }
 
         // 11.13.1
-        if (strict && expr.type == Syntax["Identifier"] && isRestrictedWord(expr.name)) {
+        if (strict && expr.type == Syntax[Synt::Identifier] && isRestrictedWord(expr.name)) {
             throwErrorTolerant(token, Messages["StrictLHSAssignment"], {});
         }
 
@@ -4726,7 +4782,7 @@ Node parseVariableIdentifier() { DEBUGIN(" parseVariableIdentifier()");
 
     token = lex();
 
-    if (token.type != Token["Identifier"]) {
+    if (token.type != Token::Identifier) {
         throwUnexpected(token);
     }
 
@@ -5013,7 +5069,7 @@ Node parseContinueStatement(Node node) { DEBUGIN(" parseContinueStatement(Node n
       DEBUGOUT("parseContinueStatement"); return node;
     }
 
-    if (lookahead.type == Token["Identifier"]) {
+    if (lookahead.type == Token::Identifier) {
 
         label = parseVariableIdentifier();
 
@@ -5066,7 +5122,7 @@ Node parseBreakStatement(Node node) { DEBUGIN(" parseBreakStatement(Node node)")
       DEBUGOUT("parseBreakStatement"); return node;
     }
 
-    if (lookahead.type == Token["Identifier"]) {
+    if (lookahead.type == Token::Identifier) {
         label = parseVariableIdentifier();
 
         key = u"$";
@@ -5117,7 +5173,7 @@ Node parseReturnStatement(Node node) { DEBUGIN(" parseReturnStatement(Node node)
     }
 
     if (!match(u";")) {
-        if (!match(u"}") && lookahead.type != Token["EOF"]) {
+        if (!match(u"}") && lookahead.type != Token::EOFF) {
             argument = parseExpression();
         }
     }
@@ -5316,24 +5372,24 @@ Node parseStatement() { DEBUGIN(" parseStatement()");
     u16string key, tokval;
     Node expr(false, true), node(false, true), labeledBody(false, true);
 
-    if (type == Token["EOF"]) {
+    if (type == Token::EOFF) {
         throwUnexpected(lookahead);
     }
 
-    if (type == Token["Punctuator"] && lookahead.strvalue == u"{") {
+    if (type == Token::Punctuator && lookahead.strvalue == u"{") {
       return DEBUGRET("parseStatement", parseBlock());
     }
 
     node.lookavailInit();
 
-    if (type == Token["Punctuator"]) {
+    if (type == Token::Punctuator) {
         tokval = lookahead.strvalue;
         if (tokval == u";") {
           return DEBUGRET("parseStatement", parseEmptyStatement());
         } else if (tokval == u"(") {
           return DEBUGRET("parseStatement", parseExpressionStatement(node));
         }
-    } else if (type == Token["Keyword"]) {
+    } else if (type == Token::Keyword) {
         tokval = lookahead.strvalue;
         if (tokval == u"break") {
           return DEBUGRET("parseStatement", parseBreakStatement(node));
@@ -5371,7 +5427,7 @@ Node parseStatement() { DEBUGIN(" parseStatement()");
     expr = parseExpression(); 
 
     // 12.12 Labelled Statements
-    if ((expr.type == Syntax["Identifier"]) && match(u":")) {
+    if ((expr.type == Syntax[Synt::Identifier]) && match(u":")) {
         lex();
 
         key = u"$";
@@ -5409,7 +5465,7 @@ Node parseFunctionSourceElements() { DEBUGIN(" parseFunctionSourceElements()");
 
     firstRestricted.isNull = true;
     while (idx < length) {
-        if (lookahead.type != Token["StringLiteral"]) {
+        if (lookahead.type != Token::StringLiteral) {
             break;
         }
         token = lookahead;
@@ -5422,7 +5478,7 @@ Node parseFunctionSourceElements() { DEBUGIN(" parseFunctionSourceElements()");
                    json_object_get_string(
 json_require(json_require(sourceElement.jv, "expression", false),
              "type", false)), 
-                   toU8string(Syntax["Literal"]).data()) != 0) {
+                   toU8string(Syntax[Synt::Literal]).data()) != 0) {
             //? this one I doubt there's more an efficient way to do this
             //? then json-c accesses. Storing node hierarchies just to fix this call seems to 
             //? be likely less performant.
@@ -5690,7 +5746,7 @@ Node parseFunctionExpression() { DEBUGIN(" parseFunctionExpression()");
 //throw_ 
 Node parseSourceElement() { DEBUGIN(" parseSourceElement()");
     u16string val;
-    if (lookahead.type == Token["Keyword"]) {
+    if (lookahead.type == Token::Keyword) {
         val = lookahead.strvalue;
         if (val == u"const" || val == u"let") {
           return DEBUGRET("", parseConstLetDeclaration(val));
@@ -5702,7 +5758,7 @@ Node parseSourceElement() { DEBUGIN(" parseSourceElement()");
         }
     }
 
-    if (lookahead.type != Token["EOF"]) {
+    if (lookahead.type != Token::EOFF) {
 
       return DEBUGRET("", parseStatement());
     }
@@ -5720,7 +5776,7 @@ vector< Node > parseSourceElements() { DEBUGIN(" parseSourceElementS() ");
     firstRestricted.isNull = true;
     while (idx < length) {
         token = lookahead;
-        if (token.type != Token["StringLiteral"]) {
+        if (token.type != Token::StringLiteral) {
             break;
         }
 
@@ -5731,7 +5787,7 @@ vector< Node > parseSourceElements() { DEBUGIN(" parseSourceElementS() ");
         if (strcmp(json_object_get_string(
  json_require(json_require(sourceElement.jv, "expression", false), 
              "type", false)), 
-                   toU8string(Syntax["Literal"]).data()) != 0) {         
+                   toU8string(Syntax[Synt::Literal]).data()) != 0) {         
             // this is not directive
             break;
         }
@@ -5857,7 +5913,7 @@ json_object* tokenizeImpl(const u16string code,
 
     peek();
 
-    if (lookahead.type == Token["EOF"]) {
+    if (lookahead.type == Token::EOFF) {
         json_put(outJson, "tokenlist", 
                  vec2jsonCallback<TokenRecord>(extra.tokenRecords, 
                        &TokenRecord::toJson));
@@ -5865,7 +5921,7 @@ json_object* tokenizeImpl(const u16string code,
     }
 
     lex();
-    while (lookahead.type != Token["EOF"]) {
+    while (lookahead.type != Token::EOFF) {
 #ifndef THROWABLE
         TokenStruct out = lex();
         if (out.err) { 
