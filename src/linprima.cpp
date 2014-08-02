@@ -5857,7 +5857,6 @@ json_object* tokenizeImpl(const u16string code,
         json_put(outJson, "tokenlist", 
                  vec2jsonCallback<TokenRecord>(extra.tokenRecords, 
                        &TokenRecord::toJson));
-        delete[] sourceraw;
       return outJson;
     }
 
