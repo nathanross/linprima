@@ -4786,7 +4786,7 @@ Node parseAssignmentExpression() { DEBUGIN(" parseAssignmentExpression()");
     token = lookahead;
 
     expr = parseConditionalExpression();
-
+    list.isNull = true;
     if (expr.type == PlaceHolders["ArrowParameterPlaceHolder"].type //? will work?
         || match(u"=>")) {
 
