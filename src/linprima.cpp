@@ -159,20 +159,20 @@ public:
 
 #endif
 
- string toU8string(u16string input){ 
+ string toU8string(const u16string input){ 
      std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
    return myconv.to_bytes(input);
  }
 
- string toU8string(char16_t* input) {
+ string toU8string(const char16_t* input) {
    return toU8string(u16string(input));
  }
- wstring toWstring(string input) {
+ wstring toWstring(const string input) {
      std::wstring_convert< std::codecvt_utf8<wchar_t>> myconv;
    return myconv.from_bytes(input);
  }
 
- u16string toU16string(string input){ 
+ u16string toU16string(const string input){ 
      std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
 
   return myconv.from_bytes(input);
@@ -265,15 +265,15 @@ public:
      json_object_object_add(a, b, tmp);
     return tmp;
  }
- inline json_object* json_put(json_object *a, const char *b, u16string c) 
+ inline json_object* json_put(json_object *a, const char *b, const u16string c) 
  { return json_put(a,b,toU8string(c)); }
 
- json_object* json_put(json_object *a, const char *b, int c) { 
+ json_object* json_put(json_object *a, const char *b, const int c) { 
      json_object *tmp = json_object_new_double(c);
      json_object_object_add(a, b, tmp);
     return tmp;
  }
- json_object* json_put(json_object *a, const char *b, bool c) { 
+ json_object* json_put(json_object *a, const char *b, const bool c) { 
      json_object *tmp = json_object_new_boolean(c?1:0);
      json_object_object_add(a, b, tmp);
     return tmp;
@@ -283,18 +283,18 @@ public:
     return c;
  }
 
- json_object* json_push(json_object *a, string c) { 
+ json_object* json_push(json_object *a, const string c) { 
      json_object *tmp = json_object_new_string(c.data());
      json_object_array_add(a, tmp);
     return tmp;
  }
- inline json_object* json_push(json_object *a, u16string c) { return json_push(a,toU8string(c)); }
- json_object* json_push(json_object *a, int c) { 
+ inline json_object* json_push(json_object *a, const u16string c) { return json_push(a,toU8string(c)); }
+ json_object* json_push(json_object *a, const int c) { 
      json_object *tmp = json_object_new_double(c);
      json_object_array_add(a, tmp);
     return tmp;
  }
- json_object* json_push(json_object *a, bool c) { 
+ json_object* json_push(json_object *a, const bool c) { 
      json_object *tmp = json_object_new_boolean(c?1:0);
      json_object_array_add(a, tmp);
     return tmp;
@@ -837,7 +837,7 @@ public:
     shared_ptr<Node> left; //for assignment+reinterpretAsCover...
     shared_ptr<Node> right; //same
 
-    string s(u16string in);
+    string s(const u16string in);
     u16string getName();
     Node();
     Node(bool lookaheadAvail, bool storeStats);
@@ -845,28 +845,37 @@ public:
     void lookavailInit();
     void clear();
     void unused();
-    void jvput(string path, string b);
-    void jvput(string path, int b); 
-    void jvput(string path, bool b);
-    void jvput_dbl(string path, string b);
-    void jvput_null(string path); 
+    void jvput(const string path, const string b);
+    void jvput(const string path, const int b); 
+    void jvput(const string path, const bool b);
+    void jvput_dbl(const string path, const string b);
+    void jvput_null(const string path); 
     void regNoadd(vector<string> paths, Node&child);
-    void reg(string path, Node& child);
-    void nodeVec(string path, vector<Node>& nodes);
+    void reg(const string path, Node& child);
+    void nodeVec(const string path, vector<Node>& nodes);
     void addType(Synt in);
     json_object* regexPaths2json();
     void commentsIntoJson(const bool leading);
     void processComment();
     void finish();
     void finishArrayExpression(vector< Node >& elements);
-    void finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression);
-    void finishAssignmentExpression(u16string oper, Node& left, Node& right);
-    void finishBinaryExpression(u16string oper, Node& left, Node& right);
+    void finishArrowFunctionExpression(vector< Node >& params, 
+                                       vector< Node >& defaults, 
+                                       Node& body, 
+                                       bool expression);
+    void finishAssignmentExpression(const u16string oper,
+                                    Node& left, 
+                                    Node& right);
+    void finishBinaryExpression(const u16string oper, 
+                                Node& left, 
+                                Node& right);
     void finishBlockStatement(vector< Node >& body);
     void finishBreakStatement(Node& label);
     void finishCallExpression(Node& callee, vector< Node >& args);
     void finishCatchClause(Node& param, Node& body);
-    void finishConditionalExpression(Node& test, Node& consequent, Node& alternate);
+    void finishConditionalExpression(Node& test,
+                                     Node& consequent, 
+                                     Node& alternate);
     void finishContinueStatement(Node& label);
     void finishDebuggerStatement();
     void finishDoWhileStatement(Node& body, Node& test);
@@ -876,18 +885,20 @@ public:
     void finishForInStatement(Node& left, Node& right, Node& body);
     void finishFunctionDeclaration(Node& id, vector< Node >& params, 
                                    vector< Node >& defaults, Node& body);
-    void finishFunctionExpression(Node& id, vector< Node >& params, 
-                                  vector< Node >& defaults, Node& body);
-    void finishIdentifier(u16string name);
+    void finishFunctionExpression(Node& id, 
+                                  vector< Node >& params, 
+                                  vector< Node >& defaults, 
+                                  Node& body);
+    void finishIdentifier(const u16string name);
     void finishIfStatement(Node& test, Node& consequent, Node& alternate); 
-    void finishLabeledStatement(Node label, Node body);
-    void finishLiteral(TokenStruct token);
+    void finishLabeledStatement(Node& label, Node& body);
+    void finishLiteral(TokenStruct& token);
     void finishMemberExpression(char16_t accessor, Node& object, Node& property);
     void finishNewExpression(Node& callee, vector<Node>& args);
     void finishObjectExpression(vector<Node>& properties);
-    void finishPostfixExpression(u16string oper, Node& argument);
+    void finishPostfixExpression(const u16string oper, Node& argument);
     void finishProgram(vector<Node>& body);
-    void finishProperty(u16string kind, Node& key, Node& value);
+    void finishProperty(const u16string kind, Node& key, Node& value);
     void finishReturnStatement(Node& argument);
     void finishSequenceExpression(vector<Node>& expressions);
     void finishSwitchCase(Node& test, vector<Node>& consequent);
@@ -896,8 +907,8 @@ public:
     void finishThrowStatement(Node& argument);
     void finishTryStatement(Node& block, vector<Node>& guardedHandlers, 
                             vector<Node>& handlers, Node& finalizer);
-    void finishUnaryExpression(u16string oper, Node& argument);
-    void finishVariableDeclaration(vector<Node>& declarations, u16string kind);
+    void finishUnaryExpression(const u16string oper, Node& argument);
+    void finishVariableDeclaration(vector<Node>& declarations, const u16string kind);
     void finishVariableDeclarator(Node& id, Node& init);
     void finishWhileStatement(Node& test, Node& body);
     void finishWithStatement(Node& object, Node& body);
@@ -991,7 +1002,9 @@ struct OptionsStruct {
         hasSource = false;
         DEBUGOUT("OptionsStruct()", true);
     }
-    bool json_getbool(json_object* in, string key, bool defaultVal) {
+    bool json_getbool(json_object* in, 
+                      const string key, 
+                      const bool defaultVal) {
         json_object* tmp;
         bool exists = json_find(in, key.data(), tmp,
                                 false, json_type_boolean);
@@ -1140,13 +1153,13 @@ public:
 // signatures (temporary until we set up a header file):
 
 //throw_
-void throwError(TokenStruct token, u16string messageFormat, 
+void throwError(TokenStruct& token, const u16string messageFormat, 
                 vector<u16string> args);
 //throw_
-void throwErrorTolerant(TokenStruct token, u16string messageFormat, 
+void throwErrorTolerant(TokenStruct& token, const u16string messageFormat, 
                         vector<u16string> args);
 //throw_
-void throwUnexpected(TokenStruct token);
+void throwUnexpected(TokenStruct& token);
 
 template<typename T> T DEBUGRET(string a, T b) { DEBUGOUT(a); return b; }
 
@@ -1524,7 +1537,7 @@ map<Mssg, u16string> Messages = {
 
 #ifndef THROWABLE
 //throw_
-int softAssert(bool condition, string message) { DEBUGIN(" assert(bool condition, string message)");
+int softAssert(const bool condition, const string message) { DEBUGIN(" assert(bool condition, string message)");
 
     string providedMessage = "ASSERT: ";
     providedMessage.append(message);
@@ -1540,7 +1553,7 @@ int softAssert(bool condition, string message) { DEBUGIN(" assert(bool condition
 
 #endif
 #ifdef THROWABLE
-void softAssert(bool condition, string message) { DEBUGIN(" assert(bool condition, string message)");
+void softAssert(const bool condition, const string message) { DEBUGIN(" assert(bool condition, string message)");
 
     string providedMessage = "ASSERT: ";
     providedMessage.append(message);
@@ -1682,8 +1695,8 @@ void softAssert(bool condition, string message) { DEBUGIN(" assert(bool conditio
 
 
 //# only called if extra.commentTracking
-void addComment(u16string type, u16string value, 
-                 int start, int end, Loc loc) { DEBUGIN(" addComment(u16string type, u16string value, int start, int end, Loc loc)");
+void addComment(const u16string type, const u16string value, 
+                 const int start, const int end, const Loc loc) { DEBUGIN(" addComment(u16string type, u16string value, int start, int end, Loc loc)");
      Comment comment;
 
      //assert(typeof start === 'number', 'Comment must have valid position');
@@ -2626,7 +2639,7 @@ TokenStruct collectRegex() { DEBUGIN(" collectRegex()");
   DEBUGOUT("collectRegex"); return regex;
 }
 
-bool isIdentifierName(TokenStruct token) { DEBUGIN("   isIdentifierName(TokenStruct token)");
+bool isIdentifierName(const TokenStruct token) { DEBUGIN("   isIdentifierName(TokenStruct token)");
    DEBUGOUT("", false); return has<int>(token.type, { Token::Identifier, Token::Keyword,
                  Token::BooleanLiteral, Token::NullLiteral});
  }
@@ -2889,7 +2902,7 @@ json_object* Node::toJson() {
   return this->jv;
 }
 
-string Node::s(u16string in) { return toU8string(in); }
+string Node::s(const u16string in) { return toU8string(in); }
 
 void Node::lookavailInit() {
     hasJv = true;
@@ -2923,11 +2936,16 @@ void Node::unused() {
     }
 }
 
-void Node::jvput(string path, string b) {json_put(jv, path.data(), b); }
-void Node::jvput(string path, int b) {json_put(jv, path.data(), b); }
-void Node::jvput(string path, bool b) {json_put(jv, path.data(), b); }
-void Node::jvput_dbl(string path, string b) {json_put_dbl(jv, path.data(), b); }
-void Node::jvput_null(string path) { json_put_null(jv, path.data()); }
+void Node::jvput(const string path, const string b) 
+    {json_put(jv, path.data(), b); }
+void Node::jvput(const string path, const int b) 
+    {json_put(jv, path.data(), b); }
+void Node::jvput(const string path, const bool b) 
+    {json_put(jv, path.data(), b); }
+void Node::jvput_dbl(const string path, const string b) 
+    {json_put_dbl(jv, path.data(), b); }
+void Node::jvput_null(const string path) 
+    { json_put_null(jv, path.data()); }
 
 //# different name to prevent easy bug of forgetting the string.
 //# root path, should be first in vector, then path within it, etc.
@@ -2963,7 +2981,7 @@ void Node::regNoadd(vector<string> paths, Node &child) {
     //DEBUGOUT("Node::regNoAdd");
 }
 
-void Node::reg(string path, Node &child) { 
+void Node::reg(const string path, Node &child) { 
     //DEBUGIN("reg(string path, Node &child)");
     regNoadd({path}, child);
     if (child.jv != nullptr) {
@@ -2974,7 +2992,7 @@ void Node::reg(string path, Node &child) {
     //DEBUGOUT("node::reg");
 }
 
-void Node::nodeVec(string path, vector< Node > & nodes) { 
+void Node::nodeVec(const string path, vector< Node > & nodes) { 
     //DEBUGIN("nodeVec(string path, vector< Node > & nodes)");
     json_object * root = json_newarr();
     for (int i=0; i<nodes.size(); i++) {
@@ -2988,7 +3006,7 @@ void Node::nodeVec(string path, vector< Node > & nodes) {
     json_put(jv, path.data(), root);
     //DEBUGOUT("node::nodeVec");
 }
-void Node::addType(Synt in) { 
+void Node::addType(const Synt in) { 
     type = Syntax[in];
     json_put(jv, "type", s(type));
 }
@@ -3139,7 +3157,9 @@ void Node::finishArrowFunctionExpression(vector< Node >& params, vector< Node >&
 }
 
 
-void Node::finishAssignmentExpression(u16string oper, Node& left, Node& right) { DEBUGIN("finishAssignmentExpression(u16string oper, Node& left, Node& right)");
+void Node::finishAssignmentExpression(const u16string oper, 
+                                      Node& left, 
+                                      Node& right) { DEBUGIN("finishAssignmentExpression(u16string oper, Node& left, Node& right)");
 
     addType(Synt::AssignmentExpression);
     jvput("operator", s(oper));
@@ -3160,7 +3180,9 @@ void Node::finishAssignmentExpression(u16string oper, Node& left, Node& right) {
 }
 
 
-void Node::finishBinaryExpression(u16string oper, Node& left, Node& right) { DEBUGIN("finishBinaryExpression(u16string oper, Node& left, Node& right)");
+void Node::finishBinaryExpression(const u16string oper, 
+                                  Node& left, 
+                                  Node& right) { DEBUGIN("finishBinaryExpression(u16string oper, Node& left, Node& right)");
     addType((oper == u"||" || oper == u"&&") ? 
             Synt::LogicalExpression : Synt::BinaryExpression);
     jvput("operator", s(oper));
@@ -3299,7 +3321,7 @@ u16string Node::getName() {
 }
 
 
-void Node::finishIdentifier(u16string name) { DEBUGIN("finishIdentifier(u16string name)");
+void Node::finishIdentifier(const u16string name) { DEBUGIN("finishIdentifier(u16string name)");
     addType(Synt::Identifier);
     this->name = name;
     jvput("name", s(name));
@@ -3316,7 +3338,7 @@ void Node::finishIfStatement(Node& test, Node& consequent, Node& alternate) { DE
 }
 
 
-void Node::finishLabeledStatement(Node label, Node body) { DEBUGIN("finishLabeledStatement(Node label, Node body)");
+void Node::finishLabeledStatement(Node& label, Node& body) { DEBUGIN("finishLabeledStatement(Node label, Node body)");
     addType(Synt::LabeledStatement);
     reg("label", label);
     reg("body", body);
@@ -3324,7 +3346,7 @@ void Node::finishLabeledStatement(Node label, Node body) { DEBUGIN("finishLabele
 }
 
 //# ?maybe check against js to make sure we're not missing anything.
-void Node::finishLiteral(TokenStruct token) { DEBUGIN("finishLiteral(TokenStruct token)");
+void Node::finishLiteral(TokenStruct& token) { DEBUGIN("finishLiteral(TokenStruct token)");
     addType(Synt::Literal);
     if (token.literaltype == LiteralType["String"]) {
         jvput("value", s(token.strvalue));
@@ -3373,7 +3395,7 @@ void Node::finishObjectExpression(vector<Node>& properties) { DEBUGIN("finishObj
 }
 
 
-void Node::finishPostfixExpression(u16string oper, Node& argument) { DEBUGIN("finishPostfixExpression(u16string oper, Node& argument)");
+void Node::finishPostfixExpression(const u16string oper, Node& argument) { DEBUGIN("finishPostfixExpression(u16string oper, Node& argument)");
     addType(Synt::UpdateExpression);
     jvput("operator", s(oper));
     reg("argument", argument);
@@ -3397,7 +3419,7 @@ void Node::finishProgram(vector< Node >& body) { DEBUGIN("finishProgram(vector< 
 }
 
 
-void Node::finishProperty(u16string kind, Node& key, Node& value) { DEBUGIN("finishProperty(u16string kind, Node& key, Node& value)");
+void Node::finishProperty(const u16string kind, Node& key, Node& value) { DEBUGIN("finishProperty(u16string kind, Node& key, Node& value)");
     addType(Synt::Property);
     reg("key", key);
     reg("value", value);
@@ -3461,7 +3483,7 @@ void Node::finishTryStatement(Node& block, vector<Node>& guardedHandlers,
 }
 
 
-void Node::finishUnaryExpression(u16string oper, Node& argument) { DEBUGIN("finishUnaryExpression(u16string oper, Node& argument)");
+void Node::finishUnaryExpression(const u16string oper, Node& argument) { DEBUGIN("finishUnaryExpression(u16string oper, Node& argument)");
     addType((oper == u"++" || oper == u"--") ? 
             Synt::UpdateExpression : Synt::UnaryExpression);
     jvput("operator", s(oper));
@@ -3472,7 +3494,7 @@ void Node::finishUnaryExpression(u16string oper, Node& argument) { DEBUGIN("fini
 
 
 void Node::finishVariableDeclaration(vector< Node >& declarations, 
-                                     u16string kind) {
+                                     const u16string kind) {
 
     addType(Synt::VariableDeclaration);
     nodeVec("declarations", declarations);
@@ -3571,14 +3593,14 @@ int throwToJS(ExError err) { DEBUGIN(" throwToJS(ExError err)");
 }
 #endif
 #ifdef THROWABLE
-void throwToJS(ExError err) { DEBUGIN(" throwToJS(ExError err)");
+void throwToJS(const ExError err) { DEBUGIN(" throwToJS(ExError err)");
     throw err;
     DEBUGOUT("throwToJs", false);
 }
 #endif
 
 
-ExError genExError(TokenStruct token, u16string messageFormat, 
+ExError genExError(TokenStruct& token, const u16string messageFormat, 
                    vector<u16string> args) { DEBUGIN(" genExError");
     ExError error;
     int searchresult;
@@ -3610,14 +3632,14 @@ ExError genExError(TokenStruct token, u16string messageFormat,
 }
 
 //throw_
-void throwError(TokenStruct token, u16string messageFormat, vector<u16string> args) { DEBUGIN(" throwError(TokenStruct token, u16string messageFormat, vector<u16string> args)");
+void throwError(TokenStruct& token, const u16string messageFormat, vector<u16string> args) { DEBUGIN(" throwError(TokenStruct token, u16string messageFormat, vector<u16string> args)");
     throwToJS(genExError(token, messageFormat, args));
     DEBUGOUT(" throwError()");
     return;
 }
 
 //throw_
-void throwErrorTolerant(TokenStruct token, u16string messageFormat, vector<u16string> args) { DEBUGIN(" throwErrorTolerant(TokenStruct token, u16string messageFormat, vector<u16string> args)");
+void throwErrorTolerant(TokenStruct& token, const u16string messageFormat, vector<u16string> args) { DEBUGIN(" throwErrorTolerant(TokenStruct token, u16string messageFormat, vector<u16string> args)");
     ExError result = genExError(token, messageFormat, args);
     if (extra.errorTolerant) {
         extra.errors.push_back(result);
@@ -3630,7 +3652,7 @@ void throwErrorTolerant(TokenStruct token, u16string messageFormat, vector<u16st
 
 // Throw an exception because of the token.
 //throw_
-void throwUnexpected(TokenStruct token) { DEBUGIN(" throwUnexpected(TokenStruct token)");
+void throwUnexpected(TokenStruct& token) { DEBUGIN(" throwUnexpected(TokenStruct token)");
     if (token.type == Token::EOFF) {
         throwError(token, Messages[Mssg::UnexpectedEOS], {});
     }
@@ -3667,7 +3689,7 @@ void throwUnexpected(TokenStruct token) { DEBUGIN(" throwUnexpected(TokenStruct 
 
 
 //throw_
-void expect(u16string value) { 
+void expect(const u16string value) { 
     //DEBUGIN(" expect(u16string value)");
 
     TokenStruct token = lex();
@@ -3688,7 +3710,7 @@ void expect(u16string value) {
 
 
 //throw_
-void expectTolerant(u16string value) {
+void expectTolerant(const u16string value) {
     // DEBUGIN(" expectTolerant(u16string value)");
     if (extra.errorTolerant) {
         TokenStruct token = lookahead;
@@ -3784,7 +3806,7 @@ Node parseSourceElement();
 //throw_
 Node parseStatement();
 //throw_
-vector<Node> parseVariableDeclarationList(u16string in);
+vector<Node> parseVariableDeclarationList(const u16string in);
 //throw_
 Node parseFunctionDeclaration();
 
@@ -4572,7 +4594,7 @@ Node parseConciseBody() { DEBUGIN(" parseConciseBody()");
 }
 
 void validateParamNode(ReinterpretOptions& options,
-                       Node param, u16string name) {
+                       Node param, const u16string name) {
     DEBUGIN("validateParamNode(Reinterp, Node, u16str)");
     u16string key = u"$";
     key.append(name);
@@ -4834,7 +4856,7 @@ Node parseVariableIdentifier() { DEBUGIN(" parseVariableIdentifier()");
 }
 
 //throw_
-Node parseVariableDeclaration(u16string kind) { DEBUGIN(" parseVariableDeclaration(u16string kind)");
+Node parseVariableDeclaration(const u16string kind) { DEBUGIN(" parseVariableDeclaration(u16string kind)");
     Node id(false, true), node(true, true), init(false, true);
     init = NULLNODE;
 
@@ -4858,7 +4880,7 @@ Node parseVariableDeclaration(u16string kind) { DEBUGIN(" parseVariableDeclarati
 }
 
 //throw_
-vector< Node > parseVariableDeclarationList(u16string kind) {
+vector< Node > parseVariableDeclarationList(const u16string kind) {
     vector< Node > list; 
 
     do {
@@ -4879,7 +4901,7 @@ vector< Node > parseVariableDeclarationList(u16string kind) {
 }
 
 //throw_
-Node parseVariableStatement(Node node) { DEBUGIN(" parseVariableStatement(Node node)");
+Node parseVariableStatement(Node& node) { DEBUGIN(" parseVariableStatement(Node node)");
     vector< Node > declarations;
 
     expectKeyword(u"var");
@@ -4895,7 +4917,7 @@ Node parseVariableStatement(Node node) { DEBUGIN(" parseVariableStatement(Node n
 // see http://wiki.ecmascript.org/doku.php?id=harmony:const
 // and http://wiki.ecmascript.org/doku.php?id=harmony:let
 //throw_
-Node parseConstLetDeclaration(u16string kind) { DEBUGIN(" parseConstLetDeclaration(u16string kind)");
+Node parseConstLetDeclaration(const u16string kind) { DEBUGIN(" parseConstLetDeclaration(u16string kind)");
     vector< Node > declarations;
     Node node(true, true);
 
@@ -4918,7 +4940,7 @@ Node parseEmptyStatement() { DEBUGIN(" parseEmptyStatement()");
 
 // 12.4 Expression Statement
 //throw_
-Node parseExpressionStatement(Node node) { DEBUGIN(" parseExpressionStatement(Node node)");
+Node parseExpressionStatement(Node& node) { DEBUGIN(" parseExpressionStatement(Node node)");
     Node expr(false, true);
     expr = parseExpression();
     consumeSemicolon();
@@ -4928,7 +4950,7 @@ Node parseExpressionStatement(Node node) { DEBUGIN(" parseExpressionStatement(No
 
 // 12.5 If statement
 //throw_
-Node parseIfStatement(Node node) { DEBUGIN(" parseIfStatement(Node node)");
+Node parseIfStatement(Node& node) { DEBUGIN(" parseIfStatement(Node node)");
     Node test(false, true), consequent(false, true), alternate(false, true);
     expectKeyword(u"if");
     expect(u"(");
@@ -4948,7 +4970,7 @@ Node parseIfStatement(Node node) { DEBUGIN(" parseIfStatement(Node node)");
 // 12.6 Iteration Statements
 
 //throw_
-Node parseDoWhileStatement(Node node) { DEBUGIN(" parseDoWhileStatement(Node node)");
+Node parseDoWhileStatement(Node& node) { DEBUGIN(" parseDoWhileStatement(Node node)");
     Node body(false, true), test(false, true);
     bool oldInIteration;
 
@@ -4969,7 +4991,7 @@ Node parseDoWhileStatement(Node node) { DEBUGIN(" parseDoWhileStatement(Node nod
 }
 
 //throw_
-Node parseWhileStatement(Node node) { DEBUGIN(" parseWhileStatement(Node node)");
+Node parseWhileStatement(Node& node) { DEBUGIN(" parseWhileStatement(Node node)");
     Node test(false, true), body(false, true);
     bool oldInIteration;
     expectKeyword(u"while");
@@ -4997,7 +5019,7 @@ Node parseForVariableDeclaration() { DEBUGIN(" parseForVariableDeclaration()");
 }
 
 //throw_
-Node parseForStatement(Node node) { DEBUGIN(" parseForStatement(Node node)");
+Node parseForStatement(Node& node) { DEBUGIN(" parseForStatement(Node node)");
 
     bool oldInIteration, previousAllowIn = state.allowIn;
 
@@ -5081,7 +5103,7 @@ Node parseForStatement(Node node) { DEBUGIN(" parseForStatement(Node node)");
 
 // 12.7 The continue statement
 //throw_
-Node parseContinueStatement(Node node) { DEBUGIN(" parseContinueStatement(Node node)");
+Node parseContinueStatement(Node& node) { DEBUGIN(" parseContinueStatement(Node node)");
     Node label(false, true);
     label = NULLNODE;
     u16string key;
@@ -5134,7 +5156,7 @@ Node parseContinueStatement(Node node) { DEBUGIN(" parseContinueStatement(Node n
 
 // 12.8 The break statement
 //throw_
-Node parseBreakStatement(Node node) { DEBUGIN(" parseBreakStatement(Node node)");
+Node parseBreakStatement(Node& node) { DEBUGIN(" parseBreakStatement(Node node)");
     Node label(false, true);
     u16string key;
     bool pltresult;
@@ -5187,7 +5209,7 @@ Node parseBreakStatement(Node node) { DEBUGIN(" parseBreakStatement(Node node)")
 
 // 12.9 The return statement
 //throw_
-Node parseReturnStatement(Node node) { DEBUGIN(" parseReturnStatement(Node node)");
+Node parseReturnStatement(Node& node) { DEBUGIN(" parseReturnStatement(Node node)");
     Node argument(false, true);
     bool pltresult;
     argument = NULLNODE;
@@ -5228,7 +5250,7 @@ Node parseReturnStatement(Node node) { DEBUGIN(" parseReturnStatement(Node node)
 
 // 12.10 The with statement
 //throw_
-Node parseWithStatement(Node node) { DEBUGIN(" parseWithStatement(Node node)");
+Node parseWithStatement(Node& node) { DEBUGIN(" parseWithStatement(Node node)");
     Node object(false, true), body(false, true);
 
     if (strict) {
@@ -5276,7 +5298,7 @@ Node parseSwitchCase() { DEBUGIN(" parseSwitchCase()");
 }
 
 //throw_
-Node parseSwitchStatement(Node node) { DEBUGIN(" parseSwitchStatement(Node node)");
+Node parseSwitchStatement(Node& node) { DEBUGIN(" parseSwitchStatement(Node node)");
     Node discriminant(false, true), clause(false, true); 
     vector< Node > cases; 
     bool oldInSwitch, defaultFound;
@@ -5320,7 +5342,7 @@ Node parseSwitchStatement(Node node) { DEBUGIN(" parseSwitchStatement(Node node)
 
 // 12.13 The throw statement
 //throw_
-Node parseThrowStatement(Node node) { DEBUGIN(" parseThrowStatement(Node node)");
+Node parseThrowStatement(Node& node) { DEBUGIN(" parseThrowStatement(Node node)");
     Node argument(false, true);
     bool pltresult;
 
@@ -5361,7 +5383,7 @@ Node parseCatchClause() { DEBUGIN(" parseCatchClause()");
 }
 
 //throw_
-Node parseTryStatement(Node node) { DEBUGIN(" parseTryStatement(Node node)");
+Node parseTryStatement(Node& node) { DEBUGIN(" parseTryStatement(Node node)");
     Node block(false, true), finalizer(false, true); 
     vector< Node > handlers;
 
@@ -5398,7 +5420,7 @@ Node parseTryStatement(Node node) { DEBUGIN(" parseTryStatement(Node node)");
 // 12.15 The debugger statement
 
 //throw_
-Node parseDebuggerStatement(Node node) { DEBUGIN(" parseDebuggerStatement(Node node)");
+Node parseDebuggerStatement(Node& node) { DEBUGIN(" parseDebuggerStatement(Node node)");
     expectKeyword(u"debugger");
     consumeSemicolon();
     node.finishDebuggerStatement();
@@ -5574,7 +5596,7 @@ json_require(json_require(sourceElement.jv, "expression", false),
 
 //throw_ 
 void validateParam(ParseParamsOptions& options, 
-                    TokenStruct param, u16string name) {
+                    TokenStruct param, const u16string name) {
      DEBUGIN("validateParam");
      u16string key = u"$";
      key.append(name);
