@@ -3473,6 +3473,7 @@ int throwToJS(ExError err) { DEBUGIN(" throwToJS(ExError err)");
 #ifdef THROWABLE
 void throwToJS(ExError err) { DEBUGIN(" throwToJS(ExError err)");
     throw err;
+    DEBUGOUT("throwToJs", false);
 }
 #endif
 
@@ -3511,6 +3512,7 @@ ExError genExError(TokenStruct token, u16string messageFormat,
 //throw_
 void throwError(TokenStruct token, u16string messageFormat, vector<u16string> args) { DEBUGIN(" throwError(TokenStruct token, u16string messageFormat, vector<u16string> args)");
     throwToJS(genExError(token, messageFormat, args));
+    DEBUGOUT(" throwError()");
     return;
 }
 
@@ -5866,6 +5868,7 @@ json_object* tokenizeImpl(const u16string code,
         if (out.err) { 
             if (extra.errorTolerant) {
                 extra.errors.push_back(retError); 
+                break;
             } else {
                 json_object_put(outJson);
                 if (errorType == 0) {
@@ -5881,6 +5884,7 @@ json_object* tokenizeImpl(const u16string code,
         } catch (ExError& e) { 
             if (extra.errorTolerant) {
                 extra.errors.push_back(e); 
+                break;
             } else {
                 if (retErrorsAsJson) {
                     json_object_put(outJson);
