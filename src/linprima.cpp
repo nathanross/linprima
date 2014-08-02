@@ -1638,7 +1638,9 @@ void softAssert(const bool condition, const string message) { DEBUGIN(" assert(b
          (ch >= 0x41 && ch <= 0x5A) ||         // A..Z
          (ch >= 0x61 && ch <= 0x7A) ||         // a..z
          (ch == 0x5C) ||                      // \ (backslash)
-         ((ch >= 0x80) && regex_search(toU8string(u16string({ch})), m, Regex["NonAsciiIdentifierStart"]));
+         ((ch >= 0x80) && regex_search(toU8string(u16string({ch})), 
+                                       m, 
+                                       Regex["NonAsciiIdentifierStart"]));
  } 
 
  bool isIdentifierPart(const char16_t ch) { DEBUGIN("   isIdentifierPart(const char16_t ch)");
@@ -1648,7 +1650,9 @@ void softAssert(const bool condition, const string message) { DEBUGIN(" assert(b
          (ch >= 0x61 && ch <= 0x7A) ||         // a..z
          (ch >= 0x30 && ch <= 0x39) ||         // 0..9
          (ch == 0x5C) ||                      // \ (backslash)
-         ((ch >= 0x80) && regex_search(toU8string(u16string({ch})), m, Regex["NonAsciiIdentifierPart"]));
+         ((ch >= 0x80) && regex_search(toU8string(u16string({ch})), 
+                                       m, 
+                                       Regex["NonAsciiIdentifierPart"]));
  }
 
  // 7.6.1.2 Future Reserved Words
@@ -2778,7 +2782,6 @@ TokenStruct advance() { DEBUGIN(" advance()");
     }
 
     ch = source(idx);
-
     if (isIdentifierStart(ch)) {
       return DEBUGRET("adv", scanIdentifier());
     }
@@ -3654,8 +3657,8 @@ int throwToJS(ExError err) { DEBUGIN(" throwToJS(ExError err)");
 #endif
 #ifdef THROWABLE
 void throwToJS(const ExError err) { DEBUGIN(" throwToJS(ExError err)");
+    DEBUGOUT("throwToJs", false);    
     throw err;
-    DEBUGOUT("throwToJs", false);
 }
 #endif
 
@@ -6036,7 +6039,21 @@ json_object* tokenizeImpl(const u16string code,
     extra.errorTolerant = options.tolerant;
 
 
+#ifndef THROWABLE
+    ErrWrapint tmp = peek();
+    if (tmp.err) {
+        if (!extra.errorTolerant) {
+            json_object_put(outJson);
+            if (errorType == 0) {
+                return retError.toJson();
+            }
+            return retAssertError.toJson();
+        }
+    }
+#endif
+#ifdef THROWABLE
     peek();
+#endif
 
     if (lookahead.type == Token::EOFF) {
         json_put(outJson, "tokenlist", 
@@ -6048,8 +6065,10 @@ json_object* tokenizeImpl(const u16string code,
     lex();
     while (lookahead.type != Token::EOFF) {
 #ifndef THROWABLE
+        printf("hh");
         TokenStruct out = lex();
         if (out.err) { 
+            printf("kk");
             if (extra.errorTolerant) {
                 extra.errors.push_back(retError); 
                 break;
@@ -6311,6 +6330,7 @@ extern "C" {
     // characters as represented in javascript strings (ucs)
     char* tokenizeASMJS(const char *code, int codelen,
                         const char* options) {
+        //printf("received string: =%s=\n", code);
 
             return strToChar(tokenizeRetString(
               toU16string(string(code)).substr(0,codelen), 
