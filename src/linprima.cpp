@@ -4208,7 +4208,7 @@ Node parsePostfixExpression() { DEBUGIN(" parsePostfixExpression()");
 
     if (lookahead.type == Token["Punctuator"]) {
         pltresult = peekLineTerminator(); //#throw52
-        if ((match(u"++") || match(u"--")) && pltresult) {
+        if ((match(u"++") || match(u"--")) && !pltresult) {
             // 11.3.1, 11.3.2
             if (strict && expr.type == Syntax["Identifier"] && 
                 isRestrictedWord(expr.name)) {
