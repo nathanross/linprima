@@ -4468,7 +4468,8 @@ Node parseUnaryExpression() { DEBUGIN(" parseUnaryExpression()");
   DEBUGOUT("parseUnary"); return expr;
 }
 
-int binaryPrecedence(TokenStruct token, bool allowIn) {
+int binaryPrecedence(const TokenStruct token, 
+                     const bool allowIn) {
     DEBUGIN(" binaryPrecedence(Tokenstruct token, bool allowIn)");
     int prec = 0;
     u16string tokval;
@@ -4737,7 +4738,7 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node >& expressions) {
 }
 
 //throw_
-Node parseArrowFunctionExpression(ReinterpretOut options, Node node) { DEBUGIN(" parseArrowFunctionExpression(ReinterpretOut options, Node node)");
+Node parseArrowFunctionExpression(const ReinterpretOut options, Node node) { DEBUGIN(" parseArrowFunctionExpression(ReinterpretOut options, Node node)");
      bool previousStrict;
      Node body(false, true);
 
@@ -6321,8 +6322,7 @@ extern "C" {
 
         return strToChar(parseRetString(
                     toU16string(string(code)).substr(0, codelen), 
-                                       OptionsStruct(
-                                                     options)));
+                                       OptionsStruct(options)));
 
     }
 
@@ -6337,7 +6337,3 @@ int main() {
     result.append("\n");
     printf("%s", result.data());
 }
-
-
-
-
