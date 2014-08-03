@@ -2,8 +2,12 @@
 #include <vector>
 #include <map>
 #include <string>
+
+#ifndef LIBSTDC
 #include <locale>
 #include <codecvt>
+#endif
+
 #include <algorithm>
 #include <functional>
 #include <unordered_set>
@@ -183,21 +187,45 @@ public:
 
 #endif
 
-string toU8string(const u16string input){ 
-    std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
-  return myconv.to_bytes(input);
+
+#ifdef LIBSTDC
+
+//assume everything is ascii.    
+string toU8(const u16string input) { 
+    char * outtmp = new char[input.length()+1];
+    for (unsigned int i=0; i<input.length(); i++) {
+        outtmp[i] = (char) ((int) input[i]);
+    } 
+    string out = string(outtmp, input.length());
+    free(outtmp);
+    return out;
 }
+
+string toU8(const char16_t* input) {
+    return toU8(u16string(input));
+}
+
+u16string toU16string(const string input){ 
+    char16_t * outtmp = new char16_t[input.length()+1];
+    for (unsigned int i=0; i<input.length(); i++) {
+        outtmp[i] = (char16_t) ((int) input[i]);
+    } 
+    u16string out = u16string(outtmp, input.length());
+    free(outtmp);
+    return out;
+}
+#endif
+#ifndef LIBSTDC
+ 
 string toU8(const u16string input){ 
     std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
-  return myconv.to_bytes(input);
+    return myconv.to_bytes(input);
 }
 
 string toU8(const char16_t* input) {
   return toU8(u16string(input));
 }
-string toU8string(const char16_t* input) {
-  return toU8string(u16string(input));
-}
+
 wstring toWstring(const string input) {
     std::wstring_convert< std::codecvt_utf8<wchar_t>> myconv;
   return myconv.from_bytes(input);
@@ -208,6 +236,7 @@ u16string toU16string(const string input){
 
  return myconv.from_bytes(input);
 }
+#endif
 
 
 //json_put_dbl: pass in the string you want in the json, and it'll get put in there without the quotes.
@@ -249,7 +278,7 @@ json_object* json_put_dbl(json_object *a, const char *b, string c) {
                                0x0, json_object_free_userdata);
    return tmp;
 }
-inline json_object* json_put_dbl(json_object *a, const char *b, u16string c) { return json_put_dbl(a,b,toU8string(c)); }
+inline json_object* json_put_dbl(json_object *a, const char *b, u16string c) { return json_put_dbl(a,b,toU8(c)); }
 
 json_object* json_push_dbl(json_object *a, string c) { 
     json_object *tmp = json_object_new_string(c.data());
@@ -258,7 +287,7 @@ json_object* json_push_dbl(json_object *a, string c) {
                                0x0, json_object_free_userdata);
    return tmp;
 }
-inline json_object* json_push_dbl(json_object *a, const char *b, u16string c) { return json_push_dbl(a,toU8string(c)); }
+inline json_object* json_push_dbl(json_object *a, const char *b, u16string c) { return json_push_dbl(a,toU8(c)); }
 
 json_object* json_put_newmap(json_object *a, const char *b) { 
     json_object *tmp = json_object_new_object();
@@ -297,7 +326,7 @@ json_object* json_put(json_object * a, const char* b, string c) {
    return tmp;
 }
 inline json_object* json_put(json_object *a, const char *b, const u16string c) 
-{ return json_put(a,b,toU8string(c)); }
+{ return json_put(a,b,toU8(c)); }
 
 json_object* json_put(json_object *a, const char *b, const int c) { 
     json_object *tmp = json_object_new_double(c);
@@ -319,7 +348,7 @@ json_object* json_push(json_object *a, const string c) {
     json_object_array_add(a, tmp);
    return tmp;
 }
-inline json_object* json_push(json_object *a, const u16string c) { return json_push(a,toU8string(c)); }
+inline json_object* json_push(json_object *a, const u16string c) { return json_push(a,toU8(c)); }
 json_object* json_push(json_object *a, const int c) { 
     json_object *tmp = json_object_new_double(c);
     json_object_array_add(a, tmp);
@@ -518,7 +547,7 @@ int parseInt(u16string in_u16, int radix) {  // !!!
     const int upperA = 65;
     const int lowerA = 97;
 
-    string in = toU8string(in_u16);
+    string in = toU8(in_u16);
     int length,
         cur,
         result = 0;
@@ -544,11 +573,11 @@ double sciNoteToDouble(string in) {
     char current;
     string factor = "0";
     string exp = "0";
-    bool dotPassed = false, esignPassed = false;
-    for (int i=0;i<in.length();i++) {
+    bool esignPassed = false; //, dotPassed = false;
+    for (unsigned int i=0;i<in.length();i++) {
         current = in[i];
         if (current == u'.') {
-            dotPassed = true;
+            //dotPassed = true;
             factor.append(string({current}));
         } else if (current == u'E' || current == u'e' ) {
             esignPassed = true; 
@@ -1014,8 +1043,8 @@ struct ExtraStruct {
     string source; 
 
     bool tokenize;
-    int openParenToken;
-    int openCurlyToken;
+    unsigned int openParenToken;
+    unsigned int openCurlyToken;
 
     bool range;
     bool loc;
@@ -1264,18 +1293,6 @@ map<string, int> LiteralType = {
     {"Null", 6}
 };
 
-    /* map<string, int> Token = {
-    {"BooleanLiteral", 1},
-    {"EOF", 2},
-    {"Identifier", 3},
-    {"Keyword", 4},
-    {"NullLiteral", 5},
-    {"NumericLiteral", 6},
-    {"Punctuator", 7},
-    {"StringLiteral", 8},
-    {"RegularExpression", 9}
-}; */
-
 //#todo: investigate turning this into an enum'd class
 //#to avoid adding unsightly static casts everywhere used,
 //#will have to change member .type in TokenStruct, and likely
@@ -1397,89 +1414,90 @@ map<Synt, string> Syntax = {
     {Synt::WithStatement, "WithStatement"}
 };
 
- map<string, Node> PlaceHolders { 
-     {"ArrowParameterPlaceHolder", Node()} 
- };
+map<string, Node> PlaceHolders { 
+    {"ArrowParameterPlaceHolder", Node()} 
+};
  //map<string, int> 
 
 
- map<string, int> PropertyKind = {
-     {"Data", 1},
-     {"Get", 2},
-     {"Set", 4}
- };
+map<string, int> PropertyKind = {
+    {"Data", 1},
+    {"Get", 2},
+    {"Set", 4}
+};
 
  // Error messages should be identical to V8.
- enum class Mssg {
-     UnexpectedToken,
-     UnexpectedNumber,
-     UnexpectedString,
-     UnexpectedIdentifier,
-     UnexpectedReserved,
-     UnexpectedEOS,
-     NewlineAfterThrow,
-     InvalidRegExp,
-     UnterminatedRegExp,
-     InvalidLHSInAssignment,
-     InvalidLHSInForIn,
-     MultipleDefaultsInSwitch,
-     NoCatchOrFinally,
-     UnknownLabel,
-     Redeclaration,
-     IllegalContinue,
-     IllegalBreak,
-     IllegalReturn,
-     StrictModeWith,
-     StrictCatchVariable,
-     StrictVarName,
-     StrictParamName,
-     StrictParamDupe,
-     StrictFunctionName,
-     StrictOctalLiteral,
-     StrictDelete,
-     StrictDuplicateProperty,
-     AccessorDataProperty,
-     AccessorGetSet,
-     StrictLHSAssignment,
-     StrictLHSPostfix,
-     StrictLHSPrefix,
-     StrictReservedWord
- };
+enum class Mssg {
+    None,
+    UnexpectedToken,
+    UnexpectedNumber,
+    UnexpectedString,
+    UnexpectedIdentifier,
+    UnexpectedReserved,
+    UnexpectedEOS,
+    NewlineAfterThrow,
+    InvalidRegExp,
+    UnterminatedRegExp,
+    InvalidLHSInAssignment,
+    InvalidLHSInForIn,
+    MultipleDefaultsInSwitch,
+    NoCatchOrFinally,
+    UnknownLabel,
+    Redeclaration,
+    IllegalContinue,
+    IllegalBreak,
+    IllegalReturn,
+    StrictModeWith,
+    StrictCatchVariable,
+    StrictVarName,
+    StrictParamName,
+    StrictParamDupe,
+    StrictFunctionName,
+    StrictOctalLiteral,
+    StrictDelete,
+    StrictDuplicateProperty,
+    AccessorDataProperty,
+    AccessorGetSet,
+    StrictLHSAssignment,
+    StrictLHSPostfix,
+    StrictLHSPrefix,
+    StrictReservedWord
+};
 map<Mssg, string> Messages = {
-     {Mssg::UnexpectedToken, "Unexpected token %0"},
-     {Mssg::UnexpectedNumber, "Unexpected number"},
-     {Mssg::UnexpectedString, "Unexpected string"},
-     {Mssg::UnexpectedIdentifier, "Unexpected identifier"},
-     {Mssg::UnexpectedReserved, "Unexpected reserved word"},
-     {Mssg::UnexpectedEOS, "Unexpected end of input"},
-     {Mssg::NewlineAfterThrow, "Illegal newline after throw"},
-     {Mssg::InvalidRegExp, "Invalid regular expression"},
-     {Mssg::UnterminatedRegExp, "Invalid regular expression: missing /"},
-     {Mssg::InvalidLHSInAssignment, "Invalid left-hand side in assignment"},
-     {Mssg::InvalidLHSInForIn, "Invalid left-hand side in for-in"},
-     {Mssg::MultipleDefaultsInSwitch, "More than one default clause in switch statement"},
-     {Mssg::NoCatchOrFinally, "Missing catch or finally after try"},
-     {Mssg::UnknownLabel, "Undefined label \'%0\'"},
-     {Mssg::Redeclaration, "%0 \'%1\' has already been declared"},
-     {Mssg::IllegalContinue, "Illegal continue statement"},
-     {Mssg::IllegalBreak, "Illegal break statement"},
-     {Mssg::IllegalReturn, "Illegal return statement"},
-     {Mssg::StrictModeWith, "Strict mode code may not include a with statement"},
-     {Mssg::StrictCatchVariable, "Catch variable may not be eval or arguments in strict mode"},
-     {Mssg::StrictVarName, "Variable name may not be eval or arguments in strict mode"},
-     {Mssg::StrictParamName, "Parameter name eval or arguments is not allowed in strict mode"},
-     {Mssg::StrictParamDupe, "Strict mode function may not have duplicate parameter names"},
-     {Mssg::StrictFunctionName, "Function name may not be eval or arguments in strict mode"},
-     {Mssg::StrictOctalLiteral, "Octal literals are not allowed in strict mode."},
-     {Mssg::StrictDelete, "Delete of an unqualified identifier in strict mode."},
-     {Mssg::StrictDuplicateProperty, "Duplicate data property in object literal not allowed in strict mode"},
-     {Mssg::AccessorDataProperty, "Object literal may not have data and accessor property with the same name"},
-     {Mssg::AccessorGetSet, "Object literal may not have multiple get/set accessors with the same name"},
-     {Mssg::StrictLHSAssignment, "Assignment to eval or arguments is not allowed in strict mode"},
-     {Mssg::StrictLHSPostfix, "Postfix increment/decrement may not have eval or arguments operand in strict mode"},
-     {Mssg::StrictLHSPrefix, "Prefix increment/decrement may not have eval or arguments operand in strict mode"},
-     {Mssg::StrictReservedWord, "Use of future reserved word in strict mode"}
- };
+    {Mssg::UnexpectedToken, "Unexpected token %0"},
+    {Mssg::UnexpectedNumber, "Unexpected number"},
+    {Mssg::UnexpectedString, "Unexpected string"},
+    {Mssg::UnexpectedIdentifier, "Unexpected identifier"},
+    {Mssg::UnexpectedReserved, "Unexpected reserved word"},
+    {Mssg::UnexpectedEOS, "Unexpected end of input"},
+    {Mssg::NewlineAfterThrow, "Illegal newline after throw"},
+    {Mssg::InvalidRegExp, "Invalid regular expression"},
+    {Mssg::UnterminatedRegExp, "Invalid regular expression: missing /"},
+    {Mssg::InvalidLHSInAssignment, "Invalid left-hand side in assignment"},
+    {Mssg::InvalidLHSInForIn, "Invalid left-hand side in for-in"},
+    {Mssg::MultipleDefaultsInSwitch, "More than one default clause in switch statement"},
+    {Mssg::NoCatchOrFinally, "Missing catch or finally after try"},
+    {Mssg::UnknownLabel, "Undefined label \'%0\'"},
+    {Mssg::Redeclaration, "%0 \'%1\' has already been declared"},
+    {Mssg::IllegalContinue, "Illegal continue statement"},
+    {Mssg::IllegalBreak, "Illegal break statement"},
+    {Mssg::IllegalReturn, "Illegal return statement"},
+    {Mssg::StrictModeWith, "Strict mode code may not include a with statement"},
+    {Mssg::StrictCatchVariable, "Catch variable may not be eval or arguments in strict mode"},
+    {Mssg::StrictVarName, "Variable name may not be eval or arguments in strict mode"},
+    {Mssg::StrictParamName, "Parameter name eval or arguments is not allowed in strict mode"},
+    {Mssg::StrictParamDupe, "Strict mode function may not have duplicate parameter names"},
+    {Mssg::StrictFunctionName, "Function name may not be eval or arguments in strict mode"},
+    {Mssg::StrictOctalLiteral, "Octal literals are not allowed in strict mode."},
+    {Mssg::StrictDelete, "Delete of an unqualified identifier in strict mode."},
+    {Mssg::StrictDuplicateProperty, "Duplicate data property in object literal not allowed in strict mode"},
+    {Mssg::AccessorDataProperty, "Object literal may not have data and accessor property with the same name"},
+    {Mssg::AccessorGetSet, "Object literal may not have multiple get/set accessors with the same name"},
+    {Mssg::StrictLHSAssignment, "Assignment to eval or arguments is not allowed in strict mode"},
+    {Mssg::StrictLHSPostfix, "Postfix increment/decrement may not have eval or arguments operand in strict mode"},
+    {Mssg::StrictLHSPrefix, "Prefix increment/decrement may not have eval or arguments operand in strict mode"},
+    {Mssg::StrictReservedWord, "Use of future reserved word in strict mode"}
+};
 
 
 
@@ -1583,7 +1601,7 @@ bool isLineTerminator(const char16_t ch) {
 bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * arr) {
     vector< unsigned int > *range_starts = &(arr->at(0)),
         *range_ends = &(arr->at(1));
-    int pos = lower_bound(range_starts->begin(), 
+    unsigned int pos = lower_bound(range_starts->begin(), 
                           range_starts->end(), key) - range_starts->begin();
     if (range_starts->at(pos) > key) { 
         if (pos == 0) { return false; } pos--; 
@@ -1654,7 +1672,17 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
      return (id == "eval" || id == "arguments");
  }
 
- // 7.6.1.1 Keywords
+const unordered_set<string> KEYWORDSET = 
+    {"if", "in", "do", "var", "for", "new", "try", "let",
+     "this", "else", "case", "void", "with", "enum",
+     "while", "break", "catch", "throw", 
+     "const", "yield", "class", "super",
+     "return", "typeof", "delete",
+     "switch", "export", "import", "default",
+     "finally", "extends", "function", "continue", "debugger",
+     "instanceof"};
+ 
+// 7.6.1.1 Keywords
  bool isKeyword(const string id) {
      DEBUGIN("   isKeyword(const u16string id)", false);
      if (strict && isStrictModeReservedWord(id)) { 
@@ -1665,44 +1693,8 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
      // 'const' is specialized as Keyword in V8.
      // 'yield' and 'let' are for compatiblity with SpiderMonkey and ES.next.
      // Some others are from future reserved words.
+     return has(id, KEYWORDSET);
 
-     switch (id.length()) {
-         case 2:
-             DEBUGOUT("", false); 
-             return (id == "if") || (id == "in") || (id == "do");
-         case 3:
-             DEBUGOUT("", false); 
-             return has(id, 
-                        { "var", "for", "new", "try", "let"});
-         case 4:
-             DEBUGOUT("", false); 
-             return has(id, 
-                        { "this", "else", "case", "void", "with", "enum"});
-         case 5:
-             DEBUGOUT("", false); 
-             return has(id, 
-                        {"while", "break", "catch", "throw", 
-                                "const", "yield", "class", "super"});
-         case 6:
-             DEBUGOUT("", false); 
-             return has(id, 
-                        {"return", "typeof", "delete",
-                         "switch", "export", "import"});
-         case 7:
-             DEBUGOUT("", false); 
-             return (id == "default") || 
-                 (id == "finally") || (id == "extends");
-         case 8:
-             DEBUGOUT("", false); 
-             return (id == "function") || 
-                 (id == "continue") || (id == "debugger");
-         case 10:
-             DEBUGOUT("", false); 
-             return (id == "instanceof");
-         default:
-             DEBUGOUT("", false); 
-             return false;
-     }
  }
 
  // 7.4 Comments
@@ -2086,10 +2078,12 @@ TokenStruct scanIdentifier() {
 
 u16string emccu16str;
 
+
  // 7.7 Punctuators
  //throw_
 TokenStruct scanPunctuator() {
     DEBUGIN(" scanPunctuator()", false);
+
     TokenStruct t;
     int start = idx;
 
@@ -2167,7 +2161,7 @@ TokenStruct scanPunctuator() {
                 return t;
             }
         }
-    }
+    } 
 
 
     // 4-character punctuator: >>>=
@@ -2969,7 +2963,7 @@ json_object* Node::toJson() {
   return this->jv;
 }
 
-string Node::s(const u16string in) { return toU8string(in); }
+string Node::s(const u16string in) { return toU8(in); }
 
 void Node::lookavailInit() {
     hasJv = true;
@@ -3033,7 +3027,7 @@ void Node::regNoadd(const vector<string> paths, const Node &child) {
         if (child.regexPaths[0][0] == ".") {
             regexPaths.push_back(paths);
         } else {
-            for (int i=0; i<child.regexPaths.size(); i++) {
+            for (unsigned int i=0; i<child.regexPaths.size(); i++) {
                 regexPaths.push_back(child.regexPaths[i]);
                 for (int j=paths.size()-1; j>=0; j--) {
                     regexPaths.back().push_back(paths[j]);
@@ -3058,7 +3052,7 @@ void Node::reg(const string path, const Node &child) {
 void Node::nodeVec(const string path, const vector< Node > & nodes) { 
     //DEBUGIN("nodeVec(string path, vector< Node > & nodes)", false);
     json_object * root = json_newarr();
-    for (int i=0; i<nodes.size(); i++) {
+    for (unsigned int i=0; i<nodes.size(); i++) {
         if (nodes[i].isNull) {
             json_push_null(root);
         } else {
@@ -3076,7 +3070,7 @@ void Node::addType(const Synt in) {
 json_object* Node::regexPaths2json() { 
     //DEBUGIN("Node::regexPaths2json()", false);
     json_object *tmp, *root = json_newarr();
-    for (int i=0; i<regexPaths.size(); i++) {
+    for (unsigned int i=0; i<regexPaths.size(); i++) {
         tmp = json_newarr();
         for (int j=regexPaths[i].size()-1; j>=0; j--) {
             json_push(tmp, regexPaths[i][j]);            
@@ -3771,7 +3765,7 @@ ExError genExError(TokenStruct& token, const string messageFormat,
     ExError error;
     int searchresult;
     string searchkey, msg = messageFormat;
-    for (int i=0; i<args.size(); i++) {
+    for (unsigned int i=0; i<args.size(); i++) {
         searchkey="%";
         //#all this conversion is a bit ridiculous. it may
         //#be simpler here to work with just strings.
@@ -3827,36 +3821,26 @@ void throwErrorTolerant(TokenStruct& token,
 //throw_
 void throwUnexpected(TokenStruct& token) {
     DEBUGIN(" throwUnexpected(TokenStruct token)", false);
-    if (token.type == TknType::EOFF) {
-        throwError(token, Messages[Mssg::UnexpectedEOS], {});
+    Mssg errmsg = 
+        (token.type == TknType::EOFF)? Mssg::UnexpectedEOS :
+        (token.type == TknType::NumericLiteral)? Mssg::UnexpectedNumber:
+        (token.type == TknType::StringLiteral)? Mssg::UnexpectedString :
+        (token.type == TknType::Identifier)? Mssg::UnexpectedIdentifier :
+        (token.type == TknType::Keyword &&
+         isFutureReservedWord(token.strvalue))? Mssg::UnexpectedReserved :
+        Mssg::None;
+    if (errmsg != Mssg::None) {
+        throwError(token, Messages[errmsg], {});
     }
-
-    if (token.type == TknType::NumericLiteral) {
-        throwError(token, Messages[Mssg::UnexpectedNumber], {});
-    }
-
-    if (token.type == TknType::StringLiteral) {
-        throwError(token, Messages[Mssg::UnexpectedString], {});
-    }
-
-    if (token.type == TknType::Identifier) {
-        throwError(token, Messages[Mssg::UnexpectedIdentifier], {});
-    }
-
-    if (token.type == TknType::Keyword) {
-        if (isFutureReservedWord(token.strvalue)) {
-            throwError(token, Messages[Mssg::UnexpectedReserved],{});
-        } else if (strict && isStrictModeReservedWord(token.strvalue)) {
-            throwErrorTolerant(token, Messages[Mssg::StrictReservedWord], {});
-            DEBUGOUT("", false); 
-            return;
-        }
-        throwError(token, Messages[Mssg::UnexpectedToken], {token.strvalue});
-    }
-
+    if (token.type == TknType::Keyword && strict &&
+        isStrictModeReservedWord(token.strvalue)) {
+        throwErrorTolerant(token, Messages[Mssg::StrictReservedWord], {});
+        return;
+    }    
     // BooleanLiteral, NullLiteral, or Punctuator.
     throwError(token, Messages[Mssg::UnexpectedToken], {token.strvalue});
     return; //#throw52
+
 }
     // Expect the next token to match the specified punctuator.
     // If not, an exception will be thrown.
@@ -6213,11 +6197,10 @@ Node parseProgram() {
 //throw_ 
 void filterTokenLocation() {
     DEBUGIN(" filterTokenLocation()", false);
-    int i;
     TokenRecord token, entry;
     vector<TokenRecord> tokens;
 
-    for (i = 0; i < extra.tokenRecords.size(); ++i) {
+    for (unsigned i = 0; i < extra.tokenRecords.size(); ++i) {
         entry = extra.tokenRecords[i];
         token.typestring = entry.typestring;
         token.valuestring = entry.valuestring;
@@ -6593,13 +6576,32 @@ extern "C" {
     }
 
 }
-
+/*
+#include "profiler.h"
 
 int main() {
-    string somecode = "done: while (true) { continue done }";
-
-    string someopt = "{ 'loc':true, 'range':true, 'tokens':true }";
-    string result = string(parseExtern(somecode.data(), someopt.data()));
-    result.append("\n");
-    printf("%s", result.data());
+    string result, allopt;
+    unsigned int resultlength = 0;
+    
+    vector<string> codeSamples = {
+        "var x = 4;",
+        "x = { answer: 42 }",
+        "x = { get width() { return m_width }, set width(width) { m_width = width; } }",
+        "if (morning) goodMorning(); else goodDay()",
+        "for (var i = function() { return 10 in [] } in list) process(x);"
+        
+    };
+    allopt = "{ 'loc':true, 'range':true, 'tokens':true }";
+    ProfilerStart("/tmp/profile2");
+    for (int j = 0; j<2500; j++) {
+        for (unsigned int i=0; i<codeSamples.size(); i++){ 
+            result = string(parseASMJS(codeSamples[i].data(), 
+                                   codeSamples[i].length(),
+                                   allopt.data()));
+            resultlength += result.length() % 6;
+        }
+    }
+    ProfilerStop();
+    printf("total length %u\n", resultlength);
 }
+*/
