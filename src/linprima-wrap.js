@@ -16,8 +16,6 @@
 }(this, function (exports, root) {
     'use strict';
 
-    
-
     //=FFI= //%FFIsnippet.js%
 
     //=ASM= //%linprima.asm.js%
@@ -72,14 +70,6 @@
     };
 
     var parse = function(code, options) {
-        /*if ('console' in root && code == 'var x = /(s/g') {
-            root.console.log(code);
-            if (options === 'undefined') {
-                console.log("undefined options");
-            } else {
-                root.console.log(JSON.stringify(options));
-            }
-        }*/
         if (typeof code !== 'string' && !(code instanceof String)) {
             code = String(code);
         }
@@ -89,7 +79,6 @@
                                             //=ASM=   code.length, 
                                                       optStr));
         if ("isError" in out) {
- //           return out;
             throw genErrorObject(out);
         }
         if ("isAssert" in out) {
