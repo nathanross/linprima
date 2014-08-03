@@ -25,8 +25,11 @@ static inline std::string &ltrim(std::string &s) {
     return s;
 }
 
-
+#if defined DO_DEBUG
+bool DEBUG_ON= (bool) 1;
+#else
 bool DEBUG_ON= (bool) 0;
+#endif
 bool HIPRI_ONLY= (bool) 1;
 
 string colorHash(string text) {
@@ -172,302 +175,302 @@ public:
 
 #endif
 
- string toU8string(const u16string input){ 
-     std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
-   return myconv.to_bytes(input);
- }
- string toU8(const u16string input){ 
-     std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
-   return myconv.to_bytes(input);
- }
+string toU8string(const u16string input){ 
+    std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
+  return myconv.to_bytes(input);
+}
+string toU8(const u16string input){ 
+    std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
+  return myconv.to_bytes(input);
+}
 
- string toU8(const char16_t* input) {
-   return toU8(u16string(input));
- }
- string toU8string(const char16_t* input) {
-   return toU8string(u16string(input));
- }
- wstring toWstring(const string input) {
-     std::wstring_convert< std::codecvt_utf8<wchar_t>> myconv;
-   return myconv.from_bytes(input);
- }
-
- u16string toU16string(const string input){ 
-     std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
-
+string toU8(const char16_t* input) {
+  return toU8(u16string(input));
+}
+string toU8string(const char16_t* input) {
+  return toU8string(u16string(input));
+}
+wstring toWstring(const string input) {
+    std::wstring_convert< std::codecvt_utf8<wchar_t>> myconv;
   return myconv.from_bytes(input);
- }
+}
+
+u16string toU16string(const string input){ 
+    std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
+
+ return myconv.from_bytes(input);
+}
 
 
- //json_put_dbl: pass in the string you want in the json, and it'll get put in there without the quotes.
- // assumes you're putting in a safe number that won't mess up json validity.
+//json_put_dbl: pass in the string you want in the json, and it'll get put in there without the quotes.
+// assumes you're putting in a safe number that won't mess up json validity.
 
- extern int doubleSerializer(struct json_object *jso, 
-                             struct printbuf *pb, int level, int flags) {
+extern int doubleSerializer(struct json_object *jso, 
+                            struct printbuf *pb, int level, int flags) {
 
-     sprintbuf(pb, json_object_get_string(jso));
-    return 0;
- }
+    sprintbuf(pb, json_object_get_string(jso));
+   return 0;
+}
 
- inline json_object* json_newint(int in) 
- { return json_object_new_double(in); };
+inline json_object* json_newint(int in) 
+{ return json_object_new_double(in); };
 
- inline json_object* json_newstr(string in) 
- { return  json_object_new_string(in.data()); };
+inline json_object* json_newstr(string in) 
+{ return  json_object_new_string(in.data()); };
 
- inline json_object* json_newbool(bool in) 
- { return json_object_new_boolean(in?1:0); };
+inline json_object* json_newbool(bool in) 
+{ return json_object_new_boolean(in?1:0); };
 
- inline json_object* json_newmap()
- { return json_object_new_object(); };
+inline json_object* json_newmap()
+{ return json_object_new_object(); };
 
- inline json_object* json_newarr() 
- { return json_object_new_array(); };
+inline json_object* json_newarr() 
+{ return json_object_new_array(); };
 
- json_object*  json_newdbl(const char * in) { 
-     json_object * tmp = json_object_new_string(in);
-     json_object_set_serializer(tmp, doubleSerializer, 
-                                0x0, json_object_free_userdata);
-    return tmp;
- }
+json_object*  json_newdbl(const char * in) { 
+    json_object * tmp = json_object_new_string(in);
+    json_object_set_serializer(tmp, doubleSerializer, 
+                               0x0, json_object_free_userdata);
+   return tmp;
+}
 
- json_object* json_put_dbl(json_object *a, const char *b, string c) { 
-     json_object *tmp = json_object_new_string(c.data());
-     json_object_object_add(a, b, tmp);
-     json_object_set_serializer(tmp, doubleSerializer, 
-                                0x0, json_object_free_userdata);
-    return tmp;
- }
- inline json_object* json_put_dbl(json_object *a, const char *b, u16string c) { return json_put_dbl(a,b,toU8string(c)); }
+json_object* json_put_dbl(json_object *a, const char *b, string c) { 
+    json_object *tmp = json_object_new_string(c.data());
+    json_object_object_add(a, b, tmp);
+    json_object_set_serializer(tmp, doubleSerializer, 
+                               0x0, json_object_free_userdata);
+   return tmp;
+}
+inline json_object* json_put_dbl(json_object *a, const char *b, u16string c) { return json_put_dbl(a,b,toU8string(c)); }
 
- json_object* json_push_dbl(json_object *a, string c) { 
-     json_object *tmp = json_object_new_string(c.data());
-     json_object_array_add(a, tmp);
-     json_object_set_serializer(tmp, doubleSerializer, 
-                                0x0, json_object_free_userdata);
-    return tmp;
- }
- inline json_object* json_push_dbl(json_object *a, const char *b, u16string c) { return json_push_dbl(a,toU8string(c)); }
+json_object* json_push_dbl(json_object *a, string c) { 
+    json_object *tmp = json_object_new_string(c.data());
+    json_object_array_add(a, tmp);
+    json_object_set_serializer(tmp, doubleSerializer, 
+                               0x0, json_object_free_userdata);
+   return tmp;
+}
+inline json_object* json_push_dbl(json_object *a, const char *b, u16string c) { return json_push_dbl(a,toU8string(c)); }
 
- json_object* json_put_newmap(json_object *a, const char *b) { 
-     json_object *tmp = json_object_new_object();
-     json_object_object_add(a, b, tmp);
-    return tmp;
- }
- json_object* json_push_newmap(json_object *a) { 
-     json_object *tmp = json_object_new_object();
-     json_object_array_add(a, tmp);
-    return tmp;
- }
- json_object* json_put_newarr(json_object *a, const char *b) { 
-     json_object *tmp = json_object_new_array();
-     json_object_object_add(a, b, tmp);
-    return tmp;
- }
- json_object* json_push_newarr(json_object *a) { 
-     json_object *tmp = json_object_new_array();
-     json_object_array_add(a, tmp);
-    return tmp;
- }
+json_object* json_put_newmap(json_object *a, const char *b) { 
+    json_object *tmp = json_object_new_object();
+    json_object_object_add(a, b, tmp);
+   return tmp;
+}
+json_object* json_push_newmap(json_object *a) { 
+    json_object *tmp = json_object_new_object();
+    json_object_array_add(a, tmp);
+   return tmp;
+}
+json_object* json_put_newarr(json_object *a, const char *b) { 
+    json_object *tmp = json_object_new_array();
+    json_object_object_add(a, b, tmp);
+   return tmp;
+}
+json_object* json_push_newarr(json_object *a) { 
+    json_object *tmp = json_object_new_array();
+    json_object_array_add(a, tmp);
+   return tmp;
+}
 
- void json_put_null(json_object *a, const char *b) { 
-     json_object_object_add(a, b, NULL);    
- }
- void json_push_null(json_object *a) { 
-     json_object_array_add(a, NULL);
+void json_put_null(json_object *a, const char *b) { 
+    json_object_object_add(a, b, NULL);    
+}
+void json_push_null(json_object *a) { 
+    json_object_array_add(a, NULL);
 
- }
+}
 
  //we keep int separate in case we want to implement a separate call method for double
  //it allows to keep easy to track which calls we'll actually have to change.
- json_object* json_put(json_object * a, const char* b, string c) { 
-     json_object *tmp = json_object_new_string(c.data());
-     json_object_object_add(a, b, tmp);
-    return tmp;
- }
- inline json_object* json_put(json_object *a, const char *b, const u16string c) 
- { return json_put(a,b,toU8string(c)); }
+json_object* json_put(json_object * a, const char* b, string c) { 
+    json_object *tmp = json_object_new_string(c.data());
+    json_object_object_add(a, b, tmp);
+   return tmp;
+}
+inline json_object* json_put(json_object *a, const char *b, const u16string c) 
+{ return json_put(a,b,toU8string(c)); }
 
- json_object* json_put(json_object *a, const char *b, const int c) { 
-     json_object *tmp = json_object_new_double(c);
-     json_object_object_add(a, b, tmp);
-    return tmp;
- }
- json_object* json_put(json_object *a, const char *b, const bool c) { 
-     json_object *tmp = json_object_new_boolean(c?1:0);
-     json_object_object_add(a, b, tmp);
-    return tmp;
- }
- json_object* json_put(json_object *a, const char *b, json_object* c) { 
-     json_object_object_add(a, b, c);
-    return c;
- }
+json_object* json_put(json_object *a, const char *b, const int c) { 
+    json_object *tmp = json_object_new_double(c);
+    json_object_object_add(a, b, tmp);
+   return tmp;
+}
+json_object* json_put(json_object *a, const char *b, const bool c) { 
+    json_object *tmp = json_object_new_boolean(c?1:0);
+    json_object_object_add(a, b, tmp);
+   return tmp;
+}
+json_object* json_put(json_object *a, const char *b, json_object* c) { 
+    json_object_object_add(a, b, c);
+   return c;
+}
 
- json_object* json_push(json_object *a, const string c) { 
-     json_object *tmp = json_object_new_string(c.data());
-     json_object_array_add(a, tmp);
-    return tmp;
- }
- inline json_object* json_push(json_object *a, const u16string c) { return json_push(a,toU8string(c)); }
- json_object* json_push(json_object *a, const int c) { 
-     json_object *tmp = json_object_new_double(c);
-     json_object_array_add(a, tmp);
-    return tmp;
- }
- json_object* json_push(json_object *a, const bool c) { 
-     json_object *tmp = json_object_new_boolean(c?1:0);
-     json_object_array_add(a, tmp);
-    return tmp;
- }
- json_object* json_push(json_object *a, json_object *c) { 
-     json_object_array_add(a, c);
-    return c;
- }
+json_object* json_push(json_object *a, const string c) { 
+    json_object *tmp = json_object_new_string(c.data());
+    json_object_array_add(a, tmp);
+   return tmp;
+}
+inline json_object* json_push(json_object *a, const u16string c) { return json_push(a,toU8string(c)); }
+json_object* json_push(json_object *a, const int c) { 
+    json_object *tmp = json_object_new_double(c);
+    json_object_array_add(a, tmp);
+   return tmp;
+}
+json_object* json_push(json_object *a, const bool c) { 
+    json_object *tmp = json_object_new_boolean(c?1:0);
+    json_object_array_add(a, tmp);
+   return tmp;
+}
+json_object* json_push(json_object *a, json_object *c) { 
+    json_object_array_add(a, c);
+   return c;
+}
 
- //# incrRef increases the reference count of the json_object
- //# returned. This means you're essentially saying 'keep this
- //# object around, even if the parent json object containing it gets
- //# freed' via json_object_put called on it or some parent of it,
- //# or parent of that, etc.
+//# incrRef increases the reference count of the json_object
+//# returned. This means you're essentially saying 'keep this
+//# object around, even if the parent json object containing it gets
+//# freed' via json_object_put called on it or some parent of it,
+//# or parent of that, etc.
 
- //# the consequence of that is that later you need to free 
- //# this retrieved object individually via json_object_put
- //# to decrease the refcount to 0 and have libjson-c free it.
- //# otherwise you'll have a memory leak. best policy
- //# for primitives is just find json objects and get their values 
- //# then return the values not the object, and when possible
- //# for objects and arrays, don't increment, make all necessary
- //# reads and writes in scope find is called.
+//# the consequence of that is that later you need to free 
+//# this retrieved object individually via json_object_put
+//# to decrease the refcount to 0 and have libjson-c free it.
+//# otherwise you'll have a memory leak. best policy
+//# for primitives is just find json objects and get their values 
+//# then return the values not the object, and when possible
+//# for objects and arrays, don't increment, make all necessary
+//# reads and writes in scope find is called.
 
- //# again, if you return the json out of the function find is 
- //# called in, the object will still exist until put is called
- //# on a parent, but it makes for spaghetti freeing.
+//# again, if you return the json out of the function find is 
+//# called in, the object will still exist until put is called
+//# on a parent, but it makes for spaghetti freeing.
 
- bool json_find(json_object *root, const char * eqkey, 
-                json_object*& out, const bool incrRef, 
-                const json_type eqType) { 
-     json_object_object_foreach(root, jkey, jval) {
-         if (strcmp(jkey, eqkey) == 0) {
-             if (json_object_is_type(jval, eqType)) {
-                 if (incrRef) { out = json_object_get(jval); }
-                 else { out = jval; }
-                 return true;
-             }
-             return false;
-         }
-     }    
-     return false;
-     /*    bool exists;
-     json_object ** value =0x0;
+bool json_find(json_object *root, const char * eqkey, 
+               json_object*& out, const bool incrRef, 
+               const json_type eqType) { 
+    json_object_object_foreach(root, jkey, jval) {
+        if (strcmp(jkey, eqkey) == 0) {
+            if (json_object_is_type(jval, eqType)) {
+                if (incrRef) { out = json_object_get(jval); }
+                else { out = jval; }
+                return true;
+            }
+            return false;
+        }
+    }    
+    return false;
+    /*    bool exists;
+    json_object ** value =0x0;
 
-     exists = json_object_object_get_ex(root, eqkey, value);
+    exists = json_object_object_get_ex(root, eqkey, value);
 
-     if (! exists || 
-         !(json_object_is_type(*value, eqType))) {
-         return false;
-     }    
+    if (! exists || 
+        !(json_object_is_type(*value, eqType))) {
+        return false;
+    }    
 
-     out = *value; 
-     if (incrRef) { json_object_get(out); }
-     return true; */
- }
+    out = *value; 
+    if (incrRef) { json_object_get(out); }
+    return true; */
+}
 
- //# note: there is no json_any_type type
- bool json_find(json_object *root, const char* eqkey,
-                        json_object*& out, const bool incrRef) {
+//# note: there is no json_any_type type
+bool json_find(json_object *root, const char* eqkey,
+                       json_object*& out, const bool incrRef) {
 
-     json_object_object_foreach(root, jkey, jval) {
-         if (strcmp(jkey, eqkey) == 0) {
-             if (incrRef) { out = json_object_get(jval); }
-             else { out = jval; }
-             return true;
-         }
-     }    
-     return false; 
+    json_object_object_foreach(root, jkey, jval) {
+        if (strcmp(jkey, eqkey) == 0) {
+            if (incrRef) { out = json_object_get(jval); }
+            else { out = jval; }
+            return true;
+        }
+    }    
+    return false; 
 
-     /*bool exists;
-     json_object ** value = 0x0;
-     exists = json_object_object_get_ex(root, eqkey, value);
-     if ( !exists ) {
-         return false;
-     }
+    /*bool exists;
+    json_object ** value = 0x0;
+    exists = json_object_object_get_ex(root, eqkey, value);
+    if ( !exists ) {
+        return false;
+    }
 
-     out = *value; 
-     if (incrRef) { json_object_get(out); }
-     return true; */
- }
+    out = *value; 
+    if (incrRef) { json_object_get(out); }
+    return true; */
+}
 
- json_object* json_require(json_object *a, const char* eqkey,
-                           const bool incrRef) { 
-     json_object * out;
-     bool exists = json_find(a, eqkey, out, incrRef);
-     if (!exists) {
-         string errormsg = "json_find failed to find key : ";
-         errormsg.append(string(eqkey));
-         throw runtime_error(errormsg);
-     }
-    return out;
- }
+json_object* json_require(json_object *a, const char* eqkey,
+                          const bool incrRef) { 
+    json_object * out;
+    bool exists = json_find(a, eqkey, out, incrRef);
+    if (!exists) {
+        string errormsg = "json_find failed to find key : ";
+        errormsg.append(string(eqkey));
+        throw runtime_error(errormsg);
+    }
+   return out;
+}
 
- json_object* json_arrfind(json_object* a, bool incrRef, const int idx) { 
-     if (idx >= json_object_array_length(a)) {
-         throw runtime_error("json_arrIdx was asked to find an index outside of the array bounds");
-     }
-     json_object * result = json_object_array_get_idx(a, idx);
-     if (incrRef) { return json_object_get(result); }
-     return result;
- }
+json_object* json_arrfind(json_object* a, bool incrRef, const int idx) { 
+    if (idx >= json_object_array_length(a)) {
+        throw runtime_error("json_arrIdx was asked to find an index outside of the array bounds");
+    }
+    json_object * result = json_object_array_get_idx(a, idx);
+    if (incrRef) { return json_object_get(result); }
+    return result;
+}
 
- void json_arrput(json_object* a, const int idx, json_object *c) {        
-     if (idx > json_object_array_length(a)) {
-         throw runtime_error("json_arrIdx was asked to set an index higher than array length");
-     }
-     json_object_array_put_idx(a, idx, c); 
- }
+void json_arrput(json_object* a, const int idx, json_object *c) {        
+    if (idx > json_object_array_length(a)) {
+        throw runtime_error("json_arrIdx was asked to set an index higher than array length");
+    }
+    json_object_array_put_idx(a, idx, c); 
+}
 
- void json_del(json_object *a, const char* key) { 
-     if (json_object_object_get_ex(a, key, NULL)) {
-         json_object_object_del(a, key);
-     }
+void json_del(json_object *a, const char* key) { 
+    if (json_object_object_get_ex(a, key, NULL)) {
+        json_object_object_del(a, key);
+    }
 
- }
+}
 
- // we could make this generic, but practically it's only valid for overrides of json_push
- // that 
- template <typename T>
- json_object* vec2json(vector<T> in) { //only practically valid for vectors of ints and strings.
-     //DEBUGIN("vec2json");
-     json_object * arr = json_object_new_array();
-     for (int i=0; i<in.size(); i++) {
-         json_push(arr, in[i]);
-     }
-     //DEBUGOUT("", false); 
-     return arr;
- }
+// we could make this generic, but practically it's only valid for overrides of json_push
+// that 
+template <typename T>
+json_object* vec2json(vector<T> in) { //only practically valid for vectors of ints and strings.
+    //DEBUGIN("vec2json");
+    json_object * arr = json_object_new_array();
+    for (int i=0; i<in.size(); i++) {
+        json_push(arr, in[i]);
+    }
+    //DEBUGOUT("", false); 
+    return arr;
+}
 
- template <typename T>
- json_object* vec2jsonCallback(vector<T> in,
-                               function<json_object*(T&)> const& f) {
-     //DEBUGIN("vec2JsonCallback");
-     json_object * arr = json_object_new_array();
-     for (int i=0; i<in.size(); i++) {
-         json_push(arr, f(in[i]));
-     }
-     //DEBUGOUT("", false); 
-     return arr;
- }
+template <typename T>
+json_object* vec2jsonCallback(vector<T> in,
+                              function<json_object*(T&)> const& f) {
+    //DEBUGIN("vec2JsonCallback");
+    json_object * arr = json_object_new_array();
+    for (int i=0; i<in.size(); i++) {
+        json_push(arr, f(in[i]));
+    }
+    //DEBUGOUT("", false); 
+    return arr;
+}
 
- //non-parallel functions
- // example: has<int>(3, {1,2,3,4,5}) // would return true
- bool has(const u16string needle, const unordered_set<u16string> haystack) {
-  return (haystack.find(needle) != haystack.end());
- }
- bool has(const string needle, const unordered_set<string> haystack) {
-  return (haystack.find(needle) != haystack.end());
- }
- bool has(const int needle, const unordered_set<int> haystack) {
-  return (haystack.find(needle) != haystack.end());
- }
+//non-parallel functions
+// example: has<int>(3, {1,2,3,4,5}) // would return true
+bool has(const u16string needle, const unordered_set<u16string> haystack) {
+    return (haystack.find(needle) != haystack.end());
+}
+bool has(const string needle, const unordered_set<string> haystack) {
+    return (haystack.find(needle) != haystack.end());
+}
+bool has(const int needle, const unordered_set<int> haystack) {
+    return (haystack.find(needle) != haystack.end());
+}
 
 enum class TknType { 
     None = 0,
@@ -482,81 +485,78 @@ enum class TknType {
     RegularExpression=9
 };
 
- template<typename T> bool hasStringKey(const string needle, const map<string,T> haystack) {
+template<typename T> bool hasStringKey(const string needle, const map<string,T> haystack) {
+    auto result = haystack.find(needle);
+    return (result != haystack.end());
+}
 
-     auto result = haystack.find(needle);
-   return (result != haystack.end());
- }
 
+u16string slice(const char16_t *arr, int start, int end) {
+    //start inclusive, end exclusive, just like js
+    const char16_t * startptr = arr + start;    
+    return u16string(startptr, (end-start));
+}
 
- u16string slice(const char16_t *arr, int start, int end) {
-     //start inclusive, end exclusive, just like js
+void append(u16string &base, char16_t tail) { 
+    base.append(u16string({tail})); 
+    //? switch to u16stringstream? but there's nothing like that
+    // on SO someone said append only handles certain input types right,
+    //not sure if that's true for u16string.
 
-     const char16_t * startptr = arr + start;    
-   return u16string(startptr, (end-start));
- }
+}
 
- void append(u16string &base, char16_t tail) { 
-     base.append(u16string({tail})); 
-     //? switch to u16stringstream? but there's nothing like that
-     // on SO someone said append only handles certain input types right,
-     //not sure if that's true for u16string.
+int parseInt(u16string in_u16, int radix) {  // !!!
+    const int zero = 48;
+    const int upperA = 65;
+    const int lowerA = 97;
 
- }
+    string in = toU8string(in_u16);
+    int length,
+        cur,
+        result = 0;
+    length = in.length();
+    for (int i=0; i<length; i++) {
+        cur = (int) in[i];
+        if (cur <= zero+9 &&  cur >= zero) {
+            cur = cur - zero;
+        } else if (cur <= upperA+5 && cur >= upperA) {
+            cur = 10 + cur - upperA;
+        } else if (cur <= lowerA+5 && cur >= lowerA) {
+            cur = 10 + cur - lowerA;
+        } else {
+            return -1;
+        }
+        result += (cur * pow(radix,length-(i+1)));
+    }
+    return result; 
+}
 
- int parseInt(u16string in_u16, int radix) {  // !!!
+double sciNoteToDouble(string in) {
+    DEBUGIN("sciNoteToDouble");
+    char current;
+    string factor = "0";
+    string exp = "0";
+    bool dotPassed = false, esignPassed = false;
+    for (int i=0;i<in.length();i++) {
+        current = in[i];
+        if (current == u'.') {
+            dotPassed = true;
+            factor.append(string({current}));
+        } else if (current == u'E' || current == u'e' ) {
+            esignPassed = true; 
+        } else if (esignPassed) {
+            if (exp == "0") { exp = ""; }
+            exp.append(string({current}));
+        } else {
+            factor.append(string({current}));               
+        }
+    }
 
-         const int zero = 48;
-         const int upperA = 65;
-         const int lowerA = 97;
+    DEBUGOUT("sciNoteToDouble");
+    return stod(factor) * pow(10,stod(exp));
+}
 
-         string in = toU8string(in_u16);
-         int length,
-             cur,
-             result = 0;
-         length = in.length();
-         for (int i=0; i<length; i++) {
-             cur = (int) in[i];
-             if (cur <= zero+9 &&  cur >= zero) {
-                 cur = cur - zero;
-             } else if (cur <= upperA+5 && cur >= upperA) {
-                 cur = 10 + cur - upperA;
-             } else if (cur <= lowerA+5 && cur >= lowerA) {
-                 cur = 10 + cur - lowerA;
-             } else {
-                 return -1;
-             }
-             result += (cur * pow(radix,length-(i+1)));
-         }
-  return result; 
- }
-
- double sciNoteToDouble(string in) {
-         DEBUGIN("sciNoteToDouble");
-     char current;
-     string factor = "0";
-     string exp = "0";
-     bool dotPassed = false, esignPassed = false;
-     for (int i=0;i<in.length();i++) {
-         current = in[i];
-         if (current == u'.') {
-             dotPassed = true;
-             factor.append(string({current}));
-         } else if (current == u'E' || current == u'e' ) {
-             esignPassed = true; 
-         } else if (esignPassed) {
-             if (exp == "0") { exp = ""; }
-             exp.append(string({current}));
-         } else {
-             factor.append(string({current}));               
-         }
-     }
-
-     DEBUGOUT("sciNoteToDouble");
-   return stod(factor) * pow(10,stod(exp));
- }
-
- const char16_t NULL_CHAR16 = u'X';
+const char16_t NULL_CHAR16 = u'X';
 
 
 // -----------------------
@@ -738,7 +738,8 @@ public:
         json_put(root, "index", this->index);
         json_put(root, "lineNumber", this->lineNumber);
         json_put(root, "column", this->column);
-        DEBUGOUT("Error::toJSON"); return root;
+        DEBUGOUT("Error::toJSON"); 
+        return root;
     }
     json_object * toJsonTolerant() {
         DEBUGIN("Error::toJSON");
@@ -747,7 +748,8 @@ public:
         json_put(root, "index", this->index);
         json_put(root, "lineNumber", this->lineNumber);
         json_put(root, "column", this->column);
-        DEBUGOUT("Error::toJSON"); return root;
+        DEBUGOUT("Error::toJSON"); 
+        return root;
     }
 };
 
@@ -994,7 +996,8 @@ public:
 TokenStruct NULLTOKEN;
 Node NULLNODE(false,false);
 struct ExtraStruct {
-    bool tokenTracking; //port-specific member to replace "if (extra.tokens)"
+    //# port-specific member to replace "if (extra.tokens)"
+    bool tokenTracking;
     vector<TokenRecord> tokenRecords; //called extra.tokens in esprima
     // name changed here to distinguish specific type and different domains
     // of these types.
@@ -1009,10 +1012,14 @@ struct ExtraStruct {
     bool range;
     bool loc;
 
-    bool commentTracking; //port-specific member to replace "if (extra.comments)"
+    //# port-specific member to replace "if (extra.comments)"
+    bool commentTracking; 
+    
     vector<Comment> comments;
 
-    bool errorTolerant;  //port specific member to replace "if (extra.errors)"
+    //# port specific member to replace "if (extra.errors)"
+    bool errorTolerant;  
+
     vector<ExError> errors;
 
     bool attachComment;
@@ -1473,13 +1480,13 @@ map<Mssg, string> Messages = {
     vector< vector <unsigned int> > nonasciiIdentifierstart = { {170,181,186,192,216,248,710,736,748,750,880,886,887,890,895,902,904,908,910,931,1015,1162,1329,1369,1377,1488,1520,1568,1646,1647,1649,1749,1765,1766,1774,1775,1786,1791,1808,1810,1869,1969,1994,2036,2037,2042,2048,2074,2084,2088,2112,2208,2308,2365,2384,2392,2417,2437,2447,2448,2451,2474,2482,2486,2493,2510,2524,2525,2527,2544,2545,2565,2575,2576,2579,2602,2610,2611,2613,2614,2616,2617,2649,2654,2674,2693,2703,2707,2730,2738,2739,2741,2749,2768,2784,2785,2821,2831,2832,2835,2858,2866,2867,2869,2877,2908,2909,2911,2929,2947,2949,2958,2962,2969,2970,2972,2974,2975,2979,2980,2984,2990,3024,3077,3086,3090,3114,3133,3160,3161,3168,3169,3205,3214,3218,3242,3253,3261,3294,3296,3297,3313,3314,3333,3342,3346,3389,3406,3424,3425,3450,3461,3482,3507,3517,3520,3585,3634,3635,3648,3713,3714,3716,3719,3720,3722,3725,3732,3737,3745,3749,3751,3754,3755,3757,3762,3763,3773,3776,3782,3804,3840,3904,3913,3976,4096,4159,4176,4186,4193,4197,4198,4206,4213,4238,4256,4295,4301,4304,4348,4682,4688,4696,4698,4704,4746,4752,4786,4792,4800,4802,4808,4824,4882,4888,4992,5024,5121,5743,5761,5792,5870,5888,5902,5920,5952,5984,5998,6016,6103,6108,6176,6272,6314,6320,6400,6480,6512,6528,6593,6656,6688,6823,6917,6981,7043,7086,7087,7098,7168,7245,7258,7401,7406,7413,7414,7424,7680,7960,7968,8008,8016,8025,8027,8029,8031,8064,8118,8126,8130,8134,8144,8150,8160,8178,8182,8305,8319,8336,8450,8455,8458,8469,8473,8484,8486,8488,8490,8495,8508,8517,8526,8544,11264,11312,11360,11499,11506,11507,11520,11559,11565,11568,11631,11648,11680,11688,11696,11704,11712,11720,11728,11736,11823,12293,12321,12337,12344,12353,12445,12449,12540,12549,12593,12704,12784,13312,19968,40960,42192,42240,42512,42538,42539,42560,42623,42656,42775,42786,42891,42896,42928,42929,42999,43011,43015,43020,43072,43138,43250,43259,43274,43312,43360,43396,43471,43488,43494,43514,43520,43584,43588,43616,43642,43646,43697,43701,43702,43705,43712,43714,43739,43744,43762,43777,43785,43793,43808,43816,43824,43868,43876,43877,43968,44032,55216,55243,63744,64112,64256,64275,64285,64287,64298,64312,64318,64320,64321,64323,64324,64326,64467,64848,64914,65008,65136,65142,65313,65345,65382,65474,65482,65490,65498}, {170,181,186,214,246,705,721,740,748,750,884,886,887,893,895,902,906,908,929,1013,1153,1327,1366,1369,1415,1514,1522,1610,1646,1647,1747,1749,1765,1766,1774,1775,1788,1791,1808,1839,1957,1969,2026,2036,2037,2042,2069,2074,2084,2088,2136,2226,2361,2365,2384,2401,2432,2444,2447,2448,2472,2480,2482,2489,2493,2510,2524,2525,2529,2544,2545,2570,2575,2576,2600,2608,2610,2611,2613,2614,2616,2617,2652,2654,2676,2701,2705,2728,2736,2738,2739,2745,2749,2768,2784,2785,2828,2831,2832,2856,2864,2866,2867,2873,2877,2908,2909,2913,2929,2947,2954,2960,2965,2969,2970,2972,2974,2975,2979,2980,2986,3001,3024,3084,3088,3112,3129,3133,3160,3161,3168,3169,3212,3216,3240,3251,3257,3261,3294,3296,3297,3313,3314,3340,3344,3386,3389,3406,3424,3425,3455,3478,3505,3515,3517,3526,3632,3634,3635,3654,3713,3714,3716,3719,3720,3722,3725,3735,3743,3747,3749,3751,3754,3755,3760,3762,3763,3773,3780,3782,3807,3840,3911,3948,3980,4138,4159,4181,4189,4193,4197,4198,4208,4225,4238,4293,4295,4301,4346,4680,4685,4694,4696,4701,4744,4749,4784,4789,4798,4800,4805,4822,4880,4885,4954,5007,5108,5740,5759,5786,5866,5880,5900,5905,5937,5969,5996,6000,6067,6103,6108,6263,6312,6314,6389,6430,6509,6516,6571,6599,6678,6740,6823,6963,6987,7072,7086,7087,7141,7203,7247,7293,7404,7409,7413,7414,7615,7957,7965,8005,8013,8023,8025,8027,8029,8061,8116,8124,8126,8132,8140,8147,8155,8172,8180,8188,8305,8319,8348,8450,8455,8467,8469,8477,8484,8486,8488,8493,8505,8511,8521,8526,8584,11310,11358,11492,11502,11506,11507,11557,11559,11565,11623,11631,11670,11686,11694,11702,11710,11718,11726,11734,11742,11823,12295,12329,12341,12348,12438,12447,12538,12543,12589,12686,12730,12799,19893,40908,42124,42237,42508,42527,42538,42539,42606,42653,42735,42783,42888,42894,42925,42928,42929,43009,43013,43018,43042,43123,43187,43255,43259,43301,43334,43388,43442,43471,43492,43503,43518,43560,43586,43595,43638,43642,43695,43697,43701,43702,43709,43712,43714,43741,43754,43764,43782,43790,43798,43814,43822,43866,43871,43876,43877,44002,55203,55238,55291,64109,64217,64262,64279,64285,64296,64310,64316,64318,64320,64321,64323,64324,64433,64829,64911,64967,65019,65140,65276,65338,65370,65470,65479,65487,65495,65500} };
     vector< vector < unsigned int> > nonasciiIdentifierpart = { {170,181,186,192,216,248,710,736,748,750,768,886,887,890,895,902,904,908,910,931,1015,1155,1162,1329,1369,1377,1425,1471,1473,1474,1476,1477,1479,1488,1520,1552,1568,1646,1749,1759,1770,1791,1808,1869,1984,2042,2048,2112,2208,2276,2406,2417,2437,2447,2448,2451,2474,2482,2486,2492,2503,2504,2507,2519,2524,2525,2527,2534,2561,2565,2575,2576,2579,2602,2610,2611,2613,2614,2616,2617,2620,2622,2631,2632,2635,2641,2649,2654,2662,2689,2693,2703,2707,2730,2738,2739,2741,2748,2759,2763,2768,2784,2790,2817,2821,2831,2832,2835,2858,2866,2867,2869,2876,2887,2888,2891,2902,2903,2908,2909,2911,2918,2929,2946,2947,2949,2958,2962,2969,2970,2972,2974,2975,2979,2980,2984,2990,3006,3014,3018,3024,3031,3046,3072,3077,3086,3090,3114,3133,3142,3146,3157,3158,3160,3161,3168,3174,3201,3205,3214,3218,3242,3253,3260,3270,3274,3285,3286,3294,3296,3302,3313,3314,3329,3333,3342,3346,3389,3398,3402,3415,3424,3430,3450,3458,3459,3461,3482,3507,3517,3520,3530,3535,3542,3544,3558,3570,3571,3585,3648,3664,3713,3714,3716,3719,3720,3722,3725,3732,3737,3745,3749,3751,3754,3755,3757,3771,3776,3782,3784,3792,3804,3840,3864,3865,3872,3893,3895,3897,3902,3913,3953,3974,3993,4038,4096,4176,4256,4295,4301,4304,4348,4682,4688,4696,4698,4704,4746,4752,4786,4792,4800,4802,4808,4824,4882,4888,4957,4992,5024,5121,5743,5761,5792,5870,5888,5902,5920,5952,5984,5998,6002,6003,6016,6103,6108,6109,6112,6155,6160,6176,6272,6320,6400,6432,6448,6470,6512,6528,6576,6608,6656,6688,6752,6783,6800,6823,6832,6912,6992,7019,7040,7168,7232,7245,7376,7380,7416,7417,7424,7676,7960,7968,8008,8016,8025,8027,8029,8031,8064,8118,8126,8130,8134,8144,8150,8160,8178,8182,8204,8205,8255,8256,8276,8305,8319,8336,8400,8417,8421,8450,8455,8458,8469,8473,8484,8486,8488,8490,8495,8508,8517,8526,8544,11264,11312,11360,11499,11520,11559,11565,11568,11631,11647,11680,11688,11696,11704,11712,11720,11728,11736,11744,11823,12293,12321,12337,12344,12353,12441,12442,12445,12449,12540,12549,12593,12704,12784,13312,19968,40960,42192,42240,42512,42560,42612,42623,42655,42775,42786,42891,42896,42928,42929,42999,43072,43136,43216,43232,43259,43264,43312,43360,43392,43471,43488,43520,43584,43600,43616,43642,43739,43744,43762,43777,43785,43793,43808,43816,43824,43868,43876,43877,43968,44012,44013,44016,44032,55216,55243,63744,64112,64256,64275,64285,64298,64312,64318,64320,64321,64323,64324,64326,64467,64848,64914,65008,65024,65056,65075,65076,65101,65136,65142,65296,65313,65343,65345,65382,65474,65482,65490,65498}, {170,181,186,214,246,705,721,740,748,750,884,886,887,893,895,902,906,908,929,1013,1153,1159,1327,1366,1369,1415,1469,1471,1473,1474,1476,1477,1479,1514,1522,1562,1641,1747,1756,1768,1788,1791,1866,1969,2037,2042,2093,2139,2226,2403,2415,2435,2444,2447,2448,2472,2480,2482,2489,2500,2503,2504,2510,2519,2524,2525,2531,2545,2563,2570,2575,2576,2600,2608,2610,2611,2613,2614,2616,2617,2620,2626,2631,2632,2637,2641,2652,2654,2677,2691,2701,2705,2728,2736,2738,2739,2745,2757,2761,2765,2768,2787,2799,2819,2828,2831,2832,2856,2864,2866,2867,2873,2884,2887,2888,2893,2902,2903,2908,2909,2915,2927,2929,2946,2947,2954,2960,2965,2969,2970,2972,2974,2975,2979,2980,2986,3001,3010,3016,3021,3024,3031,3055,3075,3084,3088,3112,3129,3140,3144,3149,3157,3158,3160,3161,3171,3183,3203,3212,3216,3240,3251,3257,3268,3272,3277,3285,3286,3294,3299,3311,3313,3314,3331,3340,3344,3386,3396,3400,3406,3415,3427,3439,3455,3458,3459,3478,3505,3515,3517,3526,3530,3540,3542,3551,3567,3570,3571,3642,3662,3673,3713,3714,3716,3719,3720,3722,3725,3735,3743,3747,3749,3751,3754,3755,3769,3773,3780,3782,3789,3801,3807,3840,3864,3865,3881,3893,3895,3897,3911,3948,3972,3991,4028,4038,4169,4253,4293,4295,4301,4346,4680,4685,4694,4696,4701,4744,4749,4784,4789,4798,4800,4805,4822,4880,4885,4954,4959,5007,5108,5740,5759,5786,5866,5880,5900,5908,5940,5971,5996,6000,6002,6003,6099,6103,6108,6109,6121,6157,6169,6263,6314,6389,6430,6443,6459,6509,6516,6571,6601,6617,6683,6750,6780,6793,6809,6823,6845,6987,7001,7027,7155,7223,7241,7293,7378,7414,7416,7417,7669,7957,7965,8005,8013,8023,8025,8027,8029,8061,8116,8124,8126,8132,8140,8147,8155,8172,8180,8188,8204,8205,8255,8256,8276,8305,8319,8348,8412,8417,8432,8450,8455,8467,8469,8477,8484,8486,8488,8493,8505,8511,8521,8526,8584,11310,11358,11492,11507,11557,11559,11565,11623,11631,11670,11686,11694,11702,11710,11718,11726,11734,11742,11775,11823,12295,12335,12341,12348,12438,12441,12442,12447,12538,12543,12589,12686,12730,12799,19893,40908,42124,42237,42508,42539,42607,42621,42653,42737,42783,42888,42894,42925,42928,42929,43047,43123,43204,43225,43255,43259,43309,43347,43388,43456,43481,43518,43574,43597,43609,43638,43714,43741,43759,43766,43782,43790,43798,43814,43822,43866,43871,43876,43877,44010,44012,44013,44025,55203,55238,55291,64109,64217,64262,64279,64296,64310,64316,64318,64320,64321,64323,64324,64433,64829,64911,64967,65019,65039,65069,65075,65076,65103,65140,65276,65305,65338,65343,65370,65470,65479,65487,65495,65500} };
 
- void initglobals() {
+void initglobals() {
     DEBUGIN(" initglobals()", true);
-     PlaceHolders["ArrowParameterPlaceHolder"].type="ArrowParameterPlaceholder";
-     NULLTOKEN.isNull = true;
-     NULLNODE.isNull = true;
+    PlaceHolders["ArrowParameterPlaceHolder"].type="ArrowParameterPlaceholder";
+    NULLTOKEN.isNull = true;
+    NULLNODE.isNull = true;
     DEBUGOUT("", true);
- }
+}
 
   // Ensure the condition is true, otherwise throw an error.
   // This is only to have a better contract semantic, i.e. another safety net
@@ -1519,82 +1526,97 @@ void softAssert(const bool condition, const string message) {
 
 #endif
 
- bool isDecimalDigit(const char16_t ch) {
+bool isDecimalDigit(const char16_t ch) {
     DEBUGIN("   isDecimalDigit(const char16_t ch)");
-   DEBUGOUT("", false); return (ch >= 0x30 && ch <= 0x39); //0..9
- }
+    DEBUGOUT("", false); 
+    return (ch >= 0x30 && ch <= 0x39); //0..9
+}
 
- bool isHexDigit(const char16_t ch) {
+bool isHexDigit(const char16_t ch) {
     DEBUGIN("   isHexDigit(const char16_t ch)");
-   DEBUGOUT("", false); return (u16string({u"0123456789abcdefABCDEF"}).find_first_of(ch) != std::string::npos);    
- }
+    DEBUGOUT("", false); 
+    return (u16string({u"0123456789abcdefABCDEF"}).find_first_of(ch) 
+           != std::string::npos);    
+}
 
- bool isOctalDigit(const char16_t ch) {
+bool isOctalDigit(const char16_t ch) {
     DEBUGIN("   isOctalDigit(const char16_t ch)");
-   DEBUGOUT("", false); return (u16string({u"01234567"}).find_first_of(ch) != std::string::npos);    
- }
+    DEBUGOUT("", false); 
+    return (u16string({u"01234567"}).find_first_of(ch) 
+            != std::string::npos);    
+}
 
- char16_t toLowercaseHex(const char16_t ch) { //used in scanHexEscape
-     //assumes isHexDigit(ch) evals to true
-     u16string hexletters = u"abcdefABCDEF";
-     int pos = hexletters.find_first_of(ch);
-     char16_t out = ch;
-     if (pos != std::string::npos && pos >= 6) {
-         pos = pos - 6;
-         out = hexletters[pos];
-     }
-   DEBUGOUT("", false); return out;
- }
+char16_t toLowercaseHex(const char16_t ch) { //used in scanHexEscape
+    //assumes isHexDigit(ch) evals to true
+    u16string hexletters = u"abcdefABCDEF";
+    int pos = hexletters.find_first_of(ch);
+    char16_t out = ch;
+    if (pos != std::string::npos && pos >= 6) {
+        pos = pos - 6;
+        out = hexletters[pos];
+    }
+    return out;
+}
 
- //7.2 White Space
- bool isWhiteSpace(const char16_t ch) {
+//7.2 White Space
+bool isWhiteSpace(const char16_t ch) {
     DEBUGIN("   isWhiteSpace(const char16_t ch)");
-   DEBUGOUT("", false); return (ch == 0x20) || (ch == 0x09) || (ch == 0x0B) || (ch == 0x0C) || (ch == 0xA0) || (ch >= 0x1680 && has(ch, {0x1680, 0x180E, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x202F, 0x205F, 0x3000, 0xFEFF}));
- }
+    DEBUGOUT("", false); 
+    return (ch == 0x20) || (ch == 0x09) || (ch == 0x0B) || (ch == 0x0C) || (ch == 0xA0) || (ch >= 0x1680 && has(ch, {0x1680, 0x180E, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x202F, 0x205F, 0x3000, 0xFEFF}));
+}
 
- // 7.3 Line Terminators
+// 7.3 Line Terminators
 
- bool isLineTerminator(const char16_t ch) {
+bool isLineTerminator(const char16_t ch) {
     DEBUGIN("   isLineTerminator(const char16_t ch)");
-   DEBUGOUT("", false); return (ch == 0x0A) || (ch == 0x0D) || (ch == 0x2028) || (ch == 0x2029);
- }
+    DEBUGOUT("", false); 
+    return (ch == 0x0A) || (ch == 0x0D) || (ch == 0x2028) || (ch == 0x2029);
+}
 
  // 7.6 Identifier Names and Identifiers
 bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * arr) {
     vector< unsigned int > *range_starts = &(arr->at(0)),
         *range_ends = &(arr->at(1));
-    int pos = lower_bound(range_starts->begin(), range_starts->end(), key) - range_starts->begin();
-    if (range_starts->at(pos) > key) { if (pos == 0) { return false; } pos--; }
-    bool result = (key <= range_ends->at(pos) || (pos+1 < range_starts->size() && 
-                                       key == range_starts->at(pos+1)));
-    return result;
+    int pos = lower_bound(range_starts->begin(), 
+                          range_starts->end(), key) - range_starts->begin();
+    if (range_starts->at(pos) > key) { 
+        if (pos == 0) { return false; } pos--; 
+    }
+    return (key <= range_ends->at(pos) 
+                   || (pos+1 < range_starts->size() 
+                       && key == range_starts->at(pos+1)));
 }
 
 
  bool isIdentifierStart(const char16_t ch) {
-    DEBUGIN("   isIdentifierStart(const char16_t ch)");
-   DEBUGOUT("", false); return (ch == 0x24) || (ch == 0x5F) ||  // $ (dollar) and _ (underscore)
+     DEBUGIN("   isIdentifierStart(const char16_t ch)");
+     DEBUGOUT("", false); 
+     return (ch == 0x24) || (ch == 0x5F) ||  // $ (dollar) and _ (underscore)
          (ch >= 0x41 && ch <= 0x5A) ||         // A..Z
          (ch >= 0x61 && ch <= 0x7A) ||         // a..z
          (ch == 0x5C) ||                      // \ (backslash)
-         ((ch >= 0x80) && intervalarr_contains((unsigned int) ch, &nonasciiIdentifierstart));
+         ((ch >= 0x80) && intervalarr_contains((unsigned int) ch, 
+                                               &nonasciiIdentifierstart));
  } 
 
  bool isIdentifierPart(const char16_t ch) {
-    DEBUGIN("   isIdentifierPart(const char16_t ch)");
-   DEBUGOUT("", false); return (ch == 0x24) || (ch == 0x5F) ||  // $ (dollar) and _ (underscore)
+     DEBUGIN("   isIdentifierPart(const char16_t ch)");
+     DEBUGOUT("", false); 
+     return (ch == 0x24) || (ch == 0x5F) ||  // $ (dollar) and _ (underscore)
          (ch >= 0x41 && ch <= 0x5A) ||         // A..Z
          (ch >= 0x61 && ch <= 0x7A) ||         // a..z
          (ch >= 0x30 && ch <= 0x39) ||         // 0..9
          (ch == 0x5C) ||                      // \ (backslash)
-         ((ch >= 0x80) && intervalarr_contains((unsigned int) ch, &nonasciiIdentifierpart));
+         ((ch >= 0x80) && intervalarr_contains((unsigned int) ch, 
+                                               &nonasciiIdentifierpart));
  }
 
  // 7.6.1.2 Future Reserved Words
 
  bool isFutureReservedWord(const string id) {
-    DEBUGIN("   isFutureReservedWord(const u16string id)");
-     DEBUGOUT("", false); return has(id, { //
+     DEBUGIN("   isFutureReservedWord(const u16string id)");
+     DEBUGOUT("", false); 
+     return has(id, { //
              "class",
              "enum",
              "export",
@@ -1605,8 +1627,9 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
  }
 
  bool isStrictModeReservedWord(const string id) {
-    DEBUGIN("   isStrictModeReservedWord(const u16string id)");
-   DEBUGOUT("", false); return has(id, { 
+     DEBUGIN("   isStrictModeReservedWord(const u16string id)");
+     DEBUGOUT("", false); 
+     return has(id, { 
              "implements",
              "interface",
              "package",
@@ -1620,15 +1643,17 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
  }
 
  bool isRestrictedWord(const string id) {
-    DEBUGIN("   isRestrictedWord(const u16string id)");
-   DEBUGOUT("", false); return (id == "eval" || id == "arguments");
+     DEBUGIN("   isRestrictedWord(const u16string id)");
+     DEBUGOUT("", false);
+     return (id == "eval" || id == "arguments");
  }
 
  // 7.6.1.1 Keywords
  bool isKeyword(const string id) {
-    DEBUGIN("   isKeyword(const u16string id)");
+     DEBUGIN("   isKeyword(const u16string id)");
      if (strict && isStrictModeReservedWord(id)) { 
-       DEBUGOUT("", false); return true;
+         DEBUGOUT("", false); 
+         return true;
      }
 
      // 'const' is specialized as Keyword in V8.
@@ -1637,32 +1662,40 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
 
      switch (id.length()) {
          case 2:
-           DEBUGOUT("", false); return (id == "if") 
-                                    || (id == "in") || (id == "do");
+             DEBUGOUT("", false); 
+             return (id == "if") || (id == "in") || (id == "do");
          case 3:
-           DEBUGOUT("", false); return has(id, 
-               { "var", "for", "new", "try", "let"});
+             DEBUGOUT("", false); 
+             return has(id, 
+                        { "var", "for", "new", "try", "let"});
          case 4:
-           DEBUGOUT("", false); return has(id, 
-               { "this", "else", "case", "void", "with", "enum"});
+             DEBUGOUT("", false); 
+             return has(id, 
+                        { "this", "else", "case", "void", "with", "enum"});
          case 5:
-           DEBUGOUT("", false); return has(id, 
-               {"while", "break", "catch",
-                         "throw", "const", "yield", "class", "super"});
+             DEBUGOUT("", false); 
+             return has(id, 
+                        {"while", "break", "catch", "throw", 
+                                "const", "yield", "class", "super"});
          case 6:
-           DEBUGOUT("", false); return has(id, 
-               {"return", "typeof", "delete",
+             DEBUGOUT("", false); 
+             return has(id, 
+                        {"return", "typeof", "delete",
                          "switch", "export", "import"});
          case 7:
-           DEBUGOUT("", false); return (id == "default") || 
-                           (id == "finally") || (id == "extends");
+             DEBUGOUT("", false); 
+             return (id == "default") || 
+                 (id == "finally") || (id == "extends");
          case 8:
-           DEBUGOUT("", false); return (id == "function") || 
-                           (id == "continue") || (id == "debugger");
+             DEBUGOUT("", false); 
+             return (id == "function") || 
+                 (id == "continue") || (id == "debugger");
          case 10:
-           DEBUGOUT("", false); return (id == "instanceof");
+             DEBUGOUT("", false); 
+             return (id == "instanceof");
          default:
-           DEBUGOUT("", false); return false;
+             DEBUGOUT("", false); 
+             return false;
      }
  }
 
@@ -1682,7 +1715,8 @@ void addComment(const string type, const string value,
      // Thus, we need to skip adding a comment if the comment array already
      // handled it.
      if (state.lastCommentStart >= start) {
-       DEBUGOUT("", false); return;
+         DEBUGOUT("", false); 
+         return;
      }
      state.lastCommentStart = start;
 
@@ -1701,184 +1735,188 @@ void addComment(const string type, const string value,
          extra.trailingComments.push_back(comment);
      }
      DEBUGOUT("", false);
- }
+}
 
 
 
 void skipSingleLineComment(const int offset) {
     DEBUGIN(" skipSingleLineComment(const int offset)");
-     int start;
-     Loc loc; 
-     char16_t ch;
-     string comment;
+    int start;
+    Loc loc; 
+    char16_t ch;
+    string comment;
+    
+    start = idx - offset;
+    loc.start.line = lineNumber;
+    loc.start.column = idx - lineStart - offset;
 
-     start = idx - offset;
-     loc.start.line = lineNumber;
-     loc.start.column = idx - lineStart - offset;
+    while (idx < length) {
+        ch = source(idx);
+        ++idx;
+        if (isLineTerminator(ch)) {
+            if (extra.commentTracking) {
+                comment = toU8(slice(sourceraw, start + offset, idx-1));
+                loc.end.line = lineNumber;
+                loc.end.column = idx - lineStart - 1;
+                addComment("Line", comment, start, idx - 1, loc);
+            }
+            if (ch == 13 && source(idx) == 10) {
+                ++idx;
+            }
+            ++lineNumber;
+            lineStart = idx;
+            DEBUGOUT("", false); 
+            return;
+        }
+    }
 
-     while (idx < length) {
-         ch = source(idx);
-         ++idx;
-         if (isLineTerminator(ch)) {
-             if (extra.commentTracking) {
-                 comment = toU8(slice(sourceraw, start + offset, idx-1));
-                 loc.end.line = lineNumber;
-                 loc.end.column = idx - lineStart - 1;
-                 addComment("Line", comment, start, idx - 1, loc);
-             }
-             if (ch == 13 && source(idx) == 10) {
-                 ++idx;
-             }
-             ++lineNumber;
-             lineStart = idx;
-           DEBUGOUT("", false); return;
-         }
-     }
+    if (extra.commentTracking) {
+        comment = toU8(slice(sourceraw, start + offset, idx)); 
+        loc.end.line = lineNumber;
+        loc.end.column = idx - lineStart;
+        addComment("Line", comment, start, idx, loc);
+    }
+    DEBUGOUT("", false);
+}
 
-     if (extra.commentTracking) {
-         comment = toU8(slice(sourceraw, start + offset, idx)); 
-         loc.end.line = lineNumber;
-         loc.end.column = idx - lineStart;
-         addComment("Line", comment, start, idx, loc);
-     }
-     DEBUGOUT("", false);
- }
-
- void skipSingleLineComment() { //? are we sure that in javascript the calls to this with no arg will default to 0?
-     skipSingleLineComment(0);
- }
+void skipSingleLineComment() { 
+    //? are we sure that in javascript the calls to this with no arg will default to 0?
+    skipSingleLineComment(0);
+}
 
 //throw_
 void skipMultiLineComment() {
     DEBUGIN(" skipMultiLineComment()");
-     int start;
-     Loc loc;
-     char16_t ch;
-     string comment;
+    int start;
+    Loc loc;
+    char16_t ch;
+    string comment;
 
-     if (extra.commentTracking) {
-         start = idx - 2;
-         loc.start.line = lineNumber;
-         loc.start.column = idx - lineStart - 2 ;
-     }
+    if (extra.commentTracking) {
+        start = idx - 2;
+        loc.start.line = lineNumber;
+        loc.start.column = idx - lineStart - 2 ;
+    }
 
-     while (idx < length) {
-         ch = source(idx);
-         if (isLineTerminator(ch)) {
-             if (ch == 0x0D && source(idx + 1) == 0x0A) {
-                 ++idx;
-             }
-             ++lineNumber;
-             ++idx;
-             lineStart = idx;
-             if (idx >= length) {
-                 throwError(NULLTOKEN, 
-                            Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
-             }
-         } else if (ch == 0x2A) {
-             // Block comment ends with ''.
-             if (source(idx + 1) == 0x2F) {
-                 ++idx;
-                 ++idx;
-                 if (extra.commentTracking) {
-                     comment = toU8(slice(sourceraw, start + 2, idx - 2));
-                     loc.end.line = lineNumber;
-                     loc.end.column = idx - lineStart;
-                     addComment("Block", comment, start, idx, loc);
-                 }
-               DEBUGOUT("", false); 
-               return;
-             }
-             ++idx;
-         } else {
-             ++idx;
-         }
-     }
+    while (idx < length) {
+        ch = source(idx);
+        if (isLineTerminator(ch)) {
+            if (ch == 0x0D && source(idx + 1) == 0x0A) {
+                ++idx;
+            }
+            ++lineNumber;
+            ++idx;
+            lineStart = idx;
+            if (idx >= length) {
+                throwError(NULLTOKEN, 
+                           Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+            }
+        } else if (ch == 0x2A) {
+            // Block comment ends with ''.
+            if (source(idx + 1) == 0x2F) {
+                ++idx;
+                ++idx;
+                if (extra.commentTracking) {
+                    comment = toU8(slice(sourceraw, start + 2, idx - 2));
+                    loc.end.line = lineNumber;
+                    loc.end.column = idx - lineStart;
+                    addComment("Block", comment, start, idx, loc);
+                }
+                DEBUGOUT("", false); 
+                return;
+            }
+            ++idx;
+        } else {
+            ++idx;
+        }
+    }
 
-     throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+    throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
     DEBUGOUT("", false);
-  return; //#throw52
- }
+    return; //#throw52
+}
 
 //throw_
 void skipComment() {
     DEBUGIN(" skipComment()");
-     char16_t ch;
-     bool start;
-     start = (idx == 0);
-     while (idx < length) {
-         ch = source(idx);
+    char16_t ch;
+    bool start;
+    start = (idx == 0);
+    while (idx < length) {
+        ch = source(idx);
 
-         if (isWhiteSpace(ch)) {
-             ++idx;
-         } else if (isLineTerminator(ch)) {
-             ++idx;
-             if (ch == 0x0D && source(idx) == 0x0A) {
-                 ++idx;
-             }
-             ++lineNumber;
-             lineStart = idx;
-             start = true;
-         } else if (ch == 0x2F) { // U+002F is '/'
-             ch = source(idx + 1);
-             if (ch == 0x2F) {
-                 ++idx;
-                 ++idx;
-                 skipSingleLineComment(2);
-                 start = true;
-             } else if (ch == 0x2A) {  // U+002A is '*'
-                 ++idx;
-                 ++idx;
-                 skipMultiLineComment(); 
-             } else {
-                 break;
-             }
-         } else if (start && ch == 0x2D) { // U+002D is '-'
-             // U+003E is '>'
-             if ((source(idx + 1) == 0x2D) && (source(idx + 2) == 0x3E)) {
-                 // '-->' is a single-line comment
-                 idx += 3;
-                 skipSingleLineComment(3);
-             } else {
-                 break;
-             }
-         } else if (ch == 0x3C) { // U+003C is '<'
-             if (slice(sourceraw, idx + 1, idx + 4) == u"!--") {
-                 ++idx; // `<`
-                 ++idx; // `!`
-                 ++idx; // `-`
-                 ++idx; // `-`
-                 skipSingleLineComment(4);
-             } else {
-                 break;
-             }
-         } else {
-             break;
-         }
-     }
+        if (isWhiteSpace(ch)) {
+            ++idx;
+        } else if (isLineTerminator(ch)) {
+            ++idx;
+            if (ch == 0x0D && source(idx) == 0x0A) {
+                ++idx;
+            }
+            ++lineNumber;
+            lineStart = idx;
+            start = true;
+        } else if (ch == 0x2F) { // U+002F is '/'
+            ch = source(idx + 1);
+            if (ch == 0x2F) {
+                ++idx;
+                ++idx;
+                skipSingleLineComment(2);
+                start = true;
+            } else if (ch == 0x2A) {  // U+002A is '*'
+                ++idx;
+                ++idx;
+                skipMultiLineComment(); 
+            } else {
+                break;
+            }
+        } else if (start && ch == 0x2D) { // U+002D is '-'
+            // U+003E is '>'
+            if ((source(idx + 1) == 0x2D) && (source(idx + 2) == 0x3E)) {
+                // '-->' is a single-line comment
+                idx += 3;
+                skipSingleLineComment(3);
+            } else {
+                break;
+            }
+        } else if (ch == 0x3C) { // U+003C is '<'
+            if (slice(sourceraw, idx + 1, idx + 4) == u"!--") {
+                ++idx; // `<`
+                ++idx; // `!`
+                ++idx; // `-`
+                ++idx; // `-`
+                skipSingleLineComment(4);
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
     DEBUGOUT("", false);
-  return; //throw52; 
- }
+    return; //throw52; 
+}
 
  
- char16_t scanHexEscape(const char16_t prefix) {
+char16_t scanHexEscape(const char16_t prefix) {
     DEBUGIN("scanHexEscape(const char16_t prefix) {");
-     int i, len;
-     char16_t ch;
-     int code = 0;
+    int i, len;
+    char16_t ch;
+    int code = 0;
 
-     len = (prefix == u'u') ? 4 : 2;
-     for (i = 0; i < len; ++i) {
-         if (idx < length && isHexDigit(source(idx))) {
-             ch = source(idx++);
-             code = code * 16 + u16string({u"0123456789abcdef"})
-                 .find_first_of(toLowercaseHex(ch));
-         } else {
-           DEBUGOUT("scanHexEscape"); return NULL_CHAR16; 
-         }
-     }
-   DEBUGOUT("scanHexEscape"); return code;
- }
+    len = (prefix == u'u') ? 4 : 2;
+    for (i = 0; i < len; ++i) {
+        if (idx < length && isHexDigit(source(idx))) {
+            ch = source(idx++);
+            code = code * 16 + u16string({u"0123456789abcdef"})
+                .find_first_of(toLowercaseHex(ch));
+        } else {
+            DEBUGOUT("scanHexEscape"); 
+            return NULL_CHAR16; 
+        }
+    }
+    DEBUGOUT("scanHexEscape"); 
+    return code;
+}
 
 //throw_
 u16string scanUnicodeCodePointEscape() {
@@ -1910,7 +1948,8 @@ u16string scanUnicodeCodePointEscape() {
 
     // UTF-16 Encoding
     if (code <= 0xFFFF) {
-        DEBUGOUT("", false); return u16string({(char16_t) code});
+        DEBUGOUT("", false);
+        return u16string({(char16_t) code});
     }
 
     cu[0] = ((code - 0x10000) >> 10) + 0xD800; 
@@ -1922,54 +1961,55 @@ u16string scanUnicodeCodePointEscape() {
 //throw_
 string getEscapedIdentifier() {
     DEBUGIN("getEscapedIdentifier");
-     char16_t ch;
-     u16string id;
+    char16_t ch;
+    u16string id;
 
-     ch = source(idx++);
-     id = u16string({ch});
+    ch = source(idx++);
+    id = u16string({ch});
 
-     // '\u' (U+005C, U+0075) denotes an escaped character.
-     if (ch == 0x5C) {
-         if (source(idx) != 0x75) {
-             throwError(NULLTOKEN, 
-                        Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
-         }
-         ++idx;
-         ch = scanHexEscape(u'u');
-         if (ch == NULL_CHAR16 || ch == u'\\' || !isIdentifierStart(ch)) { 
-             throwError(NULLTOKEN, 
-                        Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
-         }
-         id = u16string({ch});
-     }
+    // '\u' (U+005C, U+0075) denotes an escaped character.
+    if (ch == 0x5C) {
+        if (source(idx) != 0x75) {
+            throwError(NULLTOKEN, 
+                       Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+        }
+        ++idx;
+        ch = scanHexEscape(u'u');
+        if (ch == NULL_CHAR16 || ch == u'\\' || !isIdentifierStart(ch)) { 
+            throwError(NULLTOKEN, 
+                       Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+        }
+        id = u16string({ch});
+    }
 
-     while (idx < length) {
-         ch = source(idx);
-         if (!isIdentifierPart(ch)) {
-             break;
-         }
-         ++idx;
-         append(id, ch);
+    while (idx < length) {
+        ch = source(idx);
+        if (!isIdentifierPart(ch)) {
+            break;
+        }
+        ++idx;
+        append(id, ch);
 
-         // '\u' (U+005C, U+0075) denotes an escaped character.
-         if (ch == 0x5C) {
-             id = id.substr(0, id.length() - 1);
-             if (source(idx) != 0x75) {
-                 throwError(NULLTOKEN, 
-                            Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
-             }
-             ++idx;
-             ch = scanHexEscape(u'u');
-             if (ch == NULL_CHAR16 || ch == u'\\' || !isIdentifierPart(ch)) {
-                 throwError(NULLTOKEN, 
-                            Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
-             }
-             append(id, ch);
-         }
-     }
+        // '\u' (U+005C, U+0075) denotes an escaped character.
+        if (ch == 0x5C) {
+            id = id.substr(0, id.length() - 1);
+            if (source(idx) != 0x75) {
+                throwError(NULLTOKEN, 
+                           Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+            }
+            ++idx;
+            ch = scanHexEscape(u'u');
+            if (ch == NULL_CHAR16 || ch == u'\\' || !isIdentifierPart(ch)) {
+                throwError(NULLTOKEN, 
+                           Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+            }
+            append(id, ch);
+        }
+    }
 
-     DEBUGOUT("getEscapedIdentifier"); return toU8(id);
- }
+    DEBUGOUT("getEscapedIdentifier"); 
+    return toU8(id);
+}
 
 //throw_
 string getIdentifier() {
@@ -1983,7 +2023,7 @@ string getIdentifier() {
         if (ch == 0x5C) {
             // Blackslash (U+005C) marks Unicode escape sequence.
             idx = start;
-          return DEBUGRET("", getEscapedIdentifier());
+            return DEBUGRET("", getEscapedIdentifier());
         }
         if (isIdentifierPart(ch)) {
             ++idx;
@@ -2042,136 +2082,143 @@ u16string emccu16str;
 
  // 7.7 Punctuators
  //throw_
- TokenStruct scanPunctuator() {
+TokenStruct scanPunctuator() {
     DEBUGIN(" scanPunctuator()");
-     TokenStruct t;
-     int start = idx;
+    TokenStruct t;
+    int start = idx;
 
-     char16_t ch1 = source(idx);
-     string ch2, ch3, ch4;
-     char16_t code[2];
+    char16_t ch1 = source(idx);
+    string ch2, ch3, ch4;
+    char16_t code[2];
 
-     code[0] = source(idx);
+    code[0] = source(idx);
 
-     t.type = TknType::Punctuator;
-     t.lineNumber = lineNumber;
-     t.lineStart = lineStart;
-     t.start = start;
-     t.literaltype = LiteralType["String"];
+    t.type = TknType::Punctuator;
+    t.lineNumber = lineNumber;
+    t.lineStart = lineStart;
+    t.start = start;
+    t.literaltype = LiteralType["String"];
 
-     switch (code[0]) {
-     // Check for most common single-character punctuators.
-     case 0x2E:  // . dot
-     case 0x28:  // ( open bracket
-     case 0x29:  // ) close bracket
-     case 0x3B:  // ; semicolon
-     case 0x2C:  // , comma
-     case 0x7B:  // { open curly brace
-     case 0x7D:  // } close curly brace
-     case 0x5B:  // [
-     case 0x5D:  // ]
-     case 0x3A:  // :
-     case 0x3F:  // ?
-     case 0x7E:  // ~
-         ++idx;
-         if (extra.tokenize) {
-             if (code[0] == 0x28) {
-                 extra.openParenToken = extra.tokenRecords.size();
-             } else if (code[0] == 0x7B) {
-                 extra.openCurlyToken = extra.tokenRecords.size();
-             }
-         }
-         t.strvalue = toU8(u16string({ code[0] }));
+    switch (code[0]) {
+        // Check for most common single-character punctuators.
+    case 0x2E:  // . dot
+    case 0x28:  // ( open bracket
+    case 0x29:  // ) close bracket
+    case 0x3B:  // ; semicolon
+    case 0x2C:  // , comma
+    case 0x7B:  // { open curly brace
+    case 0x7D:  // } close curly brace
+    case 0x5B:  // [
+    case 0x5D:  // ]
+    case 0x3A:  // :
+    case 0x3F:  // ?
+    case 0x7E:  // ~
+        ++idx;
+        if (extra.tokenize) {
+            if (code[0] == 0x28) {
+                extra.openParenToken = extra.tokenRecords.size();
+            } else if (code[0] == 0x7B) {
+                extra.openCurlyToken = extra.tokenRecords.size();
+            }
+        }
+        t.strvalue = toU8(u16string({ code[0] }));
 
-         t.end = idx;
-       DEBUGOUT("", false); return t;
-     default:
-         code[1] = source(idx + 1);
+        t.end = idx;
+        DEBUGOUT("", false); 
+        return t;
+    default:
+        code[1] = source(idx + 1);
 
-         // '=' (U+003D) marks an assignment or comparison operator.
-         if (code[1] == 0x3D) {
-             switch (code[0]) {
-             case 0x2B:  // +
-             case 0x2D:  // -
-             case 0x2F:  // /
-             case 0x3C:  // <
-             case 0x3E:  // >
-             case 0x5E:  // ^
-             case 0x7C:  // |
-             case 0x25:  // %
-             case 0x26:  // &
-             case 0x2A:  // *
-                 idx += 2;
-                 t.strvalue = toU8(u16string({code[0], code[1]}));      
-                 t.end = idx;
-               DEBUGOUT("", false); return t;
-             case 0x21: // !
-             case 0x3D: // =
-                 idx += 2;
+        // '=' (U+003D) marks an assignment or comparison operator.
+        if (code[1] == 0x3D) {
+            switch (code[0]) {
+            case 0x2B:  // +
+            case 0x2D:  // -
+            case 0x2F:  // /
+            case 0x3C:  // <
+            case 0x3E:  // >
+            case 0x5E:  // ^
+            case 0x7C:  // |
+            case 0x25:  // %
+            case 0x26:  // &
+            case 0x2A:  // *
+                idx += 2;
+                t.strvalue = toU8(u16string({code[0], code[1]}));      
+                t.end = idx;
+                DEBUGOUT("", false); 
+                return t;
+            case 0x21: // !
+            case 0x3D: // =
+                idx += 2;
 
-                 // !== and ===
-                 if (source(idx) == 0x3D) {
-                     ++idx;
-                 }
-                 t.strvalue = toU8(slice(sourceraw, start, idx));
-                 t.end = idx;
-               DEBUGOUT("", false); return t;
-             }
-         }
-     }
+                // !== and ===
+                if (source(idx) == 0x3D) {
+                    ++idx;
+                }
+                t.strvalue = toU8(slice(sourceraw, start, idx));
+                t.end = idx;
+                DEBUGOUT("", false); 
+                return t;
+            }
+        }
+    }
 
 
-     // 4-character punctuator: >>>=
+    // 4-character punctuator: >>>=
 
-     ch4 = toU8(slice(sourceraw, idx, idx+4)); 
+    ch4 = toU8(slice(sourceraw, idx, idx+4)); 
 
-     if (ch4 == ">>>=") {
-         idx += 4;
-         t.strvalue = ch4;
-         t.end = idx;
-       DEBUGOUT("", false); return t;
-     }
+    if (ch4 == ">>>=") {
+        idx += 4;
+        t.strvalue = ch4;
+        t.end = idx;
+        DEBUGOUT("", false); 
+        return t;
+    }
 
-     // 3-character punctuators: === !== >>> <<= >>=
+    // 3-character punctuators: === !== >>> <<= >>=
 
-     ch3 = ch4.substr(0, 3); 
+    ch3 = ch4.substr(0, 3); 
 
-     if (ch3 == ">>>" || ch3 == "<<=" || ch3 == ">>=") {
-         idx += 3;
-         t.strvalue = ch3;
-         t.end = idx;
-       DEBUGOUT("", false); return t;
-     }
+    if (ch3 == ">>>" || ch3 == "<<=" || ch3 == ">>=") {
+        idx += 3;
+        t.strvalue = ch3;
+        t.end = idx;
+        DEBUGOUT("", false); 
+        return t;
+    }
 
-     // Other 2-character punctuators: ++ -- << >> && ||
-     ch2 = ch3.substr(0, 2); 
+    // Other 2-character punctuators: ++ -- << >> && ||
+    ch2 = ch3.substr(0, 2); 
 
-     if (((ch1 == (char16_t) ch2[1]) 
-          && (u16string({u"+-<>&|"}).find_first_of(ch1)
-              != std::string::npos))
-         || ch2 == "=>") {
-         idx += 2;
-         t.strvalue = ch2;
-         t.end = idx;
-       DEBUGOUT("", false); return t;
-     }
+    if (((ch1 == (char16_t) ch2[1]) 
+         && (u16string({u"+-<>&|"}).find_first_of(ch1)
+             != std::string::npos))
+        || ch2 == "=>") {
+        idx += 2;
+        t.strvalue = ch2;
+        t.end = idx;
+        DEBUGOUT("", false); 
+        return t;
+    }
 
-     // 1-character punctuators: < > = ! + - * % & | ^ /
+    // 1-character punctuators: < > = ! + - * % & | ^ /
 
-     if (u16string({u"<>=!+-*%&|^/"}) //? is it necessary/correct to have this as ({u""}) and not just (u"")
-         .find_first_of(ch1) != std::string::npos) {
-         ++idx;
-         t.strvalue = toU8(u16string({ch1}));
-         t.end = idx;
-       DEBUGOUT("", false); return t;
-     }
+    if (u16string({u"<>=!+-*%&|^/"}) //? is it necessary/correct to have this as ({u""}) and not just (u"")
+        .find_first_of(ch1) != std::string::npos) {
+        ++idx;
+        t.strvalue = toU8(u16string({ch1}));
+        t.end = idx;
+        DEBUGOUT("", false); 
+        return t;
+    }
 
-     throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+    throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
 
-     DEBUGOUT("", false); 
-     return t;
-   //# return avoids compile warnings bcos clang doesn't look into throwError.
- }
+    DEBUGOUT("", false); 
+    return t;
+  //# return avoids compile warnings bcos clang doesn't look into throwError.
+}
      // 7.8.3 Numeric Literals
 //throw_
 TokenStruct scanHexLiteral(const int start) {
@@ -2247,7 +2294,7 @@ TokenStruct scanNumericLiteral() {
 
     ch = source(idx);
     softAssert(isDecimalDigit(ch) || (ch == u'.'),
-           "Numeric literal must start with a decimal digit or a decimal point");
+               "Numeric literal must start with a decimal digit or a decimal point");
 
     start = idx;
     number = u"";
@@ -2340,7 +2387,7 @@ TokenStruct scanStringLiteral() {
 
     quote = source(idx);
     softAssert((quote == u'\'' || quote == u'"'),
-           "String literal must starts with a quote");
+               "String literal must starts with a quote");
 
     start = idx;
     ++idx;
@@ -2457,7 +2504,7 @@ RegexHalf scanRegExpBody() {
 
     ch = source(idx);
     softAssert(ch == u'/',
-           "Regular expression literal must start with a slash");
+               "Regular expression literal must start with a slash");
     append(str, source(idx++)); 
 
     classMarker = false;
@@ -2582,7 +2629,8 @@ TokenStruct scanRegExp() {
         t.lineStart = lineStart;
         t.start = start;
         t.end = idx;
-      DEBUGOUT("", false); return t; //not polymorphic right now. not going to work... :!
+        DEBUGOUT("", false); 
+        return t; //not polymorphic right now. not going to work... :!
     }
 
     t.literal = body.literal; 
@@ -2643,11 +2691,12 @@ TokenStruct collectRegex() {
 
 bool isIdentifierName(const TokenStruct token) {
     DEBUGIN("   isIdentifierName(TokenStruct token)");
-   DEBUGOUT("", false); return token.type == TknType::Identifier ||
-                            token.type == TknType::Keyword ||
-                            token.type == TknType::BooleanLiteral ||
-                            token.type == TknType::NullLiteral;
- }
+    DEBUGOUT("", false); 
+    return token.type == TknType::Identifier ||
+        token.type == TknType::Keyword ||
+        token.type == TknType::BooleanLiteral ||
+        token.type == TknType::NullLiteral;
+}
 
 //throw_
 TokenStruct advanceSlash() {
@@ -2750,43 +2799,44 @@ TokenStruct advance() {
         t.lineStart = lineStart;
         t.start = idx;
         t.end = idx;
-      DEBUGOUT("", false); return t;
+        DEBUGOUT("", false); 
+        return t;
     }
 
     ch = source(idx);
     if (isIdentifierStart(ch)) {
-      return DEBUGRET("adv", scanIdentifier());
+        return DEBUGRET("adv", scanIdentifier());
     }
 
     // Very common: ( and ) and ;
     if (ch == 0x28 || ch == 0x29 || ch == 0x3B) {
-      return DEBUGRET("adv", scanPunctuator());
+        return DEBUGRET("adv", scanPunctuator());
     }
 
     // String literal starts with single quote (U+0027) or double quote (U+0022).
     if (ch == 0x27 || ch == 0x22) {
-      return DEBUGRET("adv", scanStringLiteral());
+        return DEBUGRET("adv", scanStringLiteral());
     }
 
     // Dot (.) U+002E can also start a floating-point number, hence the need
     // to check the next character.
     if (ch == 0x2E) {
         if (isDecimalDigit(source(idx + 1))) {
-          return DEBUGRET("adv", scanNumericLiteral());
+            return DEBUGRET("adv", scanNumericLiteral());
         }
-      return DEBUGRET("adv", scanPunctuator());
+        return DEBUGRET("adv", scanPunctuator());
     }
 
     if (isDecimalDigit(ch)) {
-      return DEBUGRET("adv", scanNumericLiteral());
+        return DEBUGRET("adv", scanNumericLiteral());
     }
 
     // Slash (/) U+002F can also start a regex.
     if (extra.tokenize && ch == 0x2F) {
-      return DEBUGRET("adv", advanceSlash());
+        return DEBUGRET("adv", advanceSlash());
     }
 
-  return DEBUGRET("adv", scanPunctuator());
+    return DEBUGRET("adv", scanPunctuator());
 }
 
 //throw_
@@ -3054,8 +3104,9 @@ void Node::processComment() {
 
     if (type == Syntax[Synt::Program]) {  
         if (json_object_array_length(
-                        json_require(jv,"body", false)) > 0) {
-          DEBUGOUT("", false); return;
+                                     json_require(jv,"body", false)) > 0) {
+            DEBUGOUT("", false); 
+            return;
         }
     }
 
@@ -3099,7 +3150,7 @@ void Node::processComment() {
     if (!(lastChild.isNull)) {
         if (lastChild.leadingComments.size() > 0 &&
             lastChild.leadingComments.back()
-                .range[1] <= thisnc.range[0]) {
+            .range[1] <= thisnc.range[0]) {
             thisnc.leadingComments = lastChild.leadingComments;
             lastChild.leadingComments.clear();
             lastChild.commentsIntoJson(LEADING);
@@ -3244,7 +3295,8 @@ void Node::finishCatchClause(const Node& param,
     addType(Synt::CatchClause);
     reg("param", param);
     reg("body", body);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3256,7 +3308,8 @@ void Node::finishConditionalExpression(const Node& test,
     reg("test", test);
     reg("consequent", consequent);
     reg("alternate", alternate);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3271,7 +3324,8 @@ void Node::finishContinueStatement(const Node& label) {
 void Node::finishDebuggerStatement() {
     DEBUGIN("finishDebuggerStatement()");
     addType(Synt::DebuggerStatement);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3280,14 +3334,16 @@ void Node::finishDoWhileStatement(const Node& body, const Node& test) {
     addType(Synt::DoWhileStatement);
     reg("body", body);
     reg("test", test);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
 void Node::finishEmptyStatement() {
     DEBUGIN("finishEmptyStatement()");
     addType(Synt::EmptyStatement);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3309,7 +3365,8 @@ void Node::finishForStatement(const Node& init,
     reg("test", test);
     reg("update", update);
     reg("body", body);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3322,7 +3379,8 @@ void Node::finishForInStatement(const Node& left,
     reg("right", right);
     reg("body", body);
     jvput("each", false);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3339,7 +3397,8 @@ void Node::finishFunctionDeclaration(const Node& id,
     jvput_null("rest");
     jvput("generator", false);
     jvput("expression", false);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3355,14 +3414,16 @@ void Node::finishFunctionExpression(const Node& id,
     jvput_null("rest");
     jvput("generator", false);
     jvput("expression", false);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 void Node::finishIdentifier(const string name) {
     DEBUGIN("finishIdentifier(u16string name)");
     addType(Synt::Identifier);
     this->name = name;
     jvput("name", name);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3374,7 +3435,8 @@ void Node::finishIfStatement(const Node& test,
     reg("test", test);
     reg("consequent", consequent);
     reg("alternate", alternate);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3384,7 +3446,8 @@ void Node::finishLabeledStatement(const Node& label,
     addType(Synt::LabeledStatement);
     reg("label", label);
     reg("body", body);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 //# ?maybe check against js to make sure we're not missing anything.
@@ -3422,7 +3485,8 @@ void Node::finishMemberExpression(const char16_t accessor,
     jvput("computed", (accessor == u'['));
     reg("object", object);
     reg("property", property);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3432,7 +3496,8 @@ void Node::finishNewExpression(const Node& callee,
     addType(Synt::NewExpression);
     reg("callee", callee);
     nodeVec("arguments", args);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3440,7 +3505,8 @@ void Node::finishObjectExpression(const vector<Node>& properties) {
     DEBUGIN("finishObjectExpression(vector<Node>& properties)");
     addType(Synt::ObjectExpression);
     nodeVec("properties", properties);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3451,7 +3517,8 @@ void Node::finishPostfixExpression(const string oper,
     jvput("operator", oper);
     reg("argument", argument);
     jvput("prefix", false);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3479,7 +3546,8 @@ void Node::finishProperty(const string kind,
     reg("key", key);
     reg("value", value);
     jvput("kind", kind);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3487,7 +3555,8 @@ void Node::finishReturnStatement(const Node& argument) {
     DEBUGIN("finishReturnStatement(Node& argument)");
     addType(Synt::ReturnStatement);
     reg("argument", argument);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3496,7 +3565,8 @@ void Node::finishSequenceExpression(const vector< Node >& expressions) {
     addType(Synt::SequenceExpression);
     this->expressions = expressions;
     nodeVec("expressions", expressions);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3506,7 +3576,8 @@ void Node::finishSwitchCase(const Node& test,
     addType(Synt::SwitchCase);
     reg("test", test);
     nodeVec("consequent", consequent);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3516,14 +3587,16 @@ void Node::finishSwitchStatement(const Node& discriminant,
     addType(Synt::SwitchStatement);
     reg("discriminant", discriminant);
     nodeVec("cases", cases);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
 void Node::finishThisExpression() {
     DEBUGIN("finishThisExpression()");
     addType(Synt::ThisExpression);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3531,7 +3604,8 @@ void Node::finishThrowStatement(const Node& argument) {
     DEBUGIN("finishThrowStatement(Node& argument)");
     addType(Synt::ThrowStatement);
     reg("argument", argument);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3544,7 +3618,8 @@ void Node::finishTryStatement(const Node& block,
     nodeVec("guardedHandlers", guardedHandlers);
     nodeVec("handlers", handlers);
     reg("finalizer", finalizer);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3556,7 +3631,8 @@ void Node::finishUnaryExpression(const string oper,
     jvput("operator", oper);
     reg("argument", argument);
     jvput("prefix", true);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3566,7 +3642,8 @@ void Node::finishVariableDeclaration(const vector< Node >& declarations,
     addType(Synt::VariableDeclaration);
     nodeVec("declarations", declarations);
     jvput("kind", kind);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3576,7 +3653,8 @@ void Node::finishVariableDeclarator(const Node& id,
     addType(Synt::VariableDeclarator);
     reg("id", id);
     reg("init", init);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3586,7 +3664,8 @@ void Node::finishWhileStatement(const Node& test,
     addType(Synt::WhileStatement);
     reg("test", test);
     reg("body", body);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3596,7 +3675,8 @@ void Node::finishWithStatement(const Node& object,
     addType(Synt::WithStatement);
     reg("object", object);
     reg("body", body);
-    this->finish(); DEBUGOUT("", false);
+    this->finish();
+    DEBUGOUT("", false);
 }
 
 
@@ -3634,7 +3714,8 @@ public:
         result.end.line = -1;
         result.end.column = -1;
         //return result;
-        DEBUGOUT("WraSrcLoc", true); return result;
+        DEBUGOUT("WraSrcLoc", true); 
+        return result;
     }
 };
 
@@ -3690,7 +3771,7 @@ ExError genExError(TokenStruct& token, const string messageFormat,
         searchkey.append(to_string(i));
         searchresult = msg.find(searchkey);
         softAssert(searchresult != string::npos, 
-              "args to genExError exceeded substitutable values in message format");
+                   "args to genExError exceeded substitutable values in message format");
         msg.erase(searchresult, 2);
         msg.insert(searchresult, args[i]);
     }
@@ -3760,7 +3841,8 @@ void throwUnexpected(TokenStruct& token) {
             throwError(token, Messages[Mssg::UnexpectedReserved],{});
         } else if (strict && isStrictModeReservedWord(token.strvalue)) {
             throwErrorTolerant(token, Messages[Mssg::StrictReservedWord], {});
-          DEBUGOUT("", false); return;
+            DEBUGOUT("", false); 
+            return;
         }
         throwError(token, Messages[Mssg::UnexpectedToken], {token.strvalue});
     }
@@ -3782,11 +3864,7 @@ void expect(const string value) {
 
 
     if (token.type != TknType::Punctuator || 
-        /*!(has(token.type, {NULLTOKEN.type, 
-                        TknType::Keyword,  //# don't include punctuator.
-                        TknType::StringLiteral,
-                        TknType::Identifier})) ||*/
-            token.strvalue != value) {
+          token.strvalue != value) {
         throwUnexpected(token); 
     }
     // DEBUGOUT("expect");
@@ -3803,13 +3881,7 @@ void expectTolerant(const string value) {
 
 
         if (token.type != TknType::Punctuator || 
-
-            /*!(has(token.type, {
-                        NULLTOKEN.type, 
-                            TknType::Keyword,  //# don't include punctuator.
-                            TknType::StringLiteral,
-                            TknType::Identifier})) || */ 
-                token.strvalue != value) {
+              token.strvalue != value) {
             throwErrorTolerant(token, Messages[Mssg::UnexpectedToken], 
                                {token.strvalue});
         } else {
@@ -3838,7 +3910,8 @@ void expectKeyword(const string keyword) {
 // Return true if the next token matches the specified punctuator.
 
 bool match(const string value) { 
-  return lookahead.type == TknType::Punctuator && lookahead.strvalue == value;
+    return lookahead.type == TknType::Punctuator 
+        && lookahead.strvalue == value;
 }
 
 // Return true if the next token matches the specified keyword
@@ -3847,7 +3920,8 @@ bool match(const string value) {
 bool matchKeyword(const string keyword) {
     // DEBUGIN(" matchKeyword(const u16string keyword)");
     //  DEBUGOUT("matchKey"); 
-return lookahead.type == TknType::Keyword && lookahead.strvalue == keyword;
+    return lookahead.type == TknType::Keyword 
+        && lookahead.strvalue == keyword;
 }
 
     // Return true if the next token is an assignment operator
@@ -3855,10 +3929,10 @@ return lookahead.type == TknType::Keyword && lookahead.strvalue == keyword;
 
 bool matchAssign() { 
     if (lookahead.type != TknType::Punctuator) {
-     return false;
+        return false;
     }
-  return has(lookahead.strvalue, {
-                "=", 
+    return has(lookahead.strvalue, {
+                "=",
                 "*=",
                 "/=",
                 "%=",
@@ -3908,20 +3982,22 @@ void consumeSemicolon() {
     // Catch the very common case first: immediately a semicolon (U+003B).
     if (source(idx) == 0x3B || match(";")) { 
         lex();
-      DEBUGOUT("", false); return;
+        DEBUGOUT("", false); 
+        return;
     }
 
     line = lineNumber;
     skipComment(); 
     if (lineNumber != line) {
-      DEBUGOUT("", false); return;
+        DEBUGOUT("", false); 
+        return;
     }
 
     if (lookahead.type != TknType::EOFF && !match("}")) { 
         throwUnexpected(lookahead); 
     }
     DEBUGOUT("consumeSemi");
- return;
+    return;
 }
 
     // Return true if provided expression is LeftHandSideExpression
@@ -4006,7 +4082,8 @@ Node parseObjectPropertyKey() {
             throwErrorTolerant(token, Messages[Mssg::StrictOctalLiteral], {});
         }
         node.finishLiteral(token);
-      DEBUGOUT("", false); return node;
+        DEBUGOUT("", false); 
+        return node;
     }
 
     node.finishIdentifier(token.strvalue);
@@ -4043,7 +4120,8 @@ Node parseObjectProperty() {
             value = parsePropertyFunction(EMPTY_NODE_LIST, 
                                           NULLTOKEN);
             node.finishProperty("get", key, value);
-          DEBUGOUT("parseObjProp"); return node;
+            DEBUGOUT("parseObjProp"); 
+            return node;
         }
         if (token.strvalue == "set" && !match(":")) {
             key = parseObjectPropertyKey();
@@ -4068,22 +4146,26 @@ Node parseObjectProperty() {
                 value = parsePropertyFunction(param, token);
             }
             node.finishProperty("set", key, value);
-          DEBUGOUT("parseObjProp"); return node;
+            DEBUGOUT("parseObjProp"); 
+            return node;
         }
         expect(":");
         value = parseAssignmentExpression();
         node.finishProperty("init", id, value);
-      DEBUGOUT("parseObjProp"); return node;
+        DEBUGOUT("parseObjProp"); 
+        return node;
     }
     if (token.type == TknType::EOFF || token.type == TknType::Punctuator) {
         throwUnexpected(token);
-      DEBUGOUT("parseObjProp"); return NULLNODE; //#just to satisfy warnings.
+        DEBUGOUT("parseObjProp"); 
+        return NULLNODE; //#just to satisfy warnings.
     } else {
         key = parseObjectPropertyKey();
         expect(":");
         value = parseAssignmentExpression();
         node.finishProperty("init", key, value);
-      DEBUGOUT("parseObjProp"); return node;
+        DEBUGOUT("parseObjProp"); 
+        return node;
     }
 }
 
@@ -4091,11 +4173,11 @@ string json_tostring(json_object * in) {
     DEBUGIN("json_tostring");
     json_type objtype = json_object_get_type(in);
     if (objtype == json_type_string) {
-      return DEBUGRET("json_tostring", json_object_get_string(in));
+        return DEBUGRET("json_tostring", json_object_get_string(in));
     } else if (objtype == json_type_double) {
-      return DEBUGRET("json_tostring", to_string(json_object_get_double(in)));
+        return DEBUGRET("json_tostring", to_string(json_object_get_double(in)));
     } else if (objtype == json_type_boolean) {
-      return DEBUGRET("json_tostring", to_string(json_object_get_boolean(in)));
+        return DEBUGRET("json_tostring", to_string(json_object_get_boolean(in)));
     }
     DEBUGOUT("json_tostring");
     return "";
@@ -4179,7 +4261,8 @@ Node parseGroupExpression() {
     expect("(");
     if (match(")")) {
         lex();
-      DEBUGOUT("", false); return PlaceHolders["ArrowParameterPlaceHolder"];
+        DEBUGOUT("", false); 
+        return PlaceHolders["ArrowParameterPlaceHolder"];
     }
     ++(state.parenthesisCount);
     expr = parseExpression();
@@ -4205,15 +4288,15 @@ Node parsePrimaryExpression() {
     Node expr(false, true), node(false, true);
 
     if (match("(")) {
-      return DEBUGRET("", parseGroupExpression());
+        return DEBUGRET("", parseGroupExpression());
     }
 
     if (match("[")) {
-      return DEBUGRET("", parseArrayInitialiser());
+        return DEBUGRET("", parseArrayInitialiser());
     }
 
     if (match("{")) {
-      return DEBUGRET("", parseObjectInitialiser());
+        return DEBUGRET("", parseObjectInitialiser());
     }
 
     type = lookahead.type;
@@ -4236,7 +4319,7 @@ Node parsePrimaryExpression() {
     } else if (type == TknType::Keyword) {
         if (matchKeyword("function")) {
             expr.unused();
-          return DEBUGRET("", parseFunctionExpression());
+            return DEBUGRET("", parseFunctionExpression());
         }
         if (matchKeyword("this")) {
             lex();
@@ -4321,7 +4404,7 @@ Node parseNonComputedProperty() {
 Node parseNonComputedMember() {
     DEBUGIN(" parseNonComputedMember()");
     expect(".");
-  return DEBUGRET("parseNonComp", parseNonComputedProperty());
+    return DEBUGRET("parseNonComp", parseNonComputedProperty());
 }
 
 //throw_
@@ -4394,7 +4477,7 @@ Node parseLeftHandSideExpressionAllowCall() {
     state.allowIn = previousAllowIn;
 
     DEBUGOUT("parseLeftHandSideExprAllow"); 
-  return expr; 
+    return expr; 
 }
 
 //throw_
@@ -4403,7 +4486,8 @@ Node parseLeftHandSideExpression() {
     Node tmpnode(false, true), expr(false, true), property(false, true);
     TokenStruct startToken;
 
-    softAssert(state.allowIn, "callee of new expression always allow in keyword.");
+    softAssert(state.allowIn, 
+               "callee of new expression always allow in keyword.");
     startToken = lookahead;
     if (matchKeyword("new")) { 
         expr = parseNewExpression();
@@ -4427,7 +4511,7 @@ Node parseLeftHandSideExpression() {
         }
     }
     DEBUGOUT("parseLeftHandSideExpr");
-  return expr;
+    return expr;
 }
 
 // 11.3 Postfix Expressions
@@ -4453,13 +4537,15 @@ Node parsePostfixExpression() {
 
                 if (!isLeftHandSide(expr)) {
                     throwErrorTolerant(NULLTOKEN,
-                                       Messages[Mssg::InvalidLHSInAssignment],{});
+                                       Messages[Mssg::InvalidLHSInAssignment],
+                                       {});
                 }
 
                 token = lex();
                 tmpnode = WrappingNode(startToken);
                 tmpnode.finishPostfixExpression(token.strvalue, expr);
-                DEBUGOUT("parsePostfix"); return tmpnode;
+                DEBUGOUT("parsePostfix"); 
+                return tmpnode;
             }
         }
     }
@@ -4496,14 +4582,16 @@ Node parseUnaryExpression() {
 
         tmpnode = WrappingNode(startToken);
         tmpnode.finishUnaryExpression(token.strvalue, expr);
-      DEBUGOUT("parseUnary"); return tmpnode;
+        DEBUGOUT("parseUnary"); 
+        return tmpnode;
     } else if (match("+") || match("-") || match("~") || match("!")) {
         startToken = lookahead;
         token = lex();
         expr = parseUnaryExpression();
         tmpnode = WrappingNode(startToken);
         tmpnode.finishUnaryExpression(token.strvalue, expr);
-      DEBUGOUT("parseUnary"); return tmpnode;
+        DEBUGOUT("parseUnary"); 
+        return tmpnode;
     } else if (matchKeyword("delete") 
                || matchKeyword("void") 
                || matchKeyword("typeof")) {
@@ -4516,7 +4604,8 @@ Node parseUnaryExpression() {
             && expr.type == Syntax[Synt::Identifier]) {
             throwErrorTolerant(NULLTOKEN, Messages[Mssg::StrictDelete], {});
         }
-      DEBUGOUT("parseUnary"); return tmpnode;
+        DEBUGOUT("parseUnary"); 
+        return tmpnode;
     } else {
         expr = parsePostfixExpression();
     }
@@ -4533,7 +4622,8 @@ int binaryPrecedence(const TokenStruct token,
 
     if (token.type != TknType::Punctuator 
         && token.type != TknType::Keyword) {
-      DEBUGOUT("binaryPrec"); return 0;
+        DEBUGOUT("binaryPrec"); 
+        return 0;
     }
     tokval = token.strvalue;
 
@@ -4591,13 +4681,15 @@ Node parseBinaryExpression() {
 
     if (left.type == PlaceHolders["ArrowParameterPlaceHolder"].type) {
         //? placeholder
-      DEBUGOUT("parseBinary1"); return left;
+        DEBUGOUT("parseBinary1"); 
+        return left;
     }
 
     token = lookahead;    
     prec = binaryPrecedence(token, state.allowIn);
     if (prec == 0) {
-      DEBUGOUT("parseBinary2"); return left;
+        DEBUGOUT("parseBinary2"); 
+        return left;
     }
     token.prec = prec;
     lex();
@@ -4618,7 +4710,7 @@ Node parseBinaryExpression() {
     nodestack.push_back(right);
     tokstack.push_back(NULLTOKEN);
 
-    while ((prec = binaryPrecedence(lookahead, state.allowIn)) > 0) { //? will this work the same in c++ as in js
+    while ((prec = binaryPrecedence(lookahead, state.allowIn)) > 0) { 
 
         // Reduce: make a binary expression from the three topmost entries.
         while ((tokstack.size() > 2) && 
@@ -4658,12 +4750,11 @@ Node parseBinaryExpression() {
         tmpnode = WrappingNode(markers.back());
         markers.pop_back();
         tmpnode.finishBinaryExpression(
-            tokstack[i - 1].strvalue, nodestack[i - 2], expr);
+                                       tokstack[i - 1].strvalue, nodestack[i - 2], expr);
 
         expr = tmpnode;
         i -= 2;
     }
-
 
     DEBUGOUT("parseBinary3");
     return expr;
@@ -4687,7 +4778,8 @@ Node parseConditionalExpression() {
         //? ever supposed to eval. to true? cause it might in some cases
         //? even tho it seems in javascript it never ever will.
 
-      DEBUGOUT("parseCondExpr1"); return expr;
+        DEBUGOUT("parseCondExpr1"); 
+        return expr;
     }
     if (match("?")) {
         lex();
@@ -4700,7 +4792,8 @@ Node parseConditionalExpression() {
 
         tmpnode = WrappingNode(startToken);
         tmpnode.finishConditionalExpression(expr, consequent, alternate);
-      DEBUGOUT("parseCondExpr2"); return tmpnode;
+        DEBUGOUT("parseCondExpr2"); 
+        return tmpnode;
     }
 
     DEBUGOUT("parseCondExpr3");
@@ -4712,9 +4805,9 @@ Node parseConditionalExpression() {
 Node parseConciseBody() {
     DEBUGIN(" parseConciseBody()");
     if (match("{")) {
-      return DEBUGRET("parseConciseBody", parseFunctionSourceElements());
+        return DEBUGRET("parseConciseBody", parseFunctionSourceElements());
     }
-  return DEBUGRET("parseConciseBody", parseAssignmentExpression());
+    return DEBUGRET("parseConciseBody", parseAssignmentExpression());
 }
 
 void validateParamNode(ReinterpretOptions& options,
@@ -4774,7 +4867,8 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node >& expressions) {
             validateParamNode(opts, *(param.left), (*(param.left)).name);
         } else {
             reOut.isNull = true;
-          DEBUGOUT("", false); return reOut; 
+            DEBUGOUT("", false); 
+            return reOut; 
         }
     }
 
@@ -4782,9 +4876,9 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node >& expressions) {
         throwError(
                    //strict ? opts.stricted : opts.firstRestricted, //? replicate?
                    NULLTOKEN,
-            opts.message,
-            {}
-        );
+                   opts.message,
+                   {}
+                   );
     }
 
     if (defaultCount == 0) {
@@ -4804,8 +4898,8 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node >& expressions) {
 //throw_
 Node parseArrowFunctionExpression(const ReinterpretOut options, Node node) {
     DEBUGIN(" parseArrowFunctionExpression(ReinterpretOut options, Node node)");
-     bool previousStrict;
-     Node body(false, true);
+    bool previousStrict;
+    Node body(false, true);
 
     expect("=>");
     previousStrict = strict;
@@ -4855,7 +4949,7 @@ Node parseAssignmentExpression() {
         || match("=>")) {
 
         if (state.parenthesisCount == oldParenthesisCount ||
-                state.parenthesisCount == (oldParenthesisCount + 1)) {      
+            state.parenthesisCount == (oldParenthesisCount + 1)) {      
             if (expr.type == Syntax[Synt::Identifier]) {
                 reIn.push_back(expr);
                 list = reinterpretAsCoverFormalsList(reIn); 
@@ -4868,7 +4962,7 @@ Node parseAssignmentExpression() {
                 list = reinterpretAsCoverFormalsList(reIn); 
             }
             if (!(list.isNull)) {
-              return DEBUGRET("parseAssignExpr1", parseArrowFunctionExpression(list, WrappingNode(startToken)));
+                return DEBUGRET("parseAssignExpr1", parseArrowFunctionExpression(list, WrappingNode(startToken)));
             }
         }
     }
@@ -5200,7 +5294,7 @@ Node parseForStatement(Node& node) {
             state.allowIn = previousAllowIn;
 
             if (json_object_array_length(
-                   json_require(init.jv,  "declarations", false)) == 1 
+                 json_require(init.jv,  "declarations", false)) == 1 
                 && matchKeyword("in")) { 
 
                 lex();
@@ -5282,7 +5376,8 @@ Node parseContinueStatement(Node& node) {
         }
 
         node.finishContinueStatement(NULLNODE);
-      DEBUGOUT("parseContinueStatement"); return node;
+        DEBUGOUT("parseContinueStatement"); 
+        return node;
     }
     
     pltresult = peekLineTerminator();
@@ -5292,7 +5387,8 @@ Node parseContinueStatement(Node& node) {
         }
 
         node.finishContinueStatement(NULLNODE);
-      DEBUGOUT("parseContinueStatement"); return node;
+        DEBUGOUT("parseContinueStatement"); 
+        return node;
     }
 
     if (lookahead.type == TknType::Identifier) {
@@ -5337,7 +5433,8 @@ Node parseBreakStatement(Node& node) {
         }
 
         node.finishBreakStatement(NULLNODE);
-      DEBUGOUT("parseBreakStatement"); return node;
+        DEBUGOUT("parseBreakStatement"); 
+        return node;
     }
     
     pltresult = peekLineTerminator();
@@ -5347,7 +5444,8 @@ Node parseBreakStatement(Node& node) {
         }
 
         node.finishBreakStatement(NULLNODE);
-      DEBUGOUT("parseBreakStatement"); return node;
+        DEBUGOUT("parseBreakStatement"); 
+        return node;
     }
 
     if (lookahead.type == TknType::Identifier) {
@@ -5392,14 +5490,16 @@ Node parseReturnStatement(Node& node) {
             argument = parseExpression();
             consumeSemicolon();
             node.finishReturnStatement(argument);
-          DEBUGOUT("parseReturnStatement"); return node;
+            DEBUGOUT("parseReturnStatement"); 
+            return node;
         }
     }
 
     pltresult = peekLineTerminator();
     if (pltresult) {
         node.finishReturnStatement(NULLNODE);
-      DEBUGOUT("parseReturnStatement"); return node;
+        DEBUGOUT("parseReturnStatement");
+        return node;
     }
 
     if (!match(";")) {
@@ -5484,7 +5584,8 @@ Node parseSwitchStatement(Node& node) {
     if (match("}")) {
         lex();
         node.finishSwitchStatement(discriminant, cases);
-      DEBUGOUT("parseSwitchStatement"); return node;
+        DEBUGOUT("parseSwitchStatement"); 
+        return node;
     }
     oldInSwitch = state.inSwitch;
     state.inSwitch = true;
@@ -5496,8 +5597,8 @@ Node parseSwitchStatement(Node& node) {
         }
         clause = parseSwitchCase();
         if (json_object_is_type(
-                  json_require(clause.jv,  "test", false), 
-                  json_type_null)) {
+                                json_require(clause.jv,  "test", false), 
+                                json_type_null)) {
             if (defaultFound) {
                 throwError(NULLTOKEN, 
                            Messages[Mssg::MultipleDefaultsInSwitch],{});
@@ -5626,7 +5727,7 @@ Node parseStatement() {
     }
 
     if (type == TknType::Punctuator && lookahead.strvalue == "{") {
-      return DEBUGRET("parseStatement", parseBlock());
+        return DEBUGRET("parseStatement", parseBlock());
     }
 
     node.lookavailInit();
@@ -5634,42 +5735,42 @@ Node parseStatement() {
     if (type == TknType::Punctuator) {
         tokval = lookahead.strvalue;
         if (tokval == ";") {
-          return DEBUGRET("parseStatement", parseEmptyStatement());
+            return DEBUGRET("parseStatement", parseEmptyStatement());
         } else if (tokval == "(") {
-          return DEBUGRET("parseStatement", parseExpressionStatement(node));
+            return DEBUGRET("parseStatement", parseExpressionStatement(node));
         }
     } else if (type == TknType::Keyword) {
         tokval = lookahead.strvalue;
         if (tokval == "break") {
-          return DEBUGRET("parseStatement", parseBreakStatement(node));
+            return DEBUGRET("parseStatement", parseBreakStatement(node));
         } else if (tokval == "continue") {
-          return DEBUGRET("parseStatement", parseContinueStatement(node));
+            return DEBUGRET("parseStatement", parseContinueStatement(node));
         } else if (tokval == "debugger") {
-          return DEBUGRET("parseStatement", parseDebuggerStatement(node));
+            return DEBUGRET("parseStatement", parseDebuggerStatement(node));
         } else if (tokval == "do") {
-          return DEBUGRET("parseStatement", parseDoWhileStatement(node));
+            return DEBUGRET("parseStatement", parseDoWhileStatement(node));
         } else if (tokval == "for") {
-          return DEBUGRET("parseStatement", parseForStatement(node));
+            return DEBUGRET("parseStatement", parseForStatement(node));
         } else if (tokval == "function") {
             //#oddly enough in js passes node here.
             //#even though has no param even in js.
-          return DEBUGRET("parseStatement", parseFunctionDeclaration());
+            return DEBUGRET("parseStatement", parseFunctionDeclaration());
         } else if (tokval == "if") {
-          return DEBUGRET("parseStatement", parseIfStatement(node));
+            return DEBUGRET("parseStatement", parseIfStatement(node));
         } else if (tokval == "return") {
-          return DEBUGRET("parseStatement", parseReturnStatement(node));
+            return DEBUGRET("parseStatement", parseReturnStatement(node));
         } else if (tokval == "switch") {
-          return DEBUGRET("parseStatement", parseSwitchStatement(node));
+            return DEBUGRET("parseStatement", parseSwitchStatement(node));
         } else if (tokval == "throw") {
-          return DEBUGRET("parseStatement", parseThrowStatement(node));
+            return DEBUGRET("parseStatement", parseThrowStatement(node));
         } else if (tokval == "try") {
-          return DEBUGRET("parseStatement", parseTryStatement(node));
+            return DEBUGRET("parseStatement", parseTryStatement(node));
         } else if (tokval == "var") {
-          return DEBUGRET("parseStatement", parseVariableStatement(node));
+            return DEBUGRET("parseStatement", parseVariableStatement(node));
         } else if (tokval == "while") {
-          return DEBUGRET("parseStatement", parseWhileStatement(node));
+            return DEBUGRET("parseStatement", parseWhileStatement(node));
         } else if (tokval == "with") {
-          return DEBUGRET("parseStatement", parseWithStatement(node));
+            return DEBUGRET("parseStatement", parseWithStatement(node));
         }
     }
 
@@ -5690,7 +5791,8 @@ Node parseStatement() {
         labeledBody = parseStatement();
         state.labelSet.erase(key);
         node.finishLabeledStatement(expr, labeledBody);
-      DEBUGOUT("parseStatement"); return node;
+        DEBUGOUT("parseStatement"); 
+        return node;
     }
 
     consumeSemicolon();
@@ -6011,18 +6113,17 @@ Node parseSourceElement() {
     if (lookahead.type == TknType::Keyword) {
         val = lookahead.strvalue;
         if (val == "const" || val == "let") {
-          return DEBUGRET("", parseConstLetDeclaration(val));
+            return DEBUGRET("", parseConstLetDeclaration(val));
         } else if (val == "function") {
-          return DEBUGRET("", parseFunctionDeclaration()); 
+            return DEBUGRET("", parseFunctionDeclaration()); 
         } else {
 
-          return DEBUGRET("", parseStatement());
+            return DEBUGRET("", parseStatement());
         }
     }
 
     if (lookahead.type != TknType::EOFF) {
-
-      return DEBUGRET("", parseStatement());
+        return DEBUGRET("", parseStatement());
     }
 
     DEBUGOUT("parseSourceElement");
@@ -6049,8 +6150,8 @@ vector< Node > parseSourceElements() {
         //#todo make a function that accepts vector of nested finds
         //#so we can make tests like this more legible.
         if (strcmp(json_object_get_string(
- json_require(json_require(sourceElement.jv, "expression", false), 
-             "type", false)), 
+json_require(json_require(sourceElement.jv, "expression", false), 
+                                                       "type", false)), 
                    (Syntax[Synt::Literal]).data()) != 0) {         
             // this is not directive
             break;
