@@ -142,6 +142,19 @@ public:
     }
 };
 
+class ErrWrapstring {
+public:
+    bool err;
+    string val;
+    ErrWrapstring() {
+        err = false;
+    }
+    ErrWrapstring(string in) {
+        val = in;
+        err = false;
+    }
+};
+
 class ErrWrapu16string {
 public:
     bool err;
@@ -1102,7 +1115,7 @@ struct ParseParamsOptions {
     TokenStruct firstRestricted;
     TokenStruct stricted;
     unordered_set<string> paramSet;
-    u16string message;
+    string message;
     ParseParamsOptions() {
         firstRestricted.isNull = true;
         stricted.isNull = true;
@@ -1117,14 +1130,14 @@ struct ParseParamsOut {
 #endif
     TokenStruct firstRestricted;
     TokenStruct stricted;
-    u16string message;
+    string message;
     vector< Node > params;
     vector< Node > defaults;
     ParseParamsOut() {
 #ifndef THROWABLE
         err = false;
 #endif
-        message=u"";
+        message="";
         stricted.isNull = true;
         firstRestricted.isNull = true;
     }
@@ -5048,7 +5061,7 @@ Node parseVariableStatement(Node& node) {
 // see http://wiki.ecmascript.org/doku.php?id=harmony:const
 // and http://wiki.ecmascript.org/doku.php?id=harmony:let
 //throw_
-Node parseConstLetDeclaration(const u16string kind) { 
+Node parseConstLetDeclaration(const string kind) { 
     DEBUGIN(" parseConstLetDeclaration(u16string kind)");
     vector< Node > declarations;
     Node node(true, true);
@@ -5411,7 +5424,8 @@ Node parseWithStatement(Node& node) {
     if (strict) {
         // TODO(ikarienator): Should we update the test cases instead?
         skipComment(); //ev
-        throwErrorTolerant(NULLTOKEN, Messages[Mssg::StrictModeWith], {});
+        throwErrorTolerant(NULLTOKEN, 
+                           Messages[Mssg::StrictModeWith], {});
     }
 
     expectKeyword("with");
@@ -5510,7 +5524,8 @@ Node parseThrowStatement(Node& node) {
     expectKeyword("throw");
     pltresult = peekLineTerminator();
     if (pltresult) {
-        throwError(NULLTOKEN, Messages[Mssg::NewlineAfterThrow],{});
+        throwError(NULLTOKEN, 
+                   Messages[Mssg::NewlineAfterThrow],{});
     }
     argument = parseExpression();
     consumeSemicolon();
@@ -5536,7 +5551,8 @@ Node parseCatchClause() {
     param = parseVariableIdentifier();
     // 12.14.1
     if (strict && isRestrictedWord(param.name)) { 
-        throwErrorTolerant(NULLTOKEN, Messages[Mssg::StrictCatchVariable],{});
+        throwErrorTolerant(NULLTOKEN, 
+                           Messages[Mssg::StrictCatchVariable],{});
     }
 
     expect(")");
@@ -5601,7 +5617,7 @@ Node parseDebuggerStatement(Node& node) {
 //throw_
 Node parseStatement() {
     DEBUGIN(" parseStatement()");
-    int type = lookahead.type;
+    TknType type = lookahead.type;
     string key, tokval;
     Node expr(false, true), node(false, true), labeledBody(false, true);
 
@@ -5692,8 +5708,7 @@ Node parseFunctionSourceElements() {
     Node sourceElement(false, true), node(true, true);
     vector< Node > sourceElements;
     TokenStruct token, firstRestricted;
-    u16string directive,
-        oldLabelSet, oldInIteration, oldInSwitch, oldInFunctionBody, oldParenthesisCount;
+    u16string directive;
     StateStruct oldstate;
 
     expect("{");
@@ -5724,7 +5739,8 @@ json_require(json_require(sourceElement.jv, "expression", false),
         if (directive == u"use strict") {
             strict = true;
             if (!(firstRestricted.isNull)) {
-                throwErrorTolerant(firstRestricted, Messages[Mssg::StrictOctalLiteral], {});
+                throwErrorTolerant(firstRestricted, 
+                                   Messages[Mssg::StrictOctalLiteral], {});
             }
         } else {
             if (firstRestricted.isNull && token.octal) {
@@ -5768,7 +5784,7 @@ json_require(json_require(sourceElement.jv, "expression", false),
 
 //throw_ 
 void validateParam(ParseParamsOptions& options, 
-                    TokenStruct param, const u16string name) {
+                    TokenStruct param, const string name) {
      DEBUGIN("validateParam");
      string key = "$";
      key.append(name);
@@ -5796,7 +5812,7 @@ void validateParam(ParseParamsOptions& options,
      }
      options.paramSet.insert(key);
     DEBUGOUT("validateParam");
-  return;
+    return;
 }
 
 
@@ -5825,7 +5841,7 @@ bool parseParam(ParseParamsOptions& options) {
     options.params.push_back(param);
     options.defaults.push_back(def);
 
-  return DEBUGRET("parseParam", !match(")"));
+    return DEBUGRET("parseParam", !match(")"));
 }
 
 //throw_ 
@@ -5867,7 +5883,7 @@ ParseParamsOut parseParams(TokenStruct firstRestricted) {
 Node parseFunctionDeclaration() {
     DEBUGIN(" parseFunctionDeclaration()");
     TokenStruct token, firstRestricted, stricted;
-    u16string message, tokval;
+    string message;
     Node body(false, true), id(false, true), node(true, true);    
     ParseParamsOut tmp;
     vector< Node > params;
@@ -5889,7 +5905,7 @@ Node parseFunctionDeclaration() {
         if (isRestrictedWord(token.strvalue)) {
             firstRestricted = token;
             message = Messages[Mssg::StrictFunctionName];
-        } else if (isStrictModeReservedWord(tokval)) {
+        } else if (isStrictModeReservedWord(token.strvalue)) {
             firstRestricted = token;
             message = Messages[Mssg::StrictReservedWord];
         }
@@ -5902,7 +5918,7 @@ Node parseFunctionDeclaration() {
     stricted = tmp.stricted;
     firstRestricted = tmp.firstRestricted;
 
-    if (tmp.message != u"") { //#TODO switch to hasMessage, 
+    if (tmp.message != "") { //#TODO switch to hasMessage, 
         //# hasMessage being assigned to true on message assignment.
         //# so that if the message is an empty string we don't get 
         //# a false negative.
@@ -5966,7 +5982,7 @@ Node parseFunctionExpression() {
     stricted = tmp.stricted;
     firstRestricted = tmp.firstRestricted;
 
-    if (tmp.message != u"") {
+    if (tmp.message != "") {
         message = tmp.message;
     }
 
@@ -6035,7 +6051,7 @@ vector< Node > parseSourceElements() {
         if (strcmp(json_object_get_string(
  json_require(json_require(sourceElement.jv, "expression", false), 
              "type", false)), 
-                   toU8string(Syntax[Synt::Literal]).data()) != 0) {         
+                   (Syntax[Synt::Literal]).data()) != 0) {         
             // this is not directive
             break;
         }
@@ -6109,7 +6125,7 @@ void filterTokenLocation() {
     extra.tokenRecords = tokens;
 
     DEBUGOUT("filterToken");    
- return;
+    return;
 }
 
 
