@@ -1085,6 +1085,14 @@ struct StateStruct {
     bool inIteration;
     bool inSwitch;
     int lastCommentStart;
+    StateStruct() { 
+        allowIn = true;
+        inFunctionBody = false;
+        inIteration = false;
+        inSwitch = false;
+        lastCommentStart = -1;
+        parenthesisCount = 0; //? parse only?
+    }
 };
 
 struct OptionsStruct {
@@ -6238,6 +6246,7 @@ json_object* tokenizeImpl(const u16string code,
     json_object *outJson = json_newmap();
 
 
+   
     initglobals();
     sourceraw = code.data();
     idx = 0;
@@ -6246,11 +6255,7 @@ json_object* tokenizeImpl(const u16string code,
     length = code.length();
     lookahead = NULLTOKEN;
 
-    state.allowIn = true;
-    state.inFunctionBody = false;
-    state.inIteration = false;
-    state.inSwitch = false;
-    state.lastCommentStart = -1;
+    state = StateStruct();
     //? parenthesisCount for state not provided here normally as in parse. 
     //? That going to be a problem for us later?
 
@@ -6405,12 +6410,7 @@ json_object* parseImpl(const u16string code,
     lineStart = 0;
     length = code.length();
     lookahead = NULLTOKEN;
-    state.allowIn = true;
-    state.parenthesisCount = 0;
-    state.inFunctionBody = false;
-    state.inIteration = false;
-    state.inSwitch = false;
-    state.lastCommentStart = -1;
+    state = StateStruct();
 
     extra = ExtraStruct();
 
