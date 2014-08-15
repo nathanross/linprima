@@ -13,6 +13,10 @@
 #include <functional>
 #include <unordered_set>
 #include <memory>
+
+#ifdef PROFINY
+#include <profiny.h>
+#endif
 #ifdef THROWABLE
 #include <exception>
 #endif
@@ -3124,7 +3128,11 @@ void Node::regNoadd(const vector<string> paths, const Node &child) {
     }
     if (child.regexPaths.size() > 0) {
         if (child.regexPaths[0][0] == ".") {
-            regexPaths.push_back(paths);
+            vector<string> reverse;
+            for (int i=paths.size()-1; i >= 0; i--) {
+                reverse.push_back(paths[i]);
+            }
+            regexPaths.push_back(reverse);
         } else {
             for (unsigned int i=0; i<child.regexPaths.size(); i++) {
                 regexPaths.push_back(child.regexPaths[i]);
@@ -3381,8 +3389,8 @@ void Node::finishCallExpression(const Node& callee,
                                 const vector< Node >& args) {
     DEBUGIN("finishCallExpression(Node& callee, vector< Node >& args)", false);
     addType(Synt::CallExpression);
-    reg("callee", callee);
     nodeVec("arguments", args);
+    reg("callee", callee);
     this->finish(); 
     DEBUGOUT("", false);
 }
@@ -6639,7 +6647,6 @@ extern "C" {
     }
     char* parseExtern(const char *code,
                       const char* options) {
-
         return strToChar(parseRetString(string(code),
                                        OptionsStruct(
                                          options)));
@@ -6672,7 +6679,7 @@ extern "C" {
     }
     char* parseASMJS(const char *code, int codelen, 
                       const char* options) {
-
+        
         return strToChar(parseRetString(
                     toU16string(string(code)).substr(0, codelen), 
                                        OptionsStruct(options)));
@@ -6683,8 +6690,10 @@ extern "C" {
 
     //#include "profiler.h"
 
-#include <chrono>
-using std::chrono::system_clock;
+//#include <chrono>
+//using std::chrono::system_clock;
+
+#ifdef HASMAIN
 
 int main() {
     string result, allopt;
@@ -6706,7 +6715,7 @@ int main() {
     allopt = "{ 'tolerant':true }";
     //    allopt = "{ 'loc':true, 'range':true, 'tokens':true }";
     //    ProfilerStart("/tmp/profile2");
-    system_clock::time_point begin = system_clock::now();
+    //system_clock::time_point begin = system_clock::now();
     int reps = 10;
     for (int j = 0; j<reps; j++) {
         for (unsigned int i=0; i<codeSamples.size(); i++){ 
@@ -6716,11 +6725,12 @@ int main() {
             resultlength += result.length() % 6;
         }
     }
-    system_clock::time_point end = system_clock::now();
-    auto timediff = end - begin;
-    int millis = std::chrono::duration_cast<std::chrono::milliseconds>(timediff).count();
-    printf("milliseconds: %i\n", (int) ((double) millis / (double) reps));
+    
+    //system_clock::time_point end = system_clock::now();
+    //auto timediff = end - begin;
+    //int millis = std::chrono::duration_cast<std::chrono::milliseconds>(timediff).count();
+    //printf("milliseconds: %i\n", (int) ((double) millis / (double) reps));
     //    ProfilerStop();
     printf("total length %u\n", resultlength);
 }
-
+#endif
