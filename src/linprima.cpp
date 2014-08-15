@@ -8,6 +8,7 @@
 #include <codecvt>
 #endif
 
+#include <fstream>
 #include <algorithm>
 #include <functional>
 #include <unordered_set>
@@ -105,9 +106,69 @@ template<typename T> T DBG_RET(string a, T b) {
 
 #endif
 #ifndef DO_DEBUG
-#define DEBUGIN(A,B) 
+/*#define DEBUGIN(A,B) 
 #define DEBUGOUT(A,B)
-#define DBGRET(A,B) B
+#define DBGRET(A,B) B */
+
+#define DEBUGIN(A,B) TIME_BEGIN(A,B)
+#define DEBUGOUT(A,B) TIME_END(A,B)
+#define DBGRET(A,B) TIME_END_RET(A,B)
+
+bool DEBUG_ON= (bool) 1;
+
+bool HIPRI_ONLY= (bool) 1;
+
+void TIME_BEGIN(string in, bool lowprio) {    
+    if (!DEBUG_ON) { return; }
+    if (HIPRI_ONLY && lowprio) { return; }
+    debuglevel++;
+    string msg = "";
+
+    for (int i=0;i<debuglevel;i++) {
+        msg.append("  ");
+    }    
+    if (lowprio) { msg.append("\033[1;30m"); } 
+    else { msg.append(colorHash(ltrim(in))); }
+    msg.append(ltrim(in));
+    msg.append(to_string(debuglevel));
+    msg.append("\033[0m\n");
+    printf("%s", msg.data());
+    stackfuncs.push_back(ltrim(in));
+}
+
+void TIME_END(string in, bool lowprio) {
+    if (!DEBUG_ON) { return; }
+    if (HIPRI_ONLY && lowprio) { return; }
+    string msg = "";
+    string realtext = "";
+    if (stackfuncs.size() > 0) {
+        realtext = stackfuncs.back();
+    }
+
+    for (int i=0;i<debuglevel;i++) {
+        msg.append("  ");
+    }
+    if (lowprio) { msg.append("\033[1;30m"); } 
+    else { msg.append(colorHash(realtext)); }
+    msg.append("~");
+    msg.append(ltrim(in));
+    if (stackfuncs.size() > 0) {
+        msg.append("@@ ");
+         msg.append(stackfuncs.back());
+         stackfuncs.pop_back();
+         msg.append(to_string(debuglevel));
+         debuglevel--;
+     }
+     msg.append("\033[0m\n");
+     printf("%s", msg.data());
+ }
+
+template<typename T> T TIME_END_RET(string a, T b) { 
+    TIME_END(a, false); 
+    return b; 
+}
+
+
 
 #endif
 
@@ -603,8 +664,6 @@ int lineStart;
 int length;
 bool strict = false; //? remove initialization?
 
-
-
 struct RegexHalf {
     string value;
     string literal;
@@ -613,46 +672,32 @@ struct RegexHalf {
 #endif
     int start;
     int end;
-    RegexHalf() { 
+    RegexHalf() { }
+};
+
+RegexHalf::RegexHalf() { 
 #ifndef THROWABLE
         err = false;
 #endif
         start = -1; 
         end = -1; 
-    }
-};
+}
 
 struct Position {
     int line;
     int column;
-
-    Position() {
-        DEBUGIN("Position()", true);
-        line = lineNumber;
-        column = idx - lineStart;
-        DEBUGOUT("Position()", true);
-    }
+    Position() {}
+    json_object* toJson();
 };
 
-struct Loc { 
-    //aka SourceLocation
-    Position start;
-    Position end;
-    bool hasSource;
-    string source;
+Position::Position() {
+    DEBUGIN("Position()", true);
+    line = lineNumber;
+    column = idx - lineStart;
+    DEBUGOUT("Position()", true);
+}
 
-    Loc() {
-        DEBUGIN("Loc()", true);
-        this->end.line = -1;
-        this->end.column = -1;
-        this->hasSource = false;
-        this->source = "";
-        DEBUGOUT("loc()", true);
-    }
-};
-
- 
-json_object*  posToJson(Position p) {
+json_object* Position::toJson(Position p) {
     //DEBUGIN(" posToJson(Position p)", false);
     json_object * root = json_newmap();
     json_put(root, "line", p.line);
@@ -661,7 +706,27 @@ json_object*  posToJson(Position p) {
     return root;
 }
 
-json_object*  locToJson(Loc l) { 
+struct Loc { 
+    //aka SourceLocation
+    Position start;
+    Position end;
+    bool hasSource;
+    string source;
+
+    Loc(){}
+    json_object* toJson();
+};
+
+Loc::Loc() {
+    DEBUGIN("Loc()", true);
+    this->end.line = -1;
+    this->end.column = -1;
+    this->hasSource = false;
+    this->source = "";
+    DEBUGOUT("loc()", true);
+}
+
+json_object* Loc::toJson(Loc l) { 
     //DEBUGIN(" locToJson(Loc l)", false);
     json_object * root = json_newmap();
     json_put(root, "start", posToJson(l.start));
@@ -680,16 +745,17 @@ struct Comment {
     string value;
     int range[2];
     Loc loc;
-    Comment() {
-        //DEBUGIN("Comment()", false);
-        this->type = -1;
-        this->value = "";
-        this->range[0] = -1;
-        this->range[1] = -1;
-        //DEBUGOUT("Comment()", false);
-    }
+    Comment() {}
     json_object * toJson();
 };
+Comment::Comment() {
+    //DEBUGIN("Comment()", false);
+    this->type = -1;
+    this->value = "";
+    this->range[0] = -1;
+    this->range[1] = -1;
+    //DEBUGOUT("Comment()", false);
+}
 
 //# good to have these separated from individual nodes,
 //# because unless we start storing nodes in heap,
@@ -709,86 +775,94 @@ public:
     json_object * nodesJv;
     int range[2];
     bool isNull;
-    NodesComments() {
-        nodesJv = 0x0;
-        isNull = false;
-        range[0] = -1;
-        range[1] = -1;
-        leadingComments.clear();
-        trailingComments.clear();
-    }
-    NodesComments(json_object * jv) {
-        this->nodesJv = jv;
-        isNull = false;
-        range[0] = -1;
-        range[1] = -1;
-        leadingComments.clear();
-        trailingComments.clear();
-    }
-    void commentsIntoJson(const bool leading) { 
-        //DEBUGIN(" NodesComments::commentsIntoJson(const bool leading)", false);
-        string key;
-        vector<Comment> * commentVec;
-        if (leading) {
-            key = "leadingComments";
-            commentVec = &leadingComments;
-        } else {
-            key = "trailingComments";
-            commentVec = &trailingComments;
-        }
-        if (commentVec->size() > 0) {
-            json_put(nodesJv, key.data(), 
-                     vec2jsonCallback<Comment>(*commentVec,
-                                               &Comment::toJson));
-        } else {
-
-            json_del(nodesJv, key.data());
-        }
-        //DEBUGOUT("commentsIntoJSon", false);
-    }
+    NodesComments() { }
+    NodesComments(json_object * jv) {}
+    void commentsIntoJson(const bool leading);
 };
+
+NodesComments::NodesComments() {
+    nodesJv = 0x0;
+    isNull = false;
+    range[0] = -1;
+    range[1] = -1;
+    leadingComments.clear();
+    trailingComments.clear();
+}
+NodesComments::NodesComments(json_object * jv) {
+    this->nodesJv = jv;
+    isNull = false;
+    range[0] = -1;
+    range[1] = -1;
+    leadingComments.clear();
+    trailingComments.clear();
+}
+
+void NodesComments::commentsIntoJson(const bool leading) { 
+    //DEBUGIN(" NodesComments::commentsIntoJson(const bool leading)", false);
+    string key;
+    vector<Comment> * commentVec;
+    if (leading) {
+        key = "leadingComments";
+        commentVec = &leadingComments;
+    } else {
+        key = "trailingComments";
+        commentVec = &trailingComments;
+    }
+    if (commentVec->size() > 0) {
+        json_put(nodesJv, key.data(), 
+                 vec2jsonCallback<Comment>(*commentVec,
+                                           &Comment::toJson));
+    } else {
+
+        json_del(nodesJv, key.data());
+    }
+    //DEBUGOUT("commentsIntoJSon", false);
+}
 
 //# called ExError to prevent forseeable 
 //# exception-handling namespace conflict.
-#ifndef THROWABLE
-class ExError {
-#endif
+
+class ExError 
 #ifdef THROWABLE
-class ExError : public exception {
+ : public exception 
 #endif
+{
 public:
     string description;
     int index;
     int lineNumber;
     int column;
-    ExError() {
-        description = "unknown error";
-        index = 0;
-        lineNumber = 0;
-        column = 0;
-    }
-    json_object * toJson() {
-        DEBUGIN("Error::toJSON", false);
-        json_object * root = json_newmap();
-        json_put(root, "isError", true);
-        json_put(root, "description", description);
-        json_put(root, "index", this->index);
-        json_put(root, "lineNumber", this->lineNumber);
-        json_put(root, "column", this->column);
-        DEBUGOUT("Error::toJSON", false); 
-        return root;
-    }
-    json_object * toJsonTolerant() {
-        DEBUGIN("Error::toJSON", false);
-        json_object * root = json_newmap();
-        json_put(root, "description", description);
-        json_put(root, "index", this->index);
-        json_put(root, "lineNumber", this->lineNumber);
-        json_put(root, "column", this->column);
-        DEBUGOUT("Error::toJSON", false); 
-        return root;
-    }
+    ExError() {}
+    json_object * toJson();
+    json_object * toJsonTolerant();
 };
+ExError::ExError() {
+    description = "unknown error";
+    index = 0;
+    lineNumber = 0;
+    column = 0;
+}
+json_object* ExError::toJson() {
+    DEBUGIN("Error::toJSON", false);
+    json_object * root = json_newmap();
+    json_put(root, "isError", true);
+    json_put(root, "description", description);
+    json_put(root, "index", this->index);
+    json_put(root, "lineNumber", this->lineNumber);
+    json_put(root, "column", this->column);
+    DEBUGOUT("Error::toJSON", false); 
+    return root;
+}
+json_object* ExError::toJsonTolerant() {
+    DEBUGIN("Error::toJSON", false);
+    json_object * root = json_newmap();
+    json_put(root, "description", description);
+    json_put(root, "index", this->index);
+    json_put(root, "lineNumber", this->lineNumber);
+    json_put(root, "column", this->column);
+    DEBUGOUT("Error::toJSON", false); 
+    return root;
+}
 
 #ifndef THROWABLE
 
@@ -798,16 +872,18 @@ int errorType = 0;
 class AssertError {
 public:
     string description;
-    AssertError() {
-        description = "";
-    }
-    json_object * toJson() {
-        json_object * root = json_newmap();
-        json_put(root, "message", description);
-        json_put(root, "isAssert", true);
-        return root;
-    }
+    AssertError() {}
+    json_object * toJson();
 };
+AssertError::AssertError() {
+    description = "";
+}
+json_object * AssertError::toJson() {
+    json_object * root = json_newmap();
+    json_put(root, "message", description);
+    json_put(root, "isAssert", true);
+    return root;
+}
 
 AssertError retAssertError;
 
@@ -845,27 +921,27 @@ struct TokenStruct {
     int end;
     bool octal;
     Loc loc;
-    TokenStruct() {
-        DEBUGIN("TokenStruct()", true);
-#ifndef THROWABLE
-        err = false;
-#endif
-        isNull = false;
-        type = TknType::None;
-        lineNumber = -1;
-        lineStart = -1;
-        startLineNumber = -1;
-        startLineStart = -1;
-        start = -1;
-        end = -1;
-        octal=false; 
-        range[0] = -1;
-        range[1] = -1;
-        DEBUGOUT("TokenStruct()", true);
-    }
-    ~TokenStruct() {
-    }
+    TokenStruct() {}
 };
+
+TokenStruct::TokenStruct() {
+    DEBUGIN("TokenStruct()", true);
+#ifndef THROWABLE
+    err = false;
+#endif
+    isNull = false;
+    type = TknType::None;
+    lineNumber = -1;
+    lineStart = -1;
+    startLineNumber = -1;
+    startLineStart = -1;
+    start = -1;
+    end = -1;
+    octal=false; 
+    range[0] = -1;
+    range[1] = -1;
+    DEBUGOUT("TokenStruct()", true);
+}
 
 //stored in extra.tokens
 struct TokenRecord {
@@ -1064,18 +1140,19 @@ struct ExtraStruct {
     vector<Comment> trailingComments;
     vector< NodesComments > bottomRightStack; //! todo Node header text.
 
-    ExtraStruct() {
-        tokenize = false;
-        errorTolerant = false;
-        attachComment = false;
-        tokenRecords.clear();
-        comments.clear();
-        errors.clear();
-        leadingComments.clear();
-        trailingComments.clear();
-
-    }
+    ExtraStruct() { }
 };
+
+ExtraStruct::ExtraStruct() {
+    tokenize = false;
+    errorTolerant = false;
+    attachComment = false;
+    tokenRecords.clear();
+    comments.clear();
+    errors.clear();
+    leadingComments.clear();
+    trailingComments.clear();
+}
 
 struct StateStruct {
     bool allowIn;
@@ -1085,15 +1162,17 @@ struct StateStruct {
     bool inIteration;
     bool inSwitch;
     int lastCommentStart;
-    StateStruct() { 
-        allowIn = true;
-        inFunctionBody = false;
-        inIteration = false;
-        inSwitch = false;
-        lastCommentStart = -1;
-        parenthesisCount = 0; //? parse only?
-    }
+    StateStruct() {}
 };
+
+State::StateStruct() { 
+    allowIn = true;
+    inFunctionBody = false;
+    inIteration = false;
+    inSwitch = false;
+    lastCommentStart = -1;
+    parenthesisCount = 0; //? parse only?
+}
 
 struct OptionsStruct {
     bool range;
@@ -1104,8 +1183,42 @@ struct OptionsStruct {
     bool tokens;
     bool hasSource;
     string source;
-    OptionsStruct() {
-        DEBUGIN("OptionsStruct()", true);
+    OptionsStruct() {}
+    bool json_getbool(json_object* in, 
+                      const string key, 
+                      const bool defaultVal);
+    OptionsStruct(const char *in_o) { }
+};
+
+OptionsStruct::OptionsStruct() {
+    DEBUGIN("OptionsStruct()", true);
+    range = false;
+    loc = false;
+    comment = false;
+    tolerant = false;
+    attachComment = false;
+    tokens = false;
+    hasSource = false;
+    DEBUGOUT("OptionsStruct()", true);
+}
+bool OptionsStruct::json_getbool(json_object* in, 
+                                 const string key, 
+                                 const bool defaultVal) {
+    json_object* tmp;
+    bool exists = json_find(in, key.data(), tmp,
+                            false, json_type_boolean);
+    if (!exists) { return defaultVal; }
+    bool result = (bool) json_object_get_boolean(tmp);
+    return result;
+}
+OptionsStruct::OptionsStruct(const char *in_o) {
+    DEBUGIN("OptionsStruct(char*)", true);
+    json_tokener_error tkErr;
+    json_object *in = json_tokener_parse_verbose(in_o, &tkErr);
+    if (tkErr != json_tokener_success) {
+        //#I don't think this will ever come up outside of manual
+        //# debugging unless there's some serious encoding error.
+        DEBUGIN("failed to parse options string provided", false);
         range = false;
         loc = false;
         comment = false;
@@ -1113,52 +1226,23 @@ struct OptionsStruct {
         attachComment = false;
         tokens = false;
         hasSource = false;
-        DEBUGOUT("OptionsStruct()", true);
-    }
-    bool json_getbool(json_object* in, 
-                      const string key, 
-                      const bool defaultVal) {
+    } else { 
         json_object* tmp;
-        bool exists = json_find(in, key.data(), tmp,
-                                false, json_type_boolean);
-        if (!exists) { return defaultVal; }
-        bool result = (bool) json_object_get_boolean(tmp);
-        return result;
-    }
-    OptionsStruct(const char *in_o) {
-        DEBUGIN("OptionsStruct(char*)", true);
-        json_tokener_error tkErr;
-        json_object *in = json_tokener_parse_verbose(in_o, &tkErr);
-        if (tkErr != json_tokener_success) {
-            //#I don't think this will ever come up outside of manual
-            //# debugging unless there's some serious encoding error.
-            DEBUGIN("failed to parse options string provided", false);
-            range = false;
-            loc = false;
-            comment = false;
-            tolerant = false;
-            attachComment = false;
-            tokens = false;
-            hasSource = false;
-        } else { 
-            json_object* tmp;
-            range = json_getbool(in, "range", false);
-            loc = json_getbool(in, "loc", false);
-            attachComment = json_getbool(in, "attachComment", false);
-            comment = json_getbool(in, "comment", false);
-            tolerant = json_getbool(in, "tolerant", false);
-            tokens = json_getbool(in, "tokens", false);
-            hasSource = json_find(in, "source", tmp,
-                                  false, json_type_string);
-            if (hasSource) { 
-                source = json_object_get_string(tmp); 
-            }
+        range = json_getbool(in, "range", false);
+        loc = json_getbool(in, "loc", false);
+        attachComment = json_getbool(in, "attachComment", false);
+        comment = json_getbool(in, "comment", false);
+        tolerant = json_getbool(in, "tolerant", false);
+        tokens = json_getbool(in, "tokens", false);
+        hasSource = json_find(in, "source", tmp,
+                              false, json_type_string);
+        if (hasSource) { 
+            source = json_object_get_string(tmp); 
         }
-        json_object_put(in);
-        DEBUGOUT("OptionsStruct(char*)", true);
     }
-};
-
+    json_object_put(in);
+    DEBUGOUT("OptionsStruct(char*)", true);
+}
 
 struct ParseParamsOptions {
     vector< Node > params;
@@ -1168,11 +1252,13 @@ struct ParseParamsOptions {
     TokenStruct stricted;
     unordered_set<string> paramSet;
     string message;
-    ParseParamsOptions() {
-        firstRestricted.isNull = true;
-        stricted.isNull = true;
-    }
+    ParseParamsOptions() { }
 };
+
+ParseParamsOptions::ParseParamsOptions() {
+    firstRestricted.isNull = true;
+    stricted.isNull = true;
+}
 
 
 
@@ -1185,15 +1271,17 @@ struct ParseParamsOut {
     string message;
     vector< Node > params;
     vector< Node > defaults;
-    ParseParamsOut() {
+    ParseParamsOut() {}
+};
+
+ParseParamsOut::ParseParamsOut() {
 #ifndef THROWABLE
         err = false;
 #endif
         message="";
         stricted.isNull = true;
         firstRestricted.isNull = true;
-    }
-};
+}
 
 
 struct ReinterpretOptions {
@@ -1204,12 +1292,14 @@ struct ReinterpretOptions {
     Node stricted;
     unordered_set<string> paramSet;
     string message;
-    ReinterpretOptions() {
-        firstRestricted = NULLNODE; //?
-        stricted = NULLNODE; //? nec.? had it only in reinOut before.
-        //? not sure if context will make it different.
-    }
+    ReinterpretOptions() { }
 };
+
+ReinterpretOptions::ReinterpretOptions() {
+    firstRestricted = NULLNODE; //?
+    stricted = NULLNODE; //? nec.? had it only in reinOut before.
+    //? not sure if context will make it different.
+}
 
 struct ReinterpretOut {
     Node firstRestricted;
@@ -1222,15 +1312,16 @@ struct ReinterpretOut {
     bool err;
 #endif
     void* rest; //seems to be a dummy var?
-    ReinterpretOut() {
-#ifndef THROWABLE
-        err = false;
-#endif
-        isNull=false;
-        firstRestricted = NULLNODE;
-        stricted = NULLNODE;
-    }
+    ReinterpretOut() { }
 };
+ReinterpretOut::ReinterpretOut() {
+#ifndef THROWABLE
+    err = false;
+#endif
+    isNull=false;
+    firstRestricted = NULLNODE;
+    stricted = NULLNODE;
+}
 
 //---- ----------  -----------------------------
 // signatures (temporary until we set up a header file):
@@ -1265,7 +1356,7 @@ json_object*  TokenRecord::toJson() {
         json_put(root, "range", rangearr);
     }
     if (extra.loc) {
-        json_put(root, "loc", locToJson(this->loc));
+        json_put(root, "loc", (this->loc).toJson());
     }
 
     DEBUGOUT("TokenRecord::toJson()", false);
@@ -1284,7 +1375,7 @@ json_object * Comment::toJson() {
         json_put(root, "range", rangearr);
     }
     if (extra.loc) {
-        json_put(root, "loc", locToJson(this->loc));
+        json_put(root, "loc", (this->loc).toJson());
     }
     DEBUGOUT("comment::toJson", false);
     return root;
@@ -3029,7 +3120,7 @@ void Node::regNoadd(const vector<string> paths, const Node &child) {
                  vec2json<int>({child.range[0], child.range[1]}));
     }
     if (child.hasLoc) {
-        json_put(child.jv, "loc", locToJson(child.loc));
+        json_put(child.jv, "loc", child.loc.toJson());
     }
     if (child.regexPaths.size() > 0) {
         if (child.regexPaths[0][0] == ".") {
@@ -3541,7 +3632,7 @@ void Node::finishProgram(const vector< Node >& body) {
         json_put(jv, "range",vec2json<int>({range[0], range[1]}));
     }
     if (extra.loc) {
-        json_put(jv, "loc", locToJson(loc));
+        json_put(jv, "loc", loc.toJson());
     }
     DEBUGOUT("", false);    
 }
@@ -3709,24 +3800,26 @@ public:
 
         DEBUGOUT("Wr", true);
     }
-    Loc WrappingSourceLocation(TokenStruct startToken) {
-        DEBUGIN("WrappingSourceLocation (Token)", true);
-        Loc result;
-        if (startToken.type == TknType::StringLiteral) {
-            result.start.line = startToken.startLineNumber;
-            result.start.column = 
-                startToken.start - startToken.startLineStart;
-        } else {
-            result.start.line = startToken.lineNumber;
-            result.start.column = startToken.start - startToken.lineStart;
-        }
-        result.end.line = -1;
-        result.end.column = -1;
-        //return result;
-        DEBUGOUT("WraSrcLoc", true); 
-        return result;
-    }
+    Loc WrappingSourceLocation(TokenStruct startToken);
 };
+
+Loc WrappingNode::WrappingSourceLocation {
+    DEBUGIN("WrappingSourceLocation (Token)", true);
+    Loc result;
+    if (startToken.type == TknType::StringLiteral) {
+        result.start.line = startToken.startLineNumber;
+        result.start.column = 
+            startToken.start - startToken.startLineStart;
+    } else {
+        result.start.line = startToken.lineNumber;
+        result.start.column = startToken.start - startToken.lineStart;
+    }
+    result.end.line = -1;
+    result.end.column = -1;
+    //return result;
+    DEBUGOUT("WraSrcLoc", true); 
+    return result;
+}
 
 // Return true if there is a line terminator before the next token.
 
@@ -4299,8 +4392,7 @@ Node parsePrimaryExpression() {
     }
 
     type = lookahead.type;
-    node.lookavailInit();
-
+    node = Node(true, true);
     expr = node;
 
     if (type == TknType::Identifier) {
@@ -4968,8 +5060,6 @@ Node parseAssignmentExpression() {
 
     if (matchAssign()) {
         // LeftHandSideExpression
-
-
         if (!isLeftHandSide(expr)) {
             throwErrorTolerant(NULLTOKEN, 
                                Messages[Mssg::InvalidLHSInAssignment], {});
@@ -5729,7 +5819,21 @@ Node parseStatement() {
         return DBGRET("parseStatement", parseBlock());
     }
 
-    node.lookavailInit();
+    //node = Node(true, true);
+    node.lookavailInit(); //?possible source of problems later,
+    //? need to look into if we need to switch toNode(true, true) here,
+    //? because direct call of lookavailInit in parsePrimaryExpression
+    //? led to some differences in loc.start.column in cases
+    //? where node was later used after idx changed. 
+    //? So if not resetting start.loc
+    //? was a problem here because of change due to use of parseExpr
+    //? it would occur in the only instance where node was used after
+    //? that (in labeled statements). No difference
+    //? from esprima when using just lookavailInit has shown up yet.
+    //? not even in the test suite, though there's no difference
+    //? in test suite results when constructing a new one) in any
+    //? case, something to look into if we have loc.start.column
+    //? differences with labeled statements.
 
     if (type == TknType::Punctuator) {
         tokval = lookahead.strvalue;
@@ -6576,32 +6680,47 @@ extern "C" {
     }
 
 }
-/*
-#include "profiler.h"
+
+    //#include "profiler.h"
+
+#include <chrono>
+using std::chrono::system_clock;
 
 int main() {
     string result, allopt;
     unsigned int resultlength = 0;
     
-    vector<string> codeSamples = {
-        "var x = 4;",
-        "x = { answer: 42 }",
-        "x = { get width() { return m_width }, set width(width) { m_width = width; } }",
-        "if (morning) goodMorning(); else goodDay()",
-        "for (var i = function() { return 10 in [] } in list) process(x);"
-        
-    };
-    allopt = "{ 'loc':true, 'range':true, 'tokens':true }";
-    ProfilerStart("/tmp/profile2");
-    for (int j = 0; j<2500; j++) {
+    string finput;
+    ifstream ifs("/home/n/coding/esp3/bench/cases/lodash.js");
+
+    finput.assign( (std::istreambuf_iterator<char>(ifs) ),
+                    (std::istreambuf_iterator<char>()    ) );    
+
+    vector<string> codeSamples = { finput };
+    //        "var x = 4;",
+    //    "x = { answer: 42 }",
+    //    "x = { get width() { return m_width }, set width(width) { m_width = width; } }",
+    //    "if (morning) goodMorning(); else goodDay()",
+    //    "for (var i = function() { return 10 in [] } in list) process(x);"
+    //    };
+    allopt = "{ 'tolerant':true }";
+    //    allopt = "{ 'loc':true, 'range':true, 'tokens':true }";
+    //    ProfilerStart("/tmp/profile2");
+    system_clock::time_point begin = system_clock::now();
+    int reps = 10;
+    for (int j = 0; j<reps; j++) {
         for (unsigned int i=0; i<codeSamples.size(); i++){ 
-            result = string(parseASMJS(codeSamples[i].data(), 
-                                   codeSamples[i].length(),
-                                   allopt.data()));
+            result = string(parseRetString(
+                                           toU16string(codeSamples[i]),
+                                           OptionsStruct(allopt.data())));
             resultlength += result.length() % 6;
         }
     }
-    ProfilerStop();
+    system_clock::time_point end = system_clock::now();
+    auto timediff = end - begin;
+    int millis = std::chrono::duration_cast<std::chrono::milliseconds>(timediff).count();
+    printf("milliseconds: %i\n", (int) ((double) millis / (double) reps));
+    //    ProfilerStop();
     printf("total length %u\n", resultlength);
 }
-*/
+
