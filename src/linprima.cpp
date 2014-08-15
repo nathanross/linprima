@@ -106,10 +106,10 @@ template<typename T> T DBG_RET(string a, T b) {
 
 #endif
 #ifndef DO_DEBUG
-/*#define DEBUGIN(A,B) 
+#define DEBUGIN(A,B) 
 #define DEBUGOUT(A,B)
-#define DBGRET(A,B) B */
-
+#define DBGRET(A,B) B 
+/*
 #define DEBUGIN(A,B) TIME_BEGIN(A,B)
 #define DEBUGOUT(A,B) TIME_END(A,B)
 #define DBGRET(A,B) TIME_END_RET(A,B)
@@ -167,7 +167,7 @@ template<typename T> T TIME_END_RET(string a, T b) {
     TIME_END(a, false); 
     return b; 
 }
-
+*/
 
 
 #endif
@@ -672,7 +672,7 @@ struct RegexHalf {
 #endif
     int start;
     int end;
-    RegexHalf() { }
+    RegexHalf();
 };
 
 RegexHalf::RegexHalf() { 
@@ -686,8 +686,8 @@ RegexHalf::RegexHalf() {
 struct Position {
     int line;
     int column;
-    Position() {}
-    json_object* toJson();
+    Position();
+    json_object * toJson() const;
 };
 
 Position::Position() {
@@ -697,11 +697,11 @@ Position::Position() {
     DEBUGOUT("Position()", true);
 }
 
-json_object* Position::toJson(Position p) {
+json_object* Position::toJson() const {
     //DEBUGIN(" posToJson(Position p)", false);
     json_object * root = json_newmap();
-    json_put(root, "line", p.line);
-    json_put(root, "column", p.column);
+    json_put(root, "line", this->line);
+    json_put(root, "column", this->column);
     //DEBUGOUT("posToJSon(Position)", false); 
     return root;
 }
@@ -713,8 +713,8 @@ struct Loc {
     bool hasSource;
     string source;
 
-    Loc(){}
-    json_object* toJson();
+    Loc();
+    json_object* toJson() const;
 };
 
 Loc::Loc() {
@@ -726,15 +726,15 @@ Loc::Loc() {
     DEBUGOUT("loc()", true);
 }
 
-json_object* Loc::toJson(Loc l) { 
+json_object* Loc::toJson() const { 
     //DEBUGIN(" locToJson(Loc l)", false);
     json_object * root = json_newmap();
-    json_put(root, "start", posToJson(l.start));
-    if (l.end.line != -1) {
-        json_put(root, "end", posToJson(l.end));
+    json_put(root, "start", (this->start).toJson());
+    if (this->end.line != -1) {
+        json_put(root, "end", (this->end).toJson());
     }
-    if (l.hasSource) {
-        json_put(root, "source", l.source);
+    if (this->hasSource) {
+        json_put(root, "source", this->source);
     }
     //DEBUGOUT("locToJson", false); 
     return root;
@@ -745,7 +745,7 @@ struct Comment {
     string value;
     int range[2];
     Loc loc;
-    Comment() {}
+    Comment();
     json_object * toJson();
 };
 Comment::Comment() {
@@ -775,8 +775,8 @@ public:
     json_object * nodesJv;
     int range[2];
     bool isNull;
-    NodesComments() { }
-    NodesComments(json_object * jv) {}
+    NodesComments();
+    NodesComments(json_object * jv);
     void commentsIntoJson(const bool leading);
 };
 
@@ -813,7 +813,6 @@ void NodesComments::commentsIntoJson(const bool leading) {
                  vec2jsonCallback<Comment>(*commentVec,
                                            &Comment::toJson));
     } else {
-
         json_del(nodesJv, key.data());
     }
     //DEBUGOUT("commentsIntoJSon", false);
@@ -832,7 +831,7 @@ public:
     int index;
     int lineNumber;
     int column;
-    ExError() {}
+    ExError();
     json_object * toJson();
     json_object * toJsonTolerant();
 };
@@ -872,7 +871,7 @@ int errorType = 0;
 class AssertError {
 public:
     string description;
-    AssertError() {}
+    AssertError();
     json_object * toJson();
 };
 AssertError::AssertError() {
@@ -921,7 +920,7 @@ struct TokenStruct {
     int end;
     bool octal;
     Loc loc;
-    TokenStruct() {}
+    TokenStruct();
 };
 
 TokenStruct::TokenStruct() {
@@ -949,14 +948,15 @@ struct TokenRecord {
     int range[2];
     string valuestring;
     string typestring;
-    TokenRecord() {
-        DEBUGIN("TokenRecord()", true);
-        range[0] = -1;
-        range[1] = -1;
-        DEBUGOUT("TokenRecord()", true);
-    }
+    TokenRecord();
     json_object * toJson();
 };
+TokenRecord::TokenRecord() {
+    DEBUGIN("TokenRecord()", true);
+    range[0] = -1;
+    range[1] = -1;
+    DEBUGOUT("TokenRecord()", true);
+}
 
 enum class Synt;
 class Node {
@@ -1140,7 +1140,7 @@ struct ExtraStruct {
     vector<Comment> trailingComments;
     vector< NodesComments > bottomRightStack; //! todo Node header text.
 
-    ExtraStruct() { }
+    ExtraStruct();
 };
 
 ExtraStruct::ExtraStruct() {
@@ -1162,10 +1162,10 @@ struct StateStruct {
     bool inIteration;
     bool inSwitch;
     int lastCommentStart;
-    StateStruct() {}
+    StateStruct();
 };
 
-State::StateStruct() { 
+StateStruct::StateStruct() { 
     allowIn = true;
     inFunctionBody = false;
     inIteration = false;
@@ -1183,11 +1183,11 @@ struct OptionsStruct {
     bool tokens;
     bool hasSource;
     string source;
-    OptionsStruct() {}
+    OptionsStruct();
     bool json_getbool(json_object* in, 
                       const string key, 
                       const bool defaultVal);
-    OptionsStruct(const char *in_o) { }
+    OptionsStruct(const char *in_o);
 };
 
 OptionsStruct::OptionsStruct() {
@@ -1252,7 +1252,7 @@ struct ParseParamsOptions {
     TokenStruct stricted;
     unordered_set<string> paramSet;
     string message;
-    ParseParamsOptions() { }
+    ParseParamsOptions();
 };
 
 ParseParamsOptions::ParseParamsOptions() {
@@ -1271,7 +1271,7 @@ struct ParseParamsOut {
     string message;
     vector< Node > params;
     vector< Node > defaults;
-    ParseParamsOut() {}
+    ParseParamsOut();
 };
 
 ParseParamsOut::ParseParamsOut() {
@@ -1292,7 +1292,7 @@ struct ReinterpretOptions {
     Node stricted;
     unordered_set<string> paramSet;
     string message;
-    ReinterpretOptions() { }
+    ReinterpretOptions();
 };
 
 ReinterpretOptions::ReinterpretOptions() {
@@ -1312,7 +1312,7 @@ struct ReinterpretOut {
     bool err;
 #endif
     void* rest; //seems to be a dummy var?
-    ReinterpretOut() { }
+    ReinterpretOut();
 };
 ReinterpretOut::ReinterpretOut() {
 #ifndef THROWABLE
@@ -3803,7 +3803,7 @@ public:
     Loc WrappingSourceLocation(TokenStruct startToken);
 };
 
-Loc WrappingNode::WrappingSourceLocation {
+Loc WrappingNode::WrappingSourceLocation(TokenStruct startToken) {
     DEBUGIN("WrappingSourceLocation (Token)", true);
     Loc result;
     if (startToken.type == TknType::StringLiteral) {
