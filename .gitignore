@@ -1,6 +1,13 @@
+bench/build/*
+bench/bower_components
+bench/cases/bower_components
+bench/cases/reserve
+bench/cases/active
 build/*
 node_modules/*
 tmp/*
+test/codetotest.js
 lib/*.so
 esprima/
 archive
+test.out
