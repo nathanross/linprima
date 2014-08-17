@@ -57,6 +57,12 @@ gulp.task('prepareSource', function() {
     .pipe(concat('src.cpp'))
     .pipe(gulp.dest('tmp'));
 });
+gulp.task('prepareSourceProfiny', function() {
+    return gulp.src(['lib/libjson*','tmp/linprima.cpp'])
+    .pipe(concat('src.cpp'))
+    .pipe(replace('DEBUGIN("', '\n PROFINY_SCOPE \n DEBUGIN("'))
+    .pipe(gulp.dest('tmp'));
+});
 
 function completeWrapper(mixMode, mixSnippetPath, dest) {
    return gulp.src('src/linprima-wrap.js')
@@ -73,17 +79,40 @@ gulp.task('sync', function(callback) {
         makeExecCallback(callback));
 });
 
+//profiny
+gulp.task('ffitcall', function(callback) {
+     exec("clang++ -Wall -O3 -D THROWABLE -D HASMAIN -D USE_PROFINY -D" + 
+          ((argv.graph !== undefined)? 
+           "PROFINY_CALL_GRAPH_PROFILER":
+           "PROFINY_FLAT_PROFILER") + 
+          " -std=c++11 -stdlib=libc++ " +
+          " -lboost_timer -lboost_chrono -lboost_system" + 
+          " -o \"profiny_test\" \"tmp/src.cpp\"", 
+//          " /usr/lib/x86_64-linux-gnu/libboost_timer.so " +
+//          " /usr/lib/x86_64-linux-gnu/libboost_chrono.so " + 
+//          " /usr/lib/x86_64-linux-gnu/libboost_system.so " ,  
+        makeExecCallback(callback));
+});
+
+//google pprofiler
 gulp.task('ffigcall', function(callback) { //gperftools
-    exec("clang++ -fno-builtin -g -O3 -Wall -D THROWABLE -stdlib=libc++ -std=c++0x " +
+    exec("clang++ -fno-builtin -O3 -Wall -D HASMAIN -D THROWABLE -stdlib=libc++ -std=c++0x " +
          ((argv.m !== undefined )? " -ltcmalloc " : "") + 
-         " tmp/src.cpp -o test.out " + 
+         " tmp/src.cpp -o test.out " + "",
          ((argv.m === undefined )? " /usr/local/lib/libprofiler.so " : ""), 
         makeExecCallback(callback));
 });
+
+//valgrind/gdb
 gulp.task('ffidcall', function(callback) { //gdb, valgrind
-    exec("clang++ -g -O0 -Wall -D THROWABLE -std=c++11 -stdlib=libc++ tmp/src.cpp -o test.out", 
+    exec("clang++ -g -O0 -Wall -D HASMAIN -D THROWABLE -std=c++11 -stdlib=libc++ tmp/src.cpp -o test.out", 
         makeExecCallback(callback));
 });
+
+//general testing. mirrors production compilation, 
+//except no optimization, opt. print out call graph
+//opt. use throw52 for easier/faster debugging than emcc
+// of any throw52 interactions causing problems.
 gulp.task('fficcall', function(callback) {
      exec("clang++ -Wall " + 
           ((argv.t52 !== undefined)? "":" -D THROWABLE ") + 
@@ -93,7 +122,7 @@ gulp.task('fficcall', function(callback) {
 });
 
 gulp.task('ffipcall', function(callback) {
-    exec("clang++ -O2 -D THROWABLE -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so", 
+    exec("clang++ -O3 -D THROWABLE -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so", 
         makeExecCallback(callback));
 });
 
@@ -105,10 +134,12 @@ gulp.task('ffiWrapper', function() {
 gulp.task('ffi', function() { //gdb and valgrind debugging
     runSequence('cleanFFI', 
                (argv.t52 !== undefined)? 'throw52':'noThrow52',
-                'prepareSource', 
+               (argv.profiny !== undefined)? 
+                'prepareSourceProfiny' : 'prepareSource', 
                (argv.p !== undefined)? 'ffipcall':
                ((argv.g !== undefined)? 'ffigcall': //call like this: gulp ffi --g
-               ((argv.d !== undefined)? 'ffidcall': 'fficcall')),
+               ((argv.d !== undefined)? 'ffidcall': 
+               ((argv.profiny !== undefined)? 'ffitcall' : 'fficcall'))),
                 'ffiWrapper');
 });
 

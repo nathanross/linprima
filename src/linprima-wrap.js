@@ -16,7 +16,13 @@
 }(this, function (exports, root) {
     'use strict';
 
+    //=ASM= var console = { 'log': function(a) { } };
+    //=ASM= if ('console' in root) { console = root.console; }
+
     //=FFI= //%FFIsnippet.js%
+    /*
+    //=FFI= //%nodedebug.js%
+    */
 
     //=ASM= //%linprima.asm.js%
 
@@ -50,16 +56,27 @@
         if (typeof code !== 'string' && !(code instanceof String)) {
             code = String(code);
         }
-        var optStr = "{}";
-        if (options !== undefined) { optStr = JSON.stringify(options); }
+        var optStr = "{}";ls
+        if (options !== undefined) { 
+            if (typeof options == 'string' 
+                || (options instanceof String)) {
+                optStr = options;
+            } else if ('readObject' in options) {
+                optStr = String(options);
+            } else { 
+                optStr = JSON.stringify(options); 
+            }
+        }
         var out = JSON.parse(_linprimaMod.tokenizeExtern(code,
                                                    //=ASM= code.length,
                                                          optStr));
         if ("isError" in out) {
             throw genErrorObject(out);
         }
-        if (options !== undefined &&
-            'tolerant' in options && options['tolerant'] && 'errors' in out) {
+        if (options !== undefined 
+            && 'tolerant' in options 
+            && options['tolerant'] 
+            && 'errors' in out) {
             genErrorObjectList(out['errors']);
         }
         var nodeRoot = out.tokenlist;
@@ -70,15 +87,43 @@
     };
 
     var parse = function(code, options) {
+
         if (typeof code !== 'string' && !(code instanceof String)) {
             code = String(code);
         }
         var optStr = "{}";
-        if (options !== undefined) { optStr = JSON.stringify(options); }
-        var out = JSON.parse(_linprimaMod.parseExtern(code, 
+        if (options !== undefined) { 
+            if (typeof options == 'string' 
+                || (options instanceof String)) {
+                optStr = options;
+            } else if ('readObject' in options) {
+                optStr = String(options);
+            } else { 
+                optStr = JSON.stringify(options); 
+            }
+        }
+// for debugging test suite.
+// sometimes a test will only fail with a particular set of options
+// and it's good to see which.
+        var strout = _linprimaMod.parseExtern(code, 
                                             //=ASM=   code.length, 
-                                                      optStr));
+                                                      optStr);
+
+        /*if (code == "var o = {one: function() {} two:2};") {
+            if (options !== undefined) {
+                console.log("code =" + code + "="); 
+                console.log("code.length =" + String(code.length) + "="); 
+                console.log("options =" + JSON.stringify(options) + "="); 
+                console.log("strout =" + strout + "="); 
+            }    
+        }*/
+        var out = JSON.parse(strout);
+
+        //var out = JSON.parse(_linprimaMod.parseExtern(code, 
+        //                                    //=ASM=   code.length, 
+        //                                              optStr));
         if ("isError" in out) {
+//            return out;
             throw genErrorObject(out);
         }
         if ("isAssert" in out) {
@@ -89,7 +134,6 @@
             'tolerant' in options && options['tolerant'] && 'errors' in out) {
             genErrorObjectList(out['errors']);
         }
-
         var path,i, j,cursor, regex;
         for (i=0; i<out["regexp"].length; i++) {
             path=out["regexp"][i]; 

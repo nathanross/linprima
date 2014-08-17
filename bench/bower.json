@@ -1,0 +1,23 @@
+{
+  "name": "bench",
+  "version": "0.0.0",
+  "authors": [
+    "Nathan Ross <nross.se@gmail.com>"
+  ],
+  "main": "app.js",
+  "license": "Apache2",
+  "homepage": "github.com/nathanross",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "benchmark": "~1.0.0",
+    "jsondiffpatch": "*",
+    "requirejs":"*"
+  }
+}

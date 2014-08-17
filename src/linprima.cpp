@@ -2954,7 +2954,6 @@ TokenStruct collectToken() {
     DEBUGIN(" collectToken()", false);
     Loc loc;
     TokenStruct token;
-    TokenRecord tr;
     u16string value;
 
     skipComment(); //ev
@@ -2966,6 +2965,7 @@ TokenStruct collectToken() {
     loc.end.column = idx - lineStart;
 
     if (token.type != TknType::EOFF) { //this didn't check against string. is fine.
+        TokenRecord tr;
         tr.valuestring = toU8(slice(sourceraw, token.start, token.end));
         tr.typestring = TokenName[token.type];
         tr.range[0] = token.start;

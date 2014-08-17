@@ -1,6 +1,11 @@
 var lin = require("esprima.js");
 
-var b = lin.parse("T‿ = []", { loc: true, range:true });
-//var b = lin.parse("x = []", { loc: true, range:true });
+var fs = require("fs");
+var testcode = fs.readFileSync(__dirname + "/codetotest.js");
+var testopt = fs.readFileSync(__dirname + "/opttotest");
+
+var b = lin.parse(testcode, testopt);
+
+
 //console.log(JSON.stringify(JSON.parse(JSON.stringify(b))));
 console.log(JSON.stringify(JSON.parse(JSON.stringify(b)), undefined, 4));
