@@ -14,8 +14,8 @@
 #include <unordered_set>
 #include <memory>
 
-#ifdef PROFINY
-#include <profiny.h>
+#ifdef USE_PROFINY
+#include "Profiny.h"
 #endif
 #ifdef THROWABLE
 #include <exception>
@@ -564,11 +564,17 @@ json_object* vec2jsonCallback(vector<T> in,
 
 //non-parallel functions
 // example: has<int>(3, {1,2,3,4,5}) // would return true
-bool has(const u16string needle, const unordered_set<u16string> haystack) {
+bool hasSet(const u16string needle, const unordered_set<u16string> haystack) {
     return (haystack.find(needle) != haystack.end());
 }
-bool has(const string needle, const unordered_set<string> haystack) {
+bool hasSet(const string needle, const unordered_set<string> haystack) {
     return (haystack.find(needle) != haystack.end());
+}
+bool has(const u16string needle, const vector<u16string> haystack) {
+    return find(haystack.begin(), haystack.end(), needle) != haystack.end();
+}
+bool has(const string needle, const vector<string> haystack) {
+    return find(haystack.begin(), haystack.end(), needle) != haystack.end();
 }
 bool has(const int needle, const unordered_set<int> haystack) {
     return (haystack.find(needle) != haystack.end());
@@ -1416,7 +1422,7 @@ map<TknType, string> TokenName = {
 };
 
 
-unordered_set< string > FnExprTokens = {
+vector< string > FnExprTokens = {
     // A function following one of those tokens is an expression.
     "(", "{", "[", "in", "typeof", "instanceof", "new",
     "return", "case", "delete", "throw", "void",
@@ -1775,7 +1781,7 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
      return (id == "eval" || id == "arguments");
  }
 
-const unordered_set<string> KEYWORDSET = 
+const vector<string> KEYWORDSET = 
     {"if", "in", "do", "var", "for", "new", "try", "let",
      "this", "else", "case", "void", "with", "enum",
      "while", "break", "catch", "throw", 
@@ -1793,6 +1799,7 @@ const unordered_set<string> KEYWORDSET =
          return true;
      }
 
+     DEBUGOUT("",false);
      // 'const' is specialized as Keyword in V8.
      // 'yield' and 'let' are for compatiblity with SpiderMonkey and ES.next.
      // Some others are from future reserved words.
@@ -4919,7 +4926,7 @@ void validateParamNode(ReinterpretOptions& options,
             options.stricted = param;
             options.message = Messages[Mssg::StrictParamName];
         }
-        if (has(key, options.paramSet)) {
+        if (hasSet(key, options.paramSet)) {
             options.stricted = param;
             options.message = Messages[Mssg::StrictParamDupe];
         }
@@ -4930,7 +4937,7 @@ void validateParamNode(ReinterpretOptions& options,
         } else if (isStrictModeReservedWord(name)) {
             options.firstRestricted = param;
             options.message = Messages[Mssg::StrictReservedWord];
-        } else if (has(key, options.paramSet)) {
+        } else if (hasSet(key, options.paramSet)) {
             options.firstRestricted = param;
             options.message = Messages[Mssg::StrictParamDupe];
         }
@@ -5213,6 +5220,7 @@ Node parseVariableDeclaration(const string kind) {
 
 //throw_
 vector< Node > parseVariableDeclarationList(const string kind) {
+    DEBUGIN("parseVariableDeclarationList", false);
     vector< Node > list; 
 
     do {
@@ -5494,7 +5502,7 @@ Node parseContinueStatement(Node& node) {
 
         key = "$";
         key.append(label.name);
-        if (!(has(key, state.labelSet))) {
+        if (!(hasSet(key, state.labelSet))) {
             throwError(NULLTOKEN, Messages[Mssg::UnknownLabel], {label.name});
         }
     }
@@ -5551,7 +5559,7 @@ Node parseBreakStatement(Node& node) {
         key = "$";
         key.append(label.name);
 
-        if (!(has(key, state.labelSet))) {
+        if (!(hasSet(key, state.labelSet))) {
             throwError(NULLTOKEN, Messages[Mssg::UnknownLabel], {label.name});
         }
     }
@@ -5894,7 +5902,7 @@ Node parseStatement() {
         key = "$";
         key.append(expr.name);
 
-        if (has(key, state.labelSet)) {
+        if (hasSet(key, state.labelSet)) {
             throwError(NULLTOKEN, Messages[Mssg::Redeclaration], 
                        {"Label", expr.name}); 
         }
@@ -6007,7 +6015,7 @@ void validateParam(ParseParamsOptions& options,
              options.message = Messages[Mssg::StrictParamName];
          }
 
-         if (has(key, options.paramSet)) {
+         if (hasSet(key, options.paramSet)) {
              options.stricted = param;
              options.message = Messages[Mssg::StrictParamDupe];
          }
@@ -6018,7 +6026,7 @@ void validateParam(ParseParamsOptions& options,
          } else if (isStrictModeReservedWord(name)) {
              options.firstRestricted = param;
              options.message = Messages[Mssg::StrictReservedWord];
-         } else if (has(key, options.paramSet)) {
+         } else if (hasSet(key, options.paramSet)) {
              options.firstRestricted = param;
              options.message = Messages[Mssg::StrictParamDupe];
          }
@@ -6700,7 +6708,7 @@ int main() {
     unsigned int resultlength = 0;
     
     string finput;
-    ifstream ifs("/home/n/coding/esp3/bench/cases/lodash.js");
+    ifstream ifs("/home/n/coding/esp3/bench/cases/active/Chart.js");
 
     finput.assign( (std::istreambuf_iterator<char>(ifs) ),
                     (std::istreambuf_iterator<char>()    ) );    
