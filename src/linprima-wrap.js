@@ -56,7 +56,7 @@
         if (typeof code !== 'string' && !(code instanceof String)) {
             code = String(code);
         }
-        var optStr = "{}";ls
+        var optStr = "{}";
         if (options !== undefined) { 
             if (typeof options == 'string' 
                 || (options instanceof String)) {

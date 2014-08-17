@@ -8,7 +8,6 @@
 #include <codecvt>
 #endif
 
-#include <fstream>
 #include <algorithm>
 #include <functional>
 #include <unordered_set>
@@ -3396,8 +3395,8 @@ void Node::finishCallExpression(const Node& callee,
                                 const vector< Node >& args) {
     DEBUGIN("finishCallExpression(Node& callee, vector< Node >& args)", false);
     addType(Synt::CallExpression);
-    nodeVec("arguments", args);
     reg("callee", callee);
+    nodeVec("arguments", args);
     this->finish(); 
     DEBUGOUT("", false);
 }
@@ -6702,6 +6701,7 @@ extern "C" {
 //using std::chrono::system_clock;
 
 #ifdef HASMAIN
+#include <fstream>
 
 int main() {
     string result, allopt;
