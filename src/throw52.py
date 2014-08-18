@@ -232,11 +232,11 @@ class Throw52Task:
         re_signature = re.compile("^\s?(?P<rettype>"+typestr+")\s[a-zA-Z_][a-zA-Z0-9_:]*\(.*?")
         re_func_name = re.compile("(" + ident + ")\s*\(")
         void_call = re.compile("^\s*(" +ident +")\s*\([^;]*;?")
-        assign_call = re.compile("^\s*(?P<normalvar>(?:" + ident + "\s+" + ident + "|" + ident + "))\s*=\s*(" +ident +")\s*\([^;]*;?")
+        assign_call = re.compile("^\s*(?P<normalvar>(?:" + ident + "[\*\s]+" + ident + "|" + ident + "))\s*=\s*(" +ident +")\s*\([^;]*;?")
         ERROR_CLASS=self._params['error_class']
 
         ident_sig = "[a-zA-Z_][a-zA-Z_0-9]*"
-        re_sig = re.compile("^\s?(?P<ret>" + typestr + ")\s+" \
+        re_sig = re.compile("^\s?(?P<ret>" + typestr + "[\s\*]*?)\s*" \
                             "(?:" + ident_sig + "\s+)?"
                                      "(?P<class>(?:" + ident_sig + \
                                      "::)?)(?P<name>"+ ident_sig + \
@@ -285,7 +285,7 @@ class Throw52Task:
                 #this assignshouldn't ever be used anyway... 
                 #no need to know ret. type if no throwing func calls w/in.
                 outer_ret_type = newret 
-                outer_is_void = (newret == 'void')
+                outer_is_void = (newret == 'void')                
                 outer_throws = re.match(re_header, text[i-1])
                 outer_func_name = m.group('name')
                 if outer_throws:     
@@ -298,7 +298,7 @@ class Throw52Task:
                         f_map[m.group('name')]['void'] = True
                         newret = 'int'
 
-                    if newret[0].upper() == newret[0]:
+                    if newret[-1] != "*" and newret[0].upper() == newret[0]:
                         f_map[m.group('name')]['wrap'] = False
                         returned_class_set.add(newret)
                         outer_ret_type = newret
@@ -311,6 +311,8 @@ class Throw52Task:
                         newret = newret.replace("<","")
                         newret = newret.replace(">","")
                         newret = newret.replace(" ","")
+                        newret = newret.replace("*", "Ptr")
+
                         outer_ret_type = "".join([self._params['error_class'],
                                                   newret])
                     f_map[m.group('name')]['name'] = outer_ret_type
@@ -319,7 +321,6 @@ class Throw52Task:
                                      " \g<class>\g<name>(\g<rest>", 
                                      text[i])
                 continue
-
             if not outer_throws and not self._params['extra_tests']:
                 continue
 
@@ -468,6 +469,7 @@ class Throw52Task:
             typecleaned = typename.replace("<", "")
             typecleaned = typecleaned.replace(">", "")
             typecleaned = typecleaned.replace(" ", "")
+            typecleaned = typecleaned.replace("*", "Ptr")
             print("".join(["class ",
                            ERROR_CLASS, typecleaned,
                            " {\npublic:\n    ",
