@@ -569,13 +569,10 @@ json_object* vec2json(const vector<T>& in) { //only practically valid for vector
     //DEBUGOUT("", false); 
     return arr;
 }
-/*
-considered doing something like this, but it ended up being too costly
-despite the elegance */
 
 template <typename T>
-json_object* vec2jsonCallback(const vector<T> & in,
-                              function<json_object*(const T&)> const& f) {
+json_object* vec2jsonCallback(vector<T> in,
+                              function<json_object*(T&)> const& f) {
     //DEBUGIN("vec2JsonCallback", false);
     json_object * arr = json_object_new_array();
     for (int i=0; i<in.size(); i++) {
@@ -587,9 +584,8 @@ json_object* vec2jsonCallback(const vector<T> & in,
 
 //non-parallel functions
 // example: has<int>(3, {1,2,3,4,5}) // would return true
-
 inline
-bool hasSet(const u16string needle, const unordered_set<u16string>& haystack){
+bool hasSet(const u16string needle, const unordered_set<u16string>& haystack) {
     return (haystack.find(needle) != haystack.end());
 }
 inline
@@ -788,7 +784,7 @@ struct Comment {
     int range[2];
     Loc loc;
     Comment();
-    json_object * toJson() const;
+    json_object * toJson();
 };
 Comment::Comment() {
     //DEBUGIN("Comment()", false);
@@ -874,8 +870,8 @@ public:
     int lineNumber;
     int column;
     ExError();
-    json_object * toJson() const;
-    json_object * toJsonTolerant() const;
+    json_object * toJson();
+    json_object * toJsonTolerant();
 };
 ExError::ExError() {
     description = "unknown error";
@@ -883,7 +879,7 @@ ExError::ExError() {
     lineNumber = 0;
     column = 0;
 }
-json_object* ExError::toJson() const {
+json_object* ExError::toJson() {
     DEBUGIN("Error::toJSON", false);
     json_object * root = json_newmap();
     json_put(root, "isError", true);
@@ -894,7 +890,7 @@ json_object* ExError::toJson() const {
     DEBUGOUT("Error::toJSON", false); 
     return root;
 }
-json_object* ExError::toJsonTolerant() const {
+json_object* ExError::toJsonTolerant() {
     DEBUGIN("Error::toJSON", false);
     json_object * root = json_newmap();
     json_put(root, "description", description);
@@ -914,12 +910,12 @@ class AssertError {
 public:
     string description;
     AssertError();
-    json_object * toJson() const;
+    json_object * toJson();
 };
 AssertError::AssertError() {
     description = "";
 }
-json_object * AssertError::toJson() const {
+json_object * AssertError::toJson() {
     json_object * root = json_newmap();
     json_put(root, "message", description);
     json_put(root, "isAssert", true);
@@ -999,9 +995,9 @@ struct TokenRecord {
     string valuestring;
     string typestring;
     TokenRecord();
-    json_object * toJson() const;
+    json_object * toJson();
 };
-TokenRecord::TokenRecord(){
+TokenRecord::TokenRecord() {
     DEBUGIN("TokenRecord()", true);
     range[0] = -1;
     range[1] = -1;
@@ -1036,7 +1032,7 @@ public:
 
     Node();
     Node(bool lookaheadAvail, bool storeStats);
-    json_object* toJson() const;
+    json_object* toJson();
     void lookavailInit();
     void clear();
     void unused();
@@ -1460,7 +1456,7 @@ const char16_t * sourceraw;
 inline char16_t source(int idx) { return *(sourceraw + idx); }
 
 
-json_object*  TokenRecord::toJson() const {
+json_object*  TokenRecord::toJson() {
     DEBUGIN(" TokenRecord::toJson()", false);
     json_object *root = json_newmap(), *rangearr;
     json_put(root, "type", this->typestring);
@@ -1479,7 +1475,7 @@ json_object*  TokenRecord::toJson() const {
     return root;
 }
 
-json_object * Comment::toJson() const {
+json_object * Comment::toJson() {
     DEBUGIN("Comment::toJson", false);
     json_object *root = json_newmap(), *rangearr;
     json_put(root, "type", this->type);
@@ -3256,7 +3252,7 @@ Node::Node(bool lookaheadAvail, bool exists) {
 }
 Node::Node() : Node(false, true) {} 
 
-json_object* Node::toJson() const { 
+json_object* Node::toJson() { 
   return this->jv;
 }
 
@@ -3294,7 +3290,6 @@ void Node::unused() {
     }
     delNode(this);
 }
-
 inline
 void Node::jvput(const string path, const string b) 
     {json_put(jv, path.data(), b); }
