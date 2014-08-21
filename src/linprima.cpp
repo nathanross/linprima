@@ -347,6 +347,7 @@ json_object* json_put_dbl(json_object *a, const char *b, string c) {
 }
 inline json_object* json_put_dbl(json_object *a, const char *b, u16string c) { return json_put_dbl(a,b,toU8(c)); }
 
+inline
 json_object* json_push_dbl(json_object *a, string c) { 
     json_object *tmp = json_object_new_string(c.data());
     json_object_array_add(a, tmp);
@@ -354,32 +355,38 @@ json_object* json_push_dbl(json_object *a, string c) {
                                0x0, json_object_free_userdata);
    return tmp;
 }
-inline json_object* json_push_dbl(json_object *a, const char *b, u16string c) { return json_push_dbl(a,toU8(c)); }
+inline 
+json_object* json_push_dbl(json_object *a, const char *b, u16string c) { return json_push_dbl(a,toU8(c)); }
 
+inline
 json_object* json_put_newmap(json_object *a, const char *b) { 
     json_object *tmp = json_object_new_object();
     json_object_object_add(a, b, tmp);
    return tmp;
 }
+inline
 json_object* json_push_newmap(json_object *a) { 
     json_object *tmp = json_object_new_object();
     json_object_array_add(a, tmp);
    return tmp;
 }
+inline
 json_object* json_put_newarr(json_object *a, const char *b) { 
     json_object *tmp = json_object_new_array();
     json_object_object_add(a, b, tmp);
    return tmp;
 }
+inline
 json_object* json_push_newarr(json_object *a) { 
     json_object *tmp = json_object_new_array();
     json_object_array_add(a, tmp);
    return tmp;
 }
-
+inline
 void json_put_null(json_object *a, const char *b) { 
     json_object_object_add(a, b, NULL);    
 }
+inline
 void json_push_null(json_object *a) { 
     json_object_array_add(a, NULL);
 
@@ -387,45 +394,56 @@ void json_push_null(json_object *a) {
 
  //we keep int separate in case we want to implement a separate call method for double
  //it allows to keep easy to track which calls we'll actually have to change.
+inline
 json_object* json_put(json_object * a, const char* b, string c) { 
     json_object *tmp = json_object_new_string(c.data());
     json_object_object_add(a, b, tmp);
    return tmp;
 }
-inline json_object* json_put(json_object *a, const char *b, const u16string c) 
+inline 
+json_object* json_put(json_object *a, const char *b, const u16string c) 
 { return json_put(a,b,toU8(c)); }
 
+inline
 json_object* json_put(json_object *a, const char *b, const int c) { 
     json_object *tmp = json_object_new_double(c);
     json_object_object_add(a, b, tmp);
    return tmp;
 }
+inline
 json_object* json_put(json_object *a, const char *b, const bool c) { 
     json_object *tmp = json_object_new_boolean(c?1:0);
     json_object_object_add(a, b, tmp);
    return tmp;
 }
+inline
 json_object* json_put(json_object *a, const char *b, json_object* c) { 
     json_object_object_add(a, b, c);
    return c;
 }
 
+inline 
 json_object* json_push(json_object *a, const string c) { 
     json_object *tmp = json_object_new_string(c.data());
     json_object_array_add(a, tmp);
    return tmp;
 }
-inline json_object* json_push(json_object *a, const u16string c) { return json_push(a,toU8(c)); }
+inline 
+json_object* json_push(json_object *a, const u16string c) { return json_push(a,toU8(c)); }
+
+inline
 json_object* json_push(json_object *a, const int c) { 
     json_object *tmp = json_object_new_double(c);
     json_object_array_add(a, tmp);
    return tmp;
 }
+inline
 json_object* json_push(json_object *a, const bool c) { 
     json_object *tmp = json_object_new_boolean(c?1:0);
     json_object_array_add(a, tmp);
    return tmp;
 }
+inline
 json_object* json_push(json_object *a, json_object *c) { 
     json_object_array_add(a, c);
    return c;
@@ -566,21 +584,24 @@ json_object* vec2jsonCallback(vector<T> in,
 
 //non-parallel functions
 // example: has<int>(3, {1,2,3,4,5}) // would return true
-bool hasSet(const u16string needle, const unordered_set<u16string> haystack) {
+bool hasSet(const u16string needle, const unordered_set<u16string>& haystack) {
     return (haystack.find(needle) != haystack.end());
 }
-bool hasSet(const string needle, const unordered_set<string> haystack) {
+bool hasSet(const string needle, const unordered_set<string>& haystack) {
     return (haystack.find(needle) != haystack.end());
 }
-bool has(const u16string needle, const vector<u16string> haystack) {
+inline bool has(const u16string needle, const vector<u16string>& haystack) {
     return find(haystack.begin(), haystack.end(), needle) != haystack.end();
 }
-bool has(const string needle, const vector<string> haystack) {
+inline bool has(const string needle, const vector<string>& haystack) {
     return find(haystack.begin(), haystack.end(), needle) != haystack.end();
 }
-bool has(const int needle, const unordered_set<int> haystack) {
-    return (haystack.find(needle) != haystack.end());
+inline bool has(const int needle, const vector<int>& haystack) {
+    return find(haystack.begin(), haystack.end(), needle) != haystack.end();
 }
+//inline bool has(const int needle, const int haystack[], const int length) {
+//    return find(haystack, haystack+length, needle) != haystack+length;
+//}
 
 enum class TknType { 
     None = 0,
@@ -601,7 +622,7 @@ template<typename T> bool hasStringKey(const string needle, const map<string,T> 
 }
 
 
-u16string slice(const char16_t *arr, int start, int end) {
+inline u16string slice(const char16_t *arr, int start, int end) {
     //start inclusive, end exclusive, just like js
     const char16_t * startptr = arr + start;    
     return u16string(startptr, (end-start));
@@ -954,6 +975,14 @@ TokenStruct::TokenStruct() {
     DEBUGOUT("TokenStruct()", true);
 }
 
+typedef shared_ptr<TokenStruct> ptrTkn;
+
+inline ptrTkn makeToken() {
+    TokenStruct *m = new TokenStruct();
+    shared_ptr<TokenStruct> tmp (m);
+    return tmp;
+}
+
 //stored in extra.tokens
 struct TokenRecord {
     Loc loc;
@@ -1065,7 +1094,7 @@ public:
                            Node * alternate); 
     void finishLabeledStatement(Node * label, 
                                 Node * body);
-    void finishLiteral(TokenStruct& token);
+    void finishLiteral(ptrTkn token);
     void finishMemberExpression(const char16_t accessor, 
                                 Node * object, 
                                 Node * property);
@@ -1105,6 +1134,19 @@ public:
 
 #ifndef THROWABLE
 
+class ErrWrapptrTkn {
+public:
+    bool err;
+    ptrTkn val;
+    ErrWrapptrTkn() {
+        err = false;
+    }
+    ErrWrapptrTkn(ptrTkn in) {
+        val = in;
+        err = false;
+    }
+};
+
 class ErrWrapNodePtr {
 public:
     bool err;
@@ -1133,6 +1175,7 @@ public:
 #endif
 
 TokenStruct NULLTOKEN;
+ptrTkn NULLPTRTKN;
 Node NULLNODE(false,false);
 
 
@@ -1285,8 +1328,7 @@ OptionsStruct::OptionsStruct(const char *in_o) {
         hasSource = json_find(in, "source", tmp,
                               false, json_type_string);
         if (hasSource) { 
-            source = json_object_get_string(tmp); 
-        }
+            source = json_object_get_string(tmp);         }
     }
     json_object_put(in);
     DEBUGOUT("OptionsStruct(char*)", true);
@@ -1296,16 +1338,18 @@ struct ParseParamsOptions {
     vector< Node* > params;
     int defaultCount;
     vector< Node* > defaults;
-    TokenStruct firstRestricted;
-    TokenStruct stricted;
+    ptrTkn firstRestricted;
+    ptrTkn stricted;
     unordered_set<string> paramSet;
     string message;
     ParseParamsOptions();
 };
 
 ParseParamsOptions::ParseParamsOptions() {
-    firstRestricted.isNull = true;
-    stricted.isNull = true;
+    firstRestricted = makeToken();
+    firstRestricted->isNull = true;
+    stricted = makeToken();
+    stricted->isNull = true;
 }
 
 
@@ -1314,8 +1358,8 @@ struct ParseParamsOut {
 #ifndef THROWABLE
     bool err;
 #endif
-    TokenStruct firstRestricted;
-    TokenStruct stricted;
+    ptrTkn firstRestricted;
+    ptrTkn stricted;
     string message;
     vector< Node* > params;
     vector< Node* > defaults;
@@ -1324,11 +1368,13 @@ struct ParseParamsOut {
 
 ParseParamsOut::ParseParamsOut() {
 #ifndef THROWABLE
-        err = false;
+    err = false;
 #endif
-        message="";
-        stricted.isNull = true;
-        firstRestricted.isNull = true;
+    message="";
+    firstRestricted = makeToken();
+    firstRestricted->isNull = true;
+    stricted = makeToken();
+    stricted->isNull = true;
 }
 
 
@@ -1375,18 +1421,18 @@ ReinterpretOut::ReinterpretOut() {
 // signatures (temporary until we set up a header file):
 
 //throw_
-void throwError(TokenStruct& token, const string messageFormat, 
+void throwError(ptrTkn token, const string messageFormat, 
                 vector< string > args);
 //throw_
-void throwErrorTolerant(TokenStruct& token, const string messageFormat, 
+void throwErrorTolerant(ptrTkn token, const string messageFormat, 
                         vector< string > args);
 //throw_
-void throwUnexpected(TokenStruct& token);
+void throwUnexpected(ptrTkn token);
 
 OptionsStruct options;
 ExtraStruct extra;
 StateStruct state;
-TokenStruct lookahead;
+ptrTkn lookahead;
 
 void clearHeap() {
     extra = ExtraStruct();
@@ -1402,7 +1448,7 @@ void clearHeap() {
 }
 
 const char16_t * sourceraw;
-char16_t source(int idx) { return *(sourceraw + idx); }
+inline char16_t source(int idx) { return *(sourceraw + idx); }
 
 
 json_object*  TokenRecord::toJson() {
@@ -1668,6 +1714,10 @@ void initglobals() {
     DEBUGIN(" initglobals()", true);
     PlaceHolders["ArrowParameterPlaceHolder"].type="ArrowParameterPlaceholder";
     NULLTOKEN.isNull = true;
+    NULLPTRTKN = makeToken();
+    (*NULLPTRTKN).isNull = true;
+    lookahead = makeToken();
+    lookahead->isNull = true;
     NULLNODE.isNull = true;
     DEBUGOUT("", true);
 }
@@ -1710,27 +1760,30 @@ void softAssert(const bool condition, const string message) {
 
 #endif
 
-bool isDecimalDigit(const char16_t ch) {
+//inline 
+bool isDecimalDigit(const char16_t& ch) {
     DEBUGIN("   isDecimalDigit(const char16_t ch)", false);
     DEBUGOUT("", false); 
     return (ch >= 0x30 && ch <= 0x39); //0..9
 }
 
-bool isHexDigit(const char16_t ch) {
+//inline 
+bool isHexDigit(const char16_t& ch) {
     DEBUGIN("   isHexDigit(const char16_t ch)", false);
     DEBUGOUT("", false); 
     return (u16string({u"0123456789abcdefABCDEF"}).find_first_of(ch) 
            != std::string::npos);    
 }
 
-bool isOctalDigit(const char16_t ch) {
+//inline
+bool isOctalDigit(const char16_t& ch) {
     DEBUGIN("   isOctalDigit(const char16_t ch)", false);
     DEBUGOUT("", false); 
     return (u16string({u"01234567"}).find_first_of(ch) 
             != std::string::npos);    
 }
 
-char16_t toLowercaseHex(const char16_t ch) { //used in scanHexEscape
+char16_t toLowercaseHex(const char16_t& ch) { //used in scanHexEscape
     //assumes isHexDigit(ch) evals to true
     u16string hexletters = u"abcdefABCDEF";
     int pos = hexletters.find_first_of(ch);
@@ -1743,15 +1796,17 @@ char16_t toLowercaseHex(const char16_t ch) { //used in scanHexEscape
 }
 
 //7.2 White Space
-bool isWhiteSpace(const char16_t ch) {
+//inline
+bool isWhiteSpace(const char16_t& ch) {
     DEBUGIN("   isWhiteSpace(const char16_t ch)", false);
     DEBUGOUT("", false); 
-    return (ch == 0x20) || (ch == 0x09) || (ch == 0x0B) || (ch == 0x0C) || (ch == 0xA0) || (ch >= 0x1680 && has(ch, {0x1680, 0x180E, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x202F, 0x205F, 0x3000, 0xFEFF}));
+    return (ch == 0x20) || (ch == 0x09) || (ch == 0x0B) || (ch == 0x0C) || (ch == 0xA0) || ch==0xFEFF || (ch >= 0x1680 && ch <= 0x3000 
+                             && has(ch, {0x1680, 0x180E, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x202F, 0x205F, 0x3000, 0xFEFF}));
 }
 
 // 7.3 Line Terminators
-
-bool isLineTerminator(const char16_t ch) {
+//inline
+bool isLineTerminator(const char16_t& ch) {
     DEBUGIN("   isLineTerminator(const char16_t ch)", false);
     DEBUGOUT("", false); 
     return (ch == 0x0A) || (ch == 0x0D) || (ch == 0x2028) || (ch == 0x2029);
@@ -1771,8 +1826,8 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
                        && key == range_starts->at(pos+1)));
 }
 
-
- bool isIdentifierStart(const char16_t ch) {
+inline
+bool isIdentifierStart(const char16_t ch) {
      DEBUGIN("   isIdentifierStart(const char16_t ch)", false);
      DEBUGOUT("", false); 
      return (ch == 0x24) || (ch == 0x5F) ||  // $ (dollar) and _ (underscore)
@@ -1783,7 +1838,8 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
                                                &nonasciiIdentifierstart));
  } 
 
- bool isIdentifierPart(const char16_t ch) {
+//inline
+bool isIdentifierPart(const char16_t ch) {
      DEBUGIN("   isIdentifierPart(const char16_t ch)", false);
      DEBUGOUT("", false); 
      return (ch == 0x24) || (ch == 0x5F) ||  // $ (dollar) and _ (underscore)
@@ -1796,8 +1852,8 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
  }
 
  // 7.6.1.2 Future Reserved Words
-
- bool isFutureReservedWord(const string id) {
+//inline
+bool isFutureReservedWord(const string id) {
      DEBUGIN("   isFutureReservedWord(const u16string id)", false);
      DEBUGOUT("", false); 
      return has(id, { //
@@ -1810,7 +1866,8 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
              });
  }
 
- bool isStrictModeReservedWord(const string id) {
+//inline
+bool isStrictModeReservedWord(const string id) {
      DEBUGIN("   isStrictModeReservedWord(const u16string id)", false);
      DEBUGOUT("", false); 
      return has(id, { 
@@ -1826,11 +1883,12 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
              });
  }
 
- bool isRestrictedWord(const string id) {
-     DEBUGIN("   isRestrictedWord(const u16string id)", false);
-     DEBUGOUT("", false);
-     return (id == "eval" || id == "arguments");
- }
+//inline
+bool isRestrictedWord(const string id) {
+ DEBUGIN("   isRestrictedWord(const u16string id)", false);
+ DEBUGOUT("", false);
+ return (id == "eval" || id == "arguments");
+}
 
 const vector<string> KEYWORDSET = 
     {"if", "in", "do", "var", "for", "new", "try", "let",
@@ -1862,8 +1920,8 @@ const vector<string> KEYWORDSET =
 
 
 //# only called if extra.commentTracking
-void addComment(const string type, const string value, 
-                 const int start, const int end, const Loc loc) {
+void addComment(const string& type, const string& value, 
+                 const int start, const int end, const Loc& loc) {
     DEBUGIN(" addComment(u16string type, u16string value, int start, int end, Loc loc)", false);
      Comment comment;
 
@@ -1898,53 +1956,50 @@ void addComment(const string type, const string value,
 
 
 
-void skipSingleLineComment(const int offset) {
+int skipSingleLineComment(int idxtmp, const int offset) {
     DEBUGIN(" skipSingleLineComment(const int offset)", false);
     int start;
     Loc loc; 
     char16_t ch;
     string comment;
     
-    start = idx - offset;
+    start = idxtmp - offset;
     loc.start.line = lineNumber;
-    loc.start.column = idx - lineStart - offset;
+    loc.start.column = idxtmp - lineStart - offset;
 
-    while (idx < length) {
-        ch = source(idx);
-        ++idx;
+    while (idxtmp < length) {
+        ch = source(idxtmp);
+        ++idxtmp;
         if (isLineTerminator(ch)) {
             if (extra.commentTracking) {
-                comment = toU8(slice(sourceraw, start + offset, idx-1));
+                comment = toU8(slice(sourceraw, start + offset, idxtmp-1));
                 loc.end.line = lineNumber;
-                loc.end.column = idx - lineStart - 1;
-                addComment("Line", comment, start, idx - 1, loc);
+                loc.end.column = idxtmp - lineStart - 1;
+                addComment("Line", comment, start, idxtmp - 1, loc);
             }
-            if (ch == 13 && source(idx) == 10) {
-                ++idx;
+            if (ch == 13 && source(idxtmp) == 10) {
+                ++idxtmp;
             }
             ++lineNumber;
-            lineStart = idx;
+            lineStart = idxtmp;
             DEBUGOUT("", false); 
-            return;
+            return idxtmp;
         }
     }
 
     if (extra.commentTracking) {
-        comment = toU8(slice(sourceraw, start + offset, idx)); 
+        comment = toU8(slice(sourceraw, start + offset, idxtmp)); 
         loc.end.line = lineNumber;
-        loc.end.column = idx - lineStart;
-        addComment("Line", comment, start, idx, loc);
+        loc.end.column = idxtmp - lineStart;
+        addComment("Line", comment, start, idxtmp, loc);
     }
     DEBUGOUT("", false);
+    return idxtmp;
 }
 
-void skipSingleLineComment() { 
-    //? are we sure that in javascript the calls to this with no arg will default to 0?
-    skipSingleLineComment(0);
-}
-
+inline //only called once.
 //throw_
-void skipMultiLineComment() {
+int skipMultiLineComment(int idxtmp) {
     DEBUGIN(" skipMultiLineComment()", false);
     int start;
     Loc loc;
@@ -1952,49 +2007,115 @@ void skipMultiLineComment() {
     string comment;
 
     if (extra.commentTracking) {
-        start = idx - 2;
+        start = idxtmp - 2;
         loc.start.line = lineNumber;
-        loc.start.column = idx - lineStart - 2 ;
+        loc.start.column = idxtmp - lineStart - 2 ;
     }
 
-    while (idx < length) {
-        ch = source(idx);
+    while (idxtmp < length) {
+        ch = source(idxtmp);
         if (isLineTerminator(ch)) {
-            if (ch == 0x0D && source(idx + 1) == 0x0A) {
-                ++idx;
+            if (ch == 0x0D && source(idxtmp + 1) == 0x0A) {
+                ++idxtmp;
             }
             ++lineNumber;
-            ++idx;
-            lineStart = idx;
-            if (idx >= length) {
-                throwError(NULLTOKEN, 
+            ++idxtmp;
+            lineStart = idxtmp;
+            if (idxtmp >= length) {
+                idx = idxtmp;
+                throwError(NULLPTRTKN, 
                            Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
             }
         } else if (ch == 0x2A) {
             // Block comment ends with ''.
-            if (source(idx + 1) == 0x2F) {
-                ++idx;
-                ++idx;
+            if (source(idxtmp + 1) == 0x2F) {
+                ++idxtmp;
+                ++idxtmp;
                 if (extra.commentTracking) {
-                    comment = toU8(slice(sourceraw, start + 2, idx - 2));
+                    comment = toU8(slice(sourceraw, start + 2, idxtmp - 2));
                     loc.end.line = lineNumber;
-                    loc.end.column = idx - lineStart;
-                    addComment("Block", comment, start, idx, loc);
+                    loc.end.column = idxtmp - lineStart;
+                    addComment("Block", comment, start, idxtmp, loc);
                 }
                 DEBUGOUT("", false); 
-                return;
+                idx = idxtmp; //#throw52 error idx.
+                return idxtmp;
             }
-            ++idx;
+            ++idxtmp;
         } else {
-            ++idx;
+            ++idxtmp;
         }
     }
 
-    throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+    idx = idxtmp;
+    throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
     DEBUGOUT("", false);
-    return; //#throw52
+    return -1; //#throw52
 }
 
+//throw_
+void skipComment() {
+    DEBUGIN(" skipComment()", false);
+    char16_t ch;
+    bool start;
+    int idxtmp = idx;
+    start = (idxtmp == 0);
+    while (idxtmp < length) {
+        ch = source(idxtmp);
+
+        if (isWhiteSpace(ch)) {
+            ++idxtmp;
+        } else if (isLineTerminator(ch)) {
+            ++idxtmp;
+            if (ch == 0x0D && source(idxtmp) == 0x0A) {
+                ++idxtmp;
+            }
+            ++lineNumber;
+            lineStart = idxtmp;
+            start = true;
+        } else if (ch == 0x2F) { // U+002F is '/'
+            ch = source(idxtmp + 1);
+            if (ch == 0x2F) {
+                ++idxtmp;
+                ++idxtmp;
+                idxtmp = skipSingleLineComment(idxtmp, 2);
+                start = true;
+            } else if (ch == 0x2A) {  // U+002A is '*'
+                ++idxtmp;
+                ++idxtmp;
+                idxtmp = skipMultiLineComment(idxtmp); 
+            } else {
+                break;
+            }
+        } else if (start && ch == 0x2D) { // U+002D is '-'
+            // U+003E is '>'
+            if ((source(idxtmp + 1) == 0x2D) 
+                && (source(idxtmp + 2) == 0x3E)) {
+                // '-->' is a single-line comment
+                idxtmp += 3;
+                idxtmp = skipSingleLineComment(idxtmp, 3);
+            } else {
+                break;
+            }
+        } else if (ch == 0x3C) { // U+003C is '<'
+            if (slice(sourceraw, idxtmp + 1, idxtmp + 4) == u"!--") {
+                ++idxtmp; // `<`
+                ++idxtmp; // `!`
+                ++idxtmp; // `-`
+                ++idxtmp; // `-`
+                idxtmp = skipSingleLineComment(idxtmp, 4);
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    idx = idxtmp;
+    DEBUGOUT("", false);
+    return; //throw52; 
+}
+/*
 //throw_
 void skipComment() {
     DEBUGIN(" skipComment()", false);
@@ -2054,7 +2175,7 @@ void skipComment() {
     DEBUGOUT("", false);
     return; //throw52; 
 }
-
+*/
  
 char16_t scanHexEscape(const char16_t prefix) {
     DEBUGIN("scanHexEscape(const char16_t prefix) {", false);
@@ -2089,7 +2210,7 @@ u16string scanUnicodeCodePointEscape() {
 
     // At least, one hex digit is required.
     if (ch == u'}') {
-        throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+        throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
     }
 
     while (idx < length) {
@@ -2102,7 +2223,7 @@ u16string scanUnicodeCodePointEscape() {
     }
 
     if (code > 0x10FFFF || ch != u'}') {
-        throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+        throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
     }
 
     // UTF-16 Encoding
@@ -2129,13 +2250,13 @@ string getEscapedIdentifier() {
     // '\u' (U+005C, U+0075) denotes an escaped character.
     if (ch == 0x5C) {
         if (source(idx) != 0x75) {
-            throwError(NULLTOKEN, 
+            throwError(NULLPTRTKN, 
                        Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
         }
         ++idx;
         ch = scanHexEscape(u'u');
         if (ch == NULL_CHAR16 || ch == u'\\' || !isIdentifierStart(ch)) { 
-            throwError(NULLTOKEN, 
+            throwError(NULLPTRTKN, 
                        Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
         }
         id = u16string({ch});
@@ -2153,13 +2274,13 @@ string getEscapedIdentifier() {
         if (ch == 0x5C) {
             id = id.substr(0, id.length() - 1);
             if (source(idx) != 0x75) {
-                throwError(NULLTOKEN, 
+                throwError(NULLPTRTKN, 
                            Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
             }
             ++idx;
             ch = scanHexEscape(u'u');
             if (ch == NULL_CHAR16 || ch == u'\\' || !isIdentifierPart(ch)) {
-                throwError(NULLTOKEN, 
+                throwError(NULLPTRTKN, 
                            Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
             }
             append(id, ch);
@@ -2195,9 +2316,9 @@ string getIdentifier() {
 }
 
 //throw_
-TokenStruct scanIdentifier() {
+ptrTkn scanIdentifier() {
     DEBUGIN(" scanIdentifier()", false);
-    TokenStruct t;
+    ptrTkn t = makeToken();
     int start;
     TknType type;
     string id; 
@@ -2226,13 +2347,13 @@ TokenStruct scanIdentifier() {
         type = TknType::Identifier;
     }
 
-    t.type = type;
-    t.strvalue = id;
-    t.literaltype = LiteralType["String"];
-    t.lineNumber = lineNumber;
-    t.lineStart = lineStart;
-    t.start = start;
-    t.end = idx;
+    t->type = type;
+    t->strvalue = id;
+    t->literaltype = LiteralType["String"];
+    t->lineNumber = lineNumber;
+    t->lineStart = lineStart;
+    t->start = start;
+    t->end = idx;
     DEBUGOUT("scanIdentifier", false);
     return t;
 }
@@ -2242,10 +2363,10 @@ u16string emccu16str;
 
  // 7.7 Punctuators
  //throw_
-TokenStruct scanPunctuator() {
+ptrTkn scanPunctuator() {
     DEBUGIN(" scanPunctuator()", false);
 
-    TokenStruct t;
+    ptrTkn t = makeToken();
     int start = idx;
 
     char16_t ch1 = source(idx);
@@ -2254,11 +2375,11 @@ TokenStruct scanPunctuator() {
 
     code[0] = source(idx);
 
-    t.type = TknType::Punctuator;
-    t.lineNumber = lineNumber;
-    t.lineStart = lineStart;
-    t.start = start;
-    t.literaltype = LiteralType["String"];
+    t->type = TknType::Punctuator;
+    t->lineNumber = lineNumber;
+    t->lineStart = lineStart;
+    t->start = start;
+    t->literaltype = LiteralType["String"];
 
     switch (code[0]) {
         // Check for most common single-character punctuators.
@@ -2282,9 +2403,9 @@ TokenStruct scanPunctuator() {
                 extra.openCurlyToken = extra.tokenRecords.size();
             }
         }
-        t.strvalue = toU8(u16string({ code[0] }));
+        t->strvalue = toU8(u16string({ code[0] }));
 
-        t.end = idx;
+        t->end = idx;
         DEBUGOUT("", false); 
         return t;
     default:
@@ -2304,8 +2425,8 @@ TokenStruct scanPunctuator() {
             case 0x26:  // &
             case 0x2A:  // *
                 idx += 2;
-                t.strvalue = toU8(u16string({code[0], code[1]}));      
-                t.end = idx;
+                t->strvalue = toU8(u16string({code[0], code[1]}));      
+                t->end = idx;
                 DEBUGOUT("", false); 
                 return t;
             case 0x21: // !
@@ -2316,8 +2437,8 @@ TokenStruct scanPunctuator() {
                 if (source(idx) == 0x3D) {
                     ++idx;
                 }
-                t.strvalue = toU8(slice(sourceraw, start, idx));
-                t.end = idx;
+                t->strvalue = toU8(slice(sourceraw, start, idx));
+                t->end = idx;
                 DEBUGOUT("", false); 
                 return t;
             }
@@ -2331,8 +2452,8 @@ TokenStruct scanPunctuator() {
 
     if (ch4 == ">>>=") {
         idx += 4;
-        t.strvalue = ch4;
-        t.end = idx;
+        t->strvalue = ch4;
+        t->end = idx;
         DEBUGOUT("", false); 
         return t;
     }
@@ -2343,8 +2464,8 @@ TokenStruct scanPunctuator() {
 
     if (ch3 == ">>>" || ch3 == "<<=" || ch3 == ">>=") {
         idx += 3;
-        t.strvalue = ch3;
-        t.end = idx;
+        t->strvalue = ch3;
+        t->end = idx;
         DEBUGOUT("", false); 
         return t;
     }
@@ -2357,8 +2478,8 @@ TokenStruct scanPunctuator() {
              != std::string::npos))
         || ch2 == "=>") {
         idx += 2;
-        t.strvalue = ch2;
-        t.end = idx;
+        t->strvalue = ch2;
+        t->end = idx;
         DEBUGOUT("", false); 
         return t;
     }
@@ -2368,13 +2489,13 @@ TokenStruct scanPunctuator() {
     if (u16string({u"<>=!+-*%&|^/"}) //? is it necessary/correct to have this as ({u""}) and not just (u"")
         .find_first_of(ch1) != std::string::npos) {
         ++idx;
-        t.strvalue = toU8(u16string({ch1}));
-        t.end = idx;
+        t->strvalue = toU8(u16string({ch1}));
+        t->end = idx;
         DEBUGOUT("", false); 
         return t;
     }
 
-    throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+    throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
 
     DEBUGOUT("", false); 
     return t;
@@ -2382,10 +2503,10 @@ TokenStruct scanPunctuator() {
 }
      // 7.8.3 Numeric Literals
 //throw_
-TokenStruct scanHexLiteral(const int start) {
+ptrTkn scanHexLiteral(const int start) {
     DEBUGIN(" scanHexLiteral(const int start)", false);
     u16string number;
-    TokenStruct t;
+    ptrTkn t = makeToken();
 
     while (idx < length) {
         if (!isHexDigit(source(idx))) {
@@ -2395,30 +2516,30 @@ TokenStruct scanHexLiteral(const int start) {
     }
 
     if (number.length() == 0) {
-        throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+        throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
     }
 
     if (isIdentifierStart(source(idx))) {
-        throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+        throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
     }
 
-    t.type = TknType::NumericLiteral;
-    t.intvalue = parseInt(number, 16);
-    t.literaltype = LiteralType["Int"];
-    t.lineNumber = lineNumber;
-    t.lineStart = lineStart;
-    t.start = start;
-    t.end = idx;
+    t->type = TknType::NumericLiteral;
+    t->intvalue = parseInt(number, 16);
+    t->literaltype = LiteralType["Int"];
+    t->lineNumber = lineNumber;
+    t->lineStart = lineStart;
+    t->start = start;
+    t->end = idx;
     DEBUGOUT("scanHexLiteral", false);
     return t;
 }
 
 //throw_
-TokenStruct scanOctalLiteral(const int start) {
+ptrTkn scanOctalLiteral(const int start) {
     DEBUGIN(" scanOctalLiteral(const int start)", false);
     u16string number = u"0";
-    TokenStruct t;
 
+    ptrTkn t = makeToken();
     append(number, source(idx++));
 
     while (idx < length) {
@@ -2429,27 +2550,27 @@ TokenStruct scanOctalLiteral(const int start) {
     }
 
     if (isIdentifierStart(source(idx)) || isDecimalDigit(source(idx))) {
-        throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+        throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
     }
 
-    t.type = TknType::NumericLiteral;
-    t.intvalue = parseInt(number, 8);
-    t.literaltype = LiteralType["Int"];
-    t.octal = true;
-    t.lineNumber = lineNumber;
-    t.lineStart = lineStart;
-    t.start = start;
-    t.end = idx;
+    t->type = TknType::NumericLiteral;
+    t->intvalue = parseInt(number, 8);
+    t->literaltype = LiteralType["Int"];
+    t->octal = true;
+    t->lineNumber = lineNumber;
+    t->lineStart = lineStart;
+    t->start = start;
+    t->end = idx;
     DEBUGOUT("scanOctalLiteral", false);
     return t;
 }
 
 //#throw_
-TokenStruct scanNumericLiteral() {
+ptrTkn scanNumericLiteral() {
     DEBUGIN(" scanNumericLiteral()", false);
     int start;
     char16_t ch;
-    TokenStruct t;
+    ptrTkn t = makeToken();
     u16string number;
 
 
@@ -2475,7 +2596,7 @@ TokenStruct scanNumericLiteral() {
             }
             // decimal number starts with '0' such as '09' is illegal.
             if (ch && isDecimalDigit(ch)) {
-                throwError(NULLTOKEN, 
+                throwError(NULLPTRTKN, 
                            Messages[Mssg::UnexpectedToken], {"ILLEGAL"}); 
             }
         }
@@ -2510,24 +2631,24 @@ TokenStruct scanNumericLiteral() {
                 append(number, source(idx++));
             }
         } else {
-            throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+            throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
         }
     }
 
     if (isIdentifierStart(source(idx))) {
-        throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+        throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
     }
-    t.type = TknType::NumericLiteral;
-    t.strvalue = toU8(number);
-    //t.dblvalue = //# want to allow browsers to use full allowance of whatever their local max int size is.
+    t->type = TknType::NumericLiteral;
+    t->strvalue = toU8(number);
+    //t->dblvalue = //# want to allow browsers to use full allowance of whatever their local max int size is.
     //               //#which is same as it would work in esprima.
     //(hasSciNote)?
     //sciNoteToDouble(toU8string(number)) : stod(toU8string(number));
-    t.literaltype = LiteralType["Double"];
-    t.lineNumber = lineNumber;
-    t.lineStart = lineStart;
-    t.start = start;
-    t.end = idx;
+    t->literaltype = LiteralType["Double"];
+    t->lineNumber = lineNumber;
+    t->lineStart = lineStart;
+    t->start = start;
+    t->end = idx;
 
     DEBUGOUT("scanNumericLiteral", false);
     return t; 
@@ -2536,9 +2657,10 @@ TokenStruct scanNumericLiteral() {
 
 // 7.8.4 String Literals
 //throw_
-TokenStruct scanStringLiteral() {
+ptrTkn scanStringLiteral() {
     DEBUGIN(" scanStringLiteral()", false);
-    TokenStruct t;
+
+    ptrTkn t = makeToken();
     bool octal = false;
     u16string str;
     int start, restore, code;
@@ -2638,19 +2760,19 @@ TokenStruct scanStringLiteral() {
     }
 
     if (quote != NULL_CHAR16) {
-        throwError(NULLTOKEN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
+        throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
     }
 
-    t.type = TknType::StringLiteral;
-    t.strvalue = toU8(str);
-    t.literaltype = LiteralType["String"];            
-    t.octal = octal;
-    t.startLineNumber = startLineNumber;
-    t.startLineStart = startLineStart;
-    t.lineNumber = lineNumber;
-    t.lineStart = lineStart,
-        t.start = start;
-    t.end = idx;
+    t->type = TknType::StringLiteral;
+    t->strvalue = toU8(str);
+    t->literaltype = LiteralType["String"];            
+    t->octal = octal;
+    t->startLineNumber = startLineNumber;
+    t->startLineStart = startLineStart;
+    t->lineNumber = lineNumber;
+    t->lineStart = lineStart,
+    t->start = start;
+    t->end = idx;
     DEBUGOUT("scanStringLiteral", false);
     return t;
 }
@@ -2677,11 +2799,11 @@ RegexHalf scanRegExpBody() {
             ch = source(idx++);
             // ECMA-262 7.8.5
             if (isLineTerminator(ch)) {
-                throwError(NULLTOKEN, Messages[Mssg::UnterminatedRegExp], {});
+                throwError(NULLPTRTKN, Messages[Mssg::UnterminatedRegExp], {});
             }
             append(str, ch);
         } else if (isLineTerminator(ch)) {
-            throwError(NULLTOKEN, Messages[Mssg::UnterminatedRegExp], {});
+            throwError(NULLPTRTKN, Messages[Mssg::UnterminatedRegExp], {});
         } else if (classMarker) {
             if (ch == u']') {
                 classMarker = false;
@@ -2697,7 +2819,7 @@ RegexHalf scanRegExpBody() {
     }
 
     if (!terminated) {
-        throwError(NULLTOKEN, Messages[Mssg::UnterminatedRegExp], {});
+        throwError(NULLPTRTKN, Messages[Mssg::UnterminatedRegExp], {});
     }
 
     // Exclude leading and trailing slash.
@@ -2743,12 +2865,12 @@ RegexHalf scanRegExpFlags() {
                     str.append(u"\\u");
                 }
 
-                throwErrorTolerant(NULLTOKEN, 
+                throwErrorTolerant(NULLPTRTKN, 
                                    Messages[Mssg::UnexpectedToken], 
                                    {"ILLEGAL"});
             } else {
                 append(str, u'\\');
-                throwErrorTolerant(NULLTOKEN, 
+                throwErrorTolerant(NULLPTRTKN, 
                                    Messages[Mssg::UnexpectedToken],
                                    {"ILLEGAL"});
             }
@@ -2765,16 +2887,18 @@ RegexHalf scanRegExpFlags() {
 }
 
 //throw_
-TokenStruct scanRegExp() {
+ptrTkn scanRegExp() {
     DEBUGIN(" scanRegExp()", false);
     int start;
     RegexHalf body; 
     RegexHalf flags; 
-    TokenStruct t;
+    ptrTkn t = makeToken();
+
     //? value is int? to think on. 
     //testRegExp is I think supposed to normally return a regex object.
 
-    lookahead = NULLTOKEN;
+    lookahead = makeToken();
+    lookahead->isNull = true;
     skipComment(); 
     start = idx;
 
@@ -2784,33 +2908,33 @@ TokenStruct scanRegExp() {
     //value = testRegExp(body.value, flags.value);
 
     if (extra.tokenize) {
-        t.type = TknType::RegularExpression;
-        t.strvalue = "regexDummy"; //?
-        t.lineNumber = lineNumber;
-        t.lineStart = lineStart;
-        t.start = start;
-        t.end = idx;
+        t->type = TknType::RegularExpression;
+        t->strvalue = "regexDummy"; //?
+        t->lineNumber = lineNumber;
+        t->lineStart = lineStart;
+        t->start = start;
+        t->end = idx;
         DEBUGOUT("", false); 
         return t; //not polymorphic right now. not going to work... :!
     }
 
-    t.literal = body.literal; 
-    t.literal.append(flags.literal);
-    t.literaltype = LiteralType["Regexp"];
-    t.strvalue = body.value;
-    t.flags = flags.value;
-    t.start = start;
-    t.end = idx;
+    t->literal = body.literal; 
+    t->literal.append(flags.literal);
+    t->literaltype = LiteralType["Regexp"];
+    t->strvalue = body.value;
+    t->flags = flags.value;
+    t->start = start;
+    t->end = idx;
     DEBUGOUT("scanRegExp", false);
     return t;
 }
 
 //throw_
-TokenStruct collectRegex() {
+ptrTkn collectRegex() {
     DEBUGIN(" collectRegex()", false);
     int pos;
     Loc loc;
-    TokenStruct regex;
+    ptrTkn regex;
     string tokval;
 
     skipComment();
@@ -2839,7 +2963,7 @@ TokenStruct collectRegex() {
         }
 
         tr.typestring = "RegularExpression";
-        tr.valuestring = regex.literal;
+        tr.valuestring = regex->literal;
         tr.range[0] = pos;
         tr.range[1] = idx;
         tr.loc = loc;
@@ -2850,17 +2974,17 @@ TokenStruct collectRegex() {
     return regex;
 }
 
-bool isIdentifierName(const TokenStruct token) {
+bool isIdentifierName(const TknType tkntype) {
     DEBUGIN("   isIdentifierName(TokenStruct token)", false);
     DEBUGOUT("", false); 
-    return token.type == TknType::Identifier ||
-        token.type == TknType::Keyword ||
-        token.type == TknType::BooleanLiteral ||
-        token.type == TknType::NullLiteral;
+    return tkntype == TknType::Identifier ||
+        tkntype == TknType::Keyword ||
+        tkntype == TknType::BooleanLiteral ||
+        tkntype == TknType::NullLiteral;
 }
 
 //throw_
-TokenStruct advanceSlash() {
+ptrTkn advanceSlash() {
     DEBUGIN(" advanceSlash()", false);
     //# only gets called if extra.tokenize == true
 
@@ -2947,19 +3071,19 @@ TokenStruct advanceSlash() {
 }
 
 //throw_
-TokenStruct advance() {
+ptrTkn advance() {
     DEBUGIN(" advance()", false);
     char16_t ch;
-    TokenStruct t;
 
     skipComment(); 
 
     if (idx >= length) {
-        t.type = TknType::EOFF;
-        t.lineNumber = lineNumber;
-        t.lineStart = lineStart;
-        t.start = idx;
-        t.end = idx;
+        ptrTkn t = makeToken();
+        t->type = TknType::EOFF;
+        t->lineNumber = lineNumber;
+        t->lineStart = lineStart;
+        t->start = idx;
+        t->end = idx;
         DEBUGOUT("", false); 
         return t;
     }
@@ -3001,10 +3125,10 @@ TokenStruct advance() {
 }
 
 //throw_
-TokenStruct collectToken() {
+ptrTkn collectToken() {
     DEBUGIN(" collectToken()", false);
     Loc loc;
-    TokenStruct token;
+    ptrTkn token;
     u16string value;
 
     skipComment(); //ev
@@ -3015,13 +3139,13 @@ TokenStruct collectToken() {
     loc.end.line = lineNumber;
     loc.end.column = idx - lineStart;
 
-    if (token.type != TknType::EOFF) { 
+    if (token->type != TknType::EOFF) { 
         //this didn't check against string. is fine.
         TokenRecord tr;
-        tr.valuestring = toU8(slice(sourceraw, token.start, token.end));
-        tr.typestring = TokenName[token.type];
-        tr.range[0] = token.start;
-        tr.range[1] = token.end;
+        tr.valuestring = toU8(slice(sourceraw, token->start, token->end));
+        tr.typestring = TokenName[token->type];
+        tr.range[0] = token->start;
+        tr.range[1] = token->end;
         tr.loc = loc;
         extra.tokenRecords.push_back(tr);
     }
@@ -3031,14 +3155,14 @@ TokenStruct collectToken() {
 }
 
 //throw_
-TokenStruct lex() {
+ptrTkn lex() {
     DEBUGIN(" lex()", false);
-    TokenStruct token;
+    ptrTkn token;
 
     token = lookahead;
-    idx = token.end;
-    lineNumber = token.lineNumber;
-    lineStart = token.lineStart;
+    idx = token->end;
+    lineNumber = token->lineNumber;
+    lineStart = token->lineStart;
 
     //#ternary operators not supported by throw52
     if (extra.tokenTracking) {
@@ -3047,9 +3171,9 @@ TokenStruct lex() {
         lookahead = advance(); 
     }
 
-    idx = token.end;
-    lineNumber = token.lineNumber;
-    lineStart = token.lineStart;
+    idx = token->end;
+    lineNumber = token->lineNumber;
+    lineStart = token->lineStart;
 
     DEBUGOUT("lex", false);
     return token;
@@ -3133,13 +3257,13 @@ void Node::lookavailInit() {
     hasJv = true;
     jv = json_newmap();
 
-    idx = lookahead.start;
-    if (lookahead.type == TknType::StringLiteral) {
-        lineNumber = lookahead.startLineNumber;
-        lineStart = lookahead.startLineStart;
+    idx = lookahead->start;
+    if (lookahead->type == TknType::StringLiteral) {
+        lineNumber = lookahead->startLineNumber;
+        lineStart = lookahead->startLineStart;
     } else {
-        lineNumber = lookahead.lineNumber;
-        lineStart = lookahead.lineStart;
+        lineNumber = lookahead->lineNumber;
+        lineStart = lookahead->lineStart;
     }
     if (hasRange) { //#should always be true, but keep it open while testing.
         loc.start = Position();
@@ -3159,6 +3283,7 @@ void Node::unused() {
     if (hasJv) {
         json_object_put(this->jv);
     }
+    delNode(this);
 }
 
 void Node::jvput(const string path, const string b) 
@@ -3636,29 +3761,29 @@ void Node::finishLabeledStatement(Node * label,
 }
 
 //# ?maybe check against js to make sure we're not missing anything.
-void Node::finishLiteral(TokenStruct& token) {
-    DEBUGIN("finishLiteral(TokenStruct token)", false);
+void Node::finishLiteral(ptrTkn token) {
+    DEBUGIN("finishLiteral(ptrTkn token)", false);
     addType(Synt::Literal);
-    if (token.literaltype == LiteralType["String"]) {
-        jvput("value", token.strvalue);
-    } else if (token.literaltype == LiteralType["Int"]) {
-        jvput("value", token.intvalue);
-    } else if (token.literaltype == LiteralType["Double"]) {
-        jvput_dbl("value", token.strvalue);
-    } else if (token.literaltype == LiteralType["Bool"]) {
-        jvput("value", token.bvalue);
-    } else if (token.literaltype == LiteralType["Null"]) {
+    if (token->literaltype == LiteralType["String"]) {
+        jvput("value", token->strvalue);
+    } else if (token->literaltype == LiteralType["Int"]) {
+        jvput("value", token->intvalue);
+    } else if (token->literaltype == LiteralType["Double"]) {
+        jvput_dbl("value", token->strvalue);
+    } else if (token->literaltype == LiteralType["Bool"]) {
+        jvput("value", token->bvalue);
+    } else if (token->literaltype == LiteralType["Null"]) {
         jvput_null("value");
-    } else if (token.literaltype == LiteralType["Regexp"]) {
+    } else if (token->literaltype == LiteralType["Regexp"]) {
         json_put(jv, "value", 
-                 vec2json<string>({token.strvalue, 
-                             token.flags,
+                 vec2json<string>({token->strvalue, 
+                             token->flags,
                              to_string(lineNumber),
-                             to_string(token.end), 
-                             to_string(token.end+1)}));
+                             to_string(token->end), 
+                             to_string(token->end+1)}));
         regexPaths.push_back({"."});
     }
-    jvput("raw", s(slice(sourceraw, token.start, token.end)));
+    jvput("raw", s(slice(sourceraw, token->start, token->end)));
     this->finish();
     DEBUGOUT("", false);
 }
@@ -3869,7 +3994,7 @@ void Node::finishWithStatement(Node * object,
 
 class WrappingNode : public Node {
 public:
-    WrappingNode(TokenStruct startToken) : Node(false, true) {
+    WrappingNode(ptrTkn startToken) : Node(false, true) {
         DEBUGIN("WrappingNode(Token)", true);
         if (!hasJv) { 
             jv = json_newmap(); 
@@ -3877,7 +4002,7 @@ public:
         }
         if (extra.range) {
             hasRange = true;
-            range[0] = startToken.start;
+            range[0] = startToken->start;
             range[1] = 0;
         }
 
@@ -3887,19 +4012,19 @@ public:
 
         DEBUGOUT("WrappingNode(Token)", true);
     }
-    Loc WrappingSourceLocation(TokenStruct startToken);
+    Loc WrappingSourceLocation(ptrTkn startToken);
 };
 
-Loc WrappingNode::WrappingSourceLocation(TokenStruct startToken) {
+Loc WrappingNode::WrappingSourceLocation(ptrTkn startToken) {
     DEBUGIN("WrappingSourceLocation (Token)", true);
     Loc result;
-    if (startToken.type == TknType::StringLiteral) {
-        result.start.line = startToken.startLineNumber;
+    if (startToken->type == TknType::StringLiteral) {
+        result.start.line = startToken->startLineNumber;
         result.start.column = 
-            startToken.start - startToken.startLineStart;
+            startToken->start - startToken->startLineStart;
     } else {
-        result.start.line = startToken.lineNumber;
-        result.start.column = startToken.start - startToken.lineStart;
+        result.start.line = startToken->lineNumber;
+        result.start.column = startToken->start - startToken->lineStart;
     }
     result.end.line = -1;
     result.end.column = -1;
@@ -3947,7 +4072,7 @@ void throwToJS(const ExError err) {
 #endif
 
 
-ExError genExError(TokenStruct& token, const string messageFormat, 
+ExError genExError(ptrTkn token, const string messageFormat, 
                    vector< string > args) {
     DEBUGIN(" genExError", false);
     ExError error;
@@ -3965,10 +4090,10 @@ ExError genExError(TokenStruct& token, const string messageFormat,
         msg.insert(searchresult, args[i]);
     }
 
-    if (token.lineNumber != -1) {
-        error.index = token.start;
-        error.lineNumber = token.lineNumber;
-        error.column = token.start - lineStart + 1;
+    if (token->lineNumber != -1) {
+        error.index = token->start;
+        error.lineNumber = token->lineNumber;
+        error.column = token->start - lineStart + 1;
     } else {
         error.index = idx;
         error.lineNumber = lineNumber;
@@ -3981,20 +4106,20 @@ ExError genExError(TokenStruct& token, const string messageFormat,
 }
 
 //throw_
-void throwError(TokenStruct& token, 
+void throwError(ptrTkn token, 
                 const string messageFormat, 
                 vector< string > args) {
-    DEBUGIN(" throwError(TokenStruct token, u16string messageFormat, vector<u16string> args)", false);
+    DEBUGIN(" throwError(ptrTkn token, u16string messageFormat, vector<u16string> args)", false);
     throwToJS(genExError(token, messageFormat, args));
     DEBUGOUT(" throwError()", false);
     return;
 }
 
 //throw_
-void throwErrorTolerant(TokenStruct& token, 
+void throwErrorTolerant(ptrTkn token, 
                         const string messageFormat, 
                         vector<string> args) {
-    DEBUGIN(" throwErrorTolerant(TokenStruct token, u16string messageFormat, vector<u16string> args)", false);
+    DEBUGIN(" throwErrorTolerant(ptrTkn token, u16string messageFormat, vector<u16string> args)", false);
     ExError result = genExError(token, messageFormat, args);
     if (extra.errorTolerant) {
         extra.errors.push_back(result);
@@ -4007,26 +4132,26 @@ void throwErrorTolerant(TokenStruct& token,
 
 // Throw an exception because of the token.
 //throw_
-void throwUnexpected(TokenStruct& token) {
-    DEBUGIN(" throwUnexpected(TokenStruct token)", false);
+void throwUnexpected(ptrTkn token) {
+    DEBUGIN(" throwUnexpected(ptrTkn token)", false);
     Mssg errmsg = 
-        (token.type == TknType::EOFF)? Mssg::UnexpectedEOS :
-        (token.type == TknType::NumericLiteral)? Mssg::UnexpectedNumber:
-        (token.type == TknType::StringLiteral)? Mssg::UnexpectedString :
-        (token.type == TknType::Identifier)? Mssg::UnexpectedIdentifier :
-        (token.type == TknType::Keyword &&
-         isFutureReservedWord(token.strvalue))? Mssg::UnexpectedReserved :
+        (token->type == TknType::EOFF)? Mssg::UnexpectedEOS :
+        (token->type == TknType::NumericLiteral)? Mssg::UnexpectedNumber:
+        (token->type == TknType::StringLiteral)? Mssg::UnexpectedString :
+        (token->type == TknType::Identifier)? Mssg::UnexpectedIdentifier :
+        (token->type == TknType::Keyword &&
+         isFutureReservedWord(token->strvalue))? Mssg::UnexpectedReserved :
         Mssg::None;
     if (errmsg != Mssg::None) {
         throwError(token, Messages[errmsg], {});
     }
-    if (token.type == TknType::Keyword && strict &&
-        isStrictModeReservedWord(token.strvalue)) {
+    if (token->type == TknType::Keyword && strict &&
+        isStrictModeReservedWord(token->strvalue)) {
         throwErrorTolerant(token, Messages[Mssg::StrictReservedWord], {});
         return;
     }    
     // BooleanLiteral, NullLiteral, or Punctuator.
-    throwError(token, Messages[Mssg::UnexpectedToken], {token.strvalue});
+    throwError(token, Messages[Mssg::UnexpectedToken], {token->strvalue});
     return; //#throw52
 
 }
@@ -4034,16 +4159,14 @@ void throwUnexpected(TokenStruct& token) {
     // If not, an exception will be thrown.
 
 
-
+//inline
 //throw_
 void expect(const string value) { 
     //DEBUGIN(" expect(u16string value)", false);
+    ptrTkn token = lex();
 
-    TokenStruct token = lex();
-
-
-    if (token.type != TknType::Punctuator || 
-          token.strvalue != value) {
+    if (token->type != TknType::Punctuator || 
+          token->strvalue != value) {
         throwUnexpected(token); 
     }
     // DEBUGOUT("expect", false);
@@ -4056,13 +4179,13 @@ void expect(const string value) {
 void expectTolerant(const string value) {
     // DEBUGIN(" expectTolerant(u16string value)", false);
     if (extra.errorTolerant) {
-        TokenStruct token = lookahead;
+        ptrTkn token = lookahead;
 
 
-        if (token.type != TknType::Punctuator || 
-              token.strvalue != value) {
+        if (token->type != TknType::Punctuator || 
+              token->strvalue != value) {
             throwErrorTolerant(token, Messages[Mssg::UnexpectedToken], 
-                               {token.strvalue});
+                               {token->strvalue});
         } else {
             lex();
         }
@@ -4077,9 +4200,9 @@ void expectTolerant(const string value) {
 // If not, an exception will be thrown.
 //throw_
 void expectKeyword(const string keyword) { 
-    TokenStruct token = lex();
-    if (token.type != TknType::Keyword || 
-        token.strvalue != keyword) {
+    ptrTkn token = lex();
+    if (token->type != TknType::Keyword || 
+        token->strvalue != keyword) {
         throwUnexpected(token);
     }
     return;
@@ -4088,29 +4211,32 @@ void expectKeyword(const string keyword) {
 
 // Return true if the next token matches the specified punctuator.
 
+//inline 
 bool match(const string value) { 
-    return lookahead.type == TknType::Punctuator 
-        && lookahead.strvalue == value;
+    return lookahead->type == TknType::Punctuator 
+        && lookahead->strvalue == value;
 }
 
 // Return true if the next token matches the specified keyword
 
 
+//inline 
 bool matchKeyword(const string keyword) {
     // DEBUGIN(" matchKeyword(const u16string keyword)", false);
     //  DEBUGOUT("matchKey", false); 
-    return lookahead.type == TknType::Keyword 
-        && lookahead.strvalue == keyword;
+    return lookahead->type == TknType::Keyword 
+        && lookahead->strvalue == keyword;
 }
 
     // Return true if the next token is an assignment operator
 
 
+//inline 
 bool matchAssign() { 
-    if (lookahead.type != TknType::Punctuator) {
+    if (lookahead->type != TknType::Punctuator) {
         return false;
     }
-    return has(lookahead.strvalue, {
+    return has(lookahead->strvalue, {
                 "=",
                 "*=",
                 "/=",
@@ -4172,7 +4298,7 @@ void consumeSemicolon() {
         return;
     }
 
-    if (lookahead.type != TknType::EOFF && !match("}")) { 
+    if (lookahead->type != TknType::EOFF && !match("}")) { 
         throwUnexpected(lookahead); 
     }
     DEBUGOUT("consumeSemi", false);
@@ -4227,15 +4353,15 @@ Node* parseArrayInitialiser() {
 // 11.1.5 Object Initialiser
 
 //throw_
-Node* parsePropertyFunction(vector<Node*>& param, TokenStruct first) {
-    DEBUGIN(" parsePropertyFunction(vector<Node>& param, TokenStruct first)", false);
+Node* parsePropertyFunction(vector<Node*>& param, ptrTkn first) {
+    DEBUGIN(" parsePropertyFunction(vector<Node>& param, ptrTkn first)", false);
     bool previousStrict;
     Node *body,
         *node = new Node(true, true);
 
     previousStrict = strict;
     body = parseFunctionSourceElements();
-    if (!(first.isNull) && strict && isRestrictedWord(param[0]->name)) {
+    if (!(first->isNull) && strict && isRestrictedWord(param[0]->name)) {
         throwErrorTolerant(first, Messages[Mssg::StrictParamName],{});
     }
     strict = previousStrict;
@@ -4248,7 +4374,7 @@ Node* parsePropertyFunction(vector<Node*>& param, TokenStruct first) {
 //throw_
 Node* parseObjectPropertyKey() {
     DEBUGIN(" parseObjectPropertyKey()", false);
-    TokenStruct token;
+    ptrTkn token;
     Node *node = new Node(true, true);
 
     token = lex();
@@ -4256,9 +4382,9 @@ Node* parseObjectPropertyKey() {
     // Note: This function is called only from parseObjectProperty(), where
     // EOF and Punctuator tokens are already filtered out.
 
-    if (token.type == TknType::StringLiteral || 
-        token.type == TknType::NumericLiteral) {
-        if (strict && token.octal) {
+    if (token->type == TknType::StringLiteral || 
+        token->type == TknType::NumericLiteral) {
+        if (strict && token->octal) {
             throwErrorTolerant(token, 
                                Messages[Mssg::StrictOctalLiteral], {});
         }
@@ -4267,7 +4393,7 @@ Node* parseObjectPropertyKey() {
         return node;
     }
 
-    node->finishIdentifier(token.strvalue);
+    node->finishIdentifier(token->strvalue);
     DEBUGOUT("ParseObjPropKey", false);
     return node;
 }
@@ -4281,40 +4407,45 @@ Node* parseObjectPropertyKey() {
 //throw_
 Node* parseObjectProperty() {
     DEBUGIN(" parseObjectProperty()", false);
-    TokenStruct token;
+    ptrTkn token;
     vector<Node*> param;
     Node *id, *key, *value, 
         *node = new Node(true,true);
 
     token = lookahead;
 
-    if (token.type == TknType::Identifier) {
+    if (token->type == TknType::Identifier) {
 
         id = parseObjectPropertyKey();
 
         // Property Assignment: Getter and Setter.
 
-        if (token.strvalue == "get" && !match(":")) {
+        if (token->strvalue == "get" && !match(":")) {
             key = parseObjectPropertyKey();
             expect("(");
             expect(")");
+            ptrTkn tmpNull = makeToken();
+            tmpNull->isNull = true;
             value = parsePropertyFunction(EMPTY_NODE_LIST, 
-                                          NULLTOKEN);
+                                          tmpNull);
             node->finishProperty("get", key, value);
             DEBUGOUT("parseObjProp", false); 
             return node;
         }
-        if (token.strvalue == "set" && !match(":")) {
+        if (token->strvalue == "set" && !match(":")) {
             key = parseObjectPropertyKey();
             expect("(");
             token = lookahead;
-            if (token.type != TknType::Identifier) {
+            if (token->type != TknType::Identifier) {
                 expect(")");
                 throwErrorTolerant(token, 
                                    Messages[Mssg::UnexpectedToken], 
-                                   {token.strvalue});
+                                   {token->strvalue});
+
+                ptrTkn tmpNull = makeToken();
+                tmpNull->isNull = true;                
                 value = parsePropertyFunction(EMPTY_NODE_LIST, 
-                                              NULLTOKEN);
+                                              tmpNull);
             } else {
 #ifndef THROWABLE
                 Node *tmp = parseVariableIdentifier();
@@ -4336,7 +4467,7 @@ Node* parseObjectProperty() {
         DEBUGOUT("parseObjProp", false); 
         return node;
     }
-    if (token.type == TknType::EOFF || token.type == TknType::Punctuator) {
+    if (token->type == TknType::EOFF || token->type == TknType::Punctuator) {
         throwUnexpected(token);
         DEBUGOUT("parseObjProp", false); 
         return &NULLNODE; //#just to satisfy warnings.
@@ -4368,7 +4499,7 @@ string json_tostring(json_object * in) {
 Node* parseObjectInitialiser() {
     DEBUGIN(" parseObjectInitialiser()", false);
     vector<Node*> properties;
-    TokenStruct token;
+    ptrTkn token;
     Node *property, 
         *node = new Node(true, true);
     json_object * keyobj;
@@ -4401,18 +4532,18 @@ Node* parseObjectInitialiser() {
         if (hasStringKey<int>(key,kmap)) {
             if (kmap[key] == PropertyKind["Data"]) {
                 if (strict && kind == PropertyKind["Data"]) {
-                    throwErrorTolerant(NULLTOKEN, 
+                    throwErrorTolerant(NULLPTRTKN, 
                             Messages[Mssg::StrictDuplicateProperty],{});
                 } else if (kind != PropertyKind["Data"]) {
-                    throwErrorTolerant(NULLTOKEN, 
+                    throwErrorTolerant(NULLPTRTKN, 
                             Messages[Mssg::AccessorDataProperty],{});
                 }
             } else {
                 if (kind == PropertyKind["Data"]) {
-                    throwErrorTolerant(NULLTOKEN, 
+                    throwErrorTolerant(NULLPTRTKN, 
                             Messages[Mssg::AccessorDataProperty],{});
                 } else if (kmap[key] & kind) {
-                    throwErrorTolerant(NULLTOKEN, 
+                    throwErrorTolerant(NULLPTRTKN, 
                             Messages[Mssg::AccessorGetSet],{});
                 }
             }
@@ -4469,7 +4600,7 @@ Node* parsePrimaryExpression() {
     //# and because there are so many it makes this function visually
     //# hard to follow if we use nested whenever possible in this.
     TknType type; 
-    TokenStruct token;
+    ptrTkn token;
     Node *expr, *node;
 
     if (match("(")) {
@@ -4484,24 +4615,25 @@ Node* parsePrimaryExpression() {
         return DBGRET("", parseObjectInitialiser());
     }
 
-    type = lookahead.type;
+    type = lookahead->type;
     node = new Node(true, true);
     expr = node;
 
     if (type == TknType::Identifier) {
-        TokenStruct tmp = lex();
-        expr->finishIdentifier(tmp.strvalue);
+        ptrTkn tmp = lex();
+        expr->finishIdentifier(tmp->strvalue);
     } else if (type == TknType::StringLiteral || 
                type == TknType::NumericLiteral) {
 
-        if (strict && lookahead.octal) {
+        if (strict && lookahead->octal) {
             throwErrorTolerant(lookahead, 
                                Messages[Mssg::StrictOctalLiteral], {});
         }
-        TokenStruct tmp = lex();
+        ptrTkn tmp = lex();
         expr->finishLiteral(tmp);
     } else if (type == TknType::Keyword) {
         if (matchKeyword("function")) {
+            
             expr->unused();
             return DBGRET("", parseFunctionExpression());
         }
@@ -4509,21 +4641,21 @@ Node* parsePrimaryExpression() {
             lex();
             expr->finishThisExpression();
         } else {
-            TokenStruct tmp = lex();
+            ptrTkn tmp = lex();
             throwUnexpected(tmp);
         }
     } else if (type == TknType::BooleanLiteral) {
         token = lex();
-        token.bvalue = (token.strvalue == "true");
-        token.literaltype = LiteralType["Bool"];
+        token->bvalue = (token->strvalue == "true");
+        token->literaltype = LiteralType["Bool"];
         expr->finishLiteral(token);
     } else if (type == TknType::NullLiteral) {
         token = lex();
-        token.isNull = true;
-        token.literaltype = LiteralType["Null"];
+        token->isNull = true;
+        token->literaltype = LiteralType["Null"];
         expr->finishLiteral(token);
     } else if (match("/") || match("/=")) {
-        TokenStruct tmp;
+        ptrTkn tmp;
         if (extra.tokenTracking) {
             tmp = collectRegex();
             expr->finishLiteral(tmp);
@@ -4533,7 +4665,7 @@ Node* parsePrimaryExpression() {
         }
         peek();
     } else {
-        TokenStruct tmp = lex();
+        ptrTkn tmp = lex();
         throwUnexpected(tmp);
     }
 
@@ -4570,16 +4702,16 @@ vector< Node* > parseArguments() {
 //throw_
 Node* parseNonComputedProperty() {
     DEBUGIN(" parseNonComputedProperty()", false);
-    TokenStruct token;
+    ptrTkn token;
     Node *node = new Node(true, true);
 
     token = lex();
 
-    if (!isIdentifierName(token)) {
+    if (!isIdentifierName(token->type)) {
         throwUnexpected(token);
     }
 
-    node->finishIdentifier(token.strvalue);
+    node->finishIdentifier(token->strvalue);
     DEBUGOUT("", false);
     return node;
 }
@@ -4625,7 +4757,7 @@ Node* parseLeftHandSideExpressionAllowCall() {
     DEBUGIN(" parseLeftHandSideExpressionAllowCall()", false);
     vector< Node * > args;
     Node *expr, *property, *tmpnode;
-    TokenStruct startToken;
+    ptrTkn startToken;
     bool previousAllowIn = state.allowIn;
 
     startToken = lookahead;
@@ -4667,7 +4799,7 @@ Node* parseLeftHandSideExpressionAllowCall() {
 Node* parseLeftHandSideExpression() {
     DEBUGIN(" parseLeftHandSideExpression()", false);
     Node *tmpnode, *expr, *property;
-    TokenStruct startToken;
+    ptrTkn startToken;
 
     softAssert(state.allowIn, 
                "callee of new expression always allow in keyword.");
@@ -4703,30 +4835,30 @@ Node* parsePostfixExpression() {
     DEBUGIN(" parsePostfixExpression()", false);
     Node *expr, *tmpnode;
     bool pltresult;
-    TokenStruct token, startToken = lookahead;
+    ptrTkn token, startToken = lookahead;
 
     expr = parseLeftHandSideExpressionAllowCall();
     
-    if (lookahead.type == TknType::Punctuator) {
+    if (lookahead->type == TknType::Punctuator) {
         if (match("++") || match("--")) {
             pltresult = peekLineTerminator(); //#throw52
             if (!pltresult) {
                 // 11.3.1, 11.3.2
                 if (strict && expr->type == Syntax[Synt::Identifier] && 
                     isRestrictedWord(expr->name)) {
-                    throwErrorTolerant(NULLTOKEN,
+                    throwErrorTolerant(NULLPTRTKN,
                                        Messages[Mssg::StrictLHSPostfix],{});
                 }
 
                 if (!isLeftHandSide(expr)) {
-                    throwErrorTolerant(NULLTOKEN,
+                    throwErrorTolerant(NULLPTRTKN,
                                        Messages[Mssg::InvalidLHSInAssignment],
                                        {});
                 }
 
                 token = lex();
                 tmpnode = new WrappingNode(startToken);
-                tmpnode->finishPostfixExpression(token.strvalue, expr);
+                tmpnode->finishPostfixExpression(token->strvalue, expr);
                 DEBUGOUT("parsePostfix", false); 
                 return tmpnode;
             }
@@ -4741,12 +4873,12 @@ Node* parsePostfixExpression() {
 //throw_
 Node* parseUnaryExpression() {
     DEBUGIN(" parseUnaryExpression()", false);
-    TokenStruct token, startToken;
+    ptrTkn token, startToken;
     Node *expr, *tmpnode;
     u16string exprname;
 
-    if (lookahead.type != TknType::Punctuator 
-        && lookahead.type != TknType::Keyword) {
+    if (lookahead->type != TknType::Punctuator 
+        && lookahead->type != TknType::Keyword) {
         expr = parsePostfixExpression();
     } else if (match("++") || match("--")) {
         startToken = lookahead;
@@ -4755,16 +4887,16 @@ Node* parseUnaryExpression() {
         // 11.4.4, 11.4.5
         if (strict && expr->type == Syntax[Synt::Identifier] 
             && isRestrictedWord(expr->name)) {
-            throwErrorTolerant(NULLTOKEN, Messages[Mssg::StrictLHSPrefix],{});
+            throwErrorTolerant(NULLPTRTKN, Messages[Mssg::StrictLHSPrefix],{});
         }
 
         if (!isLeftHandSide(expr)) {
-            throwErrorTolerant(NULLTOKEN, 
+            throwErrorTolerant(NULLPTRTKN, 
                                Messages[Mssg::InvalidLHSInAssignment], {});
         }
 
         tmpnode = new WrappingNode(startToken);
-        tmpnode->finishUnaryExpression(token.strvalue, expr);
+        tmpnode->finishUnaryExpression(token->strvalue, expr);
         DEBUGOUT("parseUnary", false); 
         return tmpnode;
     } else if (match("+") || match("-") || match("~") || match("!")) {
@@ -4772,7 +4904,7 @@ Node* parseUnaryExpression() {
         token = lex();
         expr = parseUnaryExpression();
         tmpnode = new WrappingNode(startToken);
-        tmpnode->finishUnaryExpression(token.strvalue, expr);
+        tmpnode->finishUnaryExpression(token->strvalue, expr);
         DEBUGOUT("parseUnary", false); 
         return tmpnode;
     } else if (matchKeyword("delete") 
@@ -4782,10 +4914,10 @@ Node* parseUnaryExpression() {
         token = lex();
         expr = parseUnaryExpression();
         tmpnode = new WrappingNode(startToken);
-        tmpnode->finishUnaryExpression(token.strvalue, expr);
-        if (strict && token.strvalue == "delete" 
+        tmpnode->finishUnaryExpression(token->strvalue, expr);
+        if (strict && token->strvalue == "delete" 
             && expr->type == Syntax[Synt::Identifier]) {
-            throwErrorTolerant(NULLTOKEN, Messages[Mssg::StrictDelete], {});
+            throwErrorTolerant(NULLPTRTKN, Messages[Mssg::StrictDelete], {});
         }
         DEBUGOUT("parseUnary", false); 
         return tmpnode;
@@ -4797,18 +4929,18 @@ Node* parseUnaryExpression() {
     return expr;
 }
 
-int binaryPrecedence(const TokenStruct token, 
+int binaryPrecedence(const TokenStruct *token, 
                      const bool allowIn) {
     DEBUGIN(" binaryPrecedence(Tokenstruct token, bool allowIn)", false);
     int prec = 0;
     string tokval;
 
-    if (token.type != TknType::Punctuator 
-        && token.type != TknType::Keyword) {
+    if (token->type != TknType::Punctuator 
+        && token->type != TknType::Keyword) {
         DEBUGOUT("binaryPrec", false); 
         return 0;
     }
-    tokval = token.strvalue;
+    tokval = token->strvalue;
 
     if (tokval == "||") {
         prec = 1;
@@ -4853,8 +4985,9 @@ Node* parseBinaryExpression() {
     Node *tmpnode, *expr, *left, 
         *right;
     vector < Node* > nodestack;
-    TokenStruct marker, token;
-    vector< TokenStruct > markers, tokstack;
+    ptrTkn marker, token, nulltok = makeToken();
+    nulltok->isNull = true;
+    vector< ptrTkn > markers, tokstack;
     string oper;
     int i, prec;
 
@@ -4869,12 +5002,12 @@ Node* parseBinaryExpression() {
     }
 
     token = lookahead;    
-    prec = binaryPrecedence(token, state.allowIn);
+    prec = binaryPrecedence(token.get(), state.allowIn);
     if (prec == 0) {
         DEBUGOUT("parseBinary2", false); 
         return left;
     }
-    token.prec = prec;
+    token->prec = prec;
     lex();
 
     markers.push_back(marker);
@@ -4887,21 +5020,21 @@ Node* parseBinaryExpression() {
     //type stackeds (where a position is always only occupied by a non-null value in one of the stacks)
     //and access the right stack at the right time.
     nodestack.push_back(left);
-    tokstack.push_back(NULLTOKEN);
+    tokstack.push_back(nulltok);
     nodestack.push_back(&NULLNODE);
     tokstack.push_back(token);
     nodestack.push_back(right);
-    tokstack.push_back(NULLTOKEN);
+    tokstack.push_back(nulltok);
 
-    while ((prec = binaryPrecedence(lookahead, state.allowIn)) > 0) { 
+    while ((prec = binaryPrecedence(lookahead.get(), state.allowIn)) > 0) { 
 
         // Reduce: make a binary expression from the three topmost entries.
         while ((tokstack.size() > 2) && 
-               (prec <= tokstack[tokstack.size() - 2].prec)) { 
+               (prec <= tokstack[tokstack.size() - 2]->prec)) { 
             //? will this work the same in c++ as in js?
             right = nodestack.back(); 
             nodestack.pop_back(); tokstack.pop_back();
-            oper = tokstack.back().strvalue;
+            oper = tokstack.back()->strvalue;
             nodestack.pop_back(); tokstack.pop_back();
             left = nodestack.back();
             nodestack.pop_back(); tokstack.pop_back();
@@ -4911,18 +5044,18 @@ Node* parseBinaryExpression() {
 
             expr->finishBinaryExpression(oper, left, right);
 
-            nodestack.push_back(expr); tokstack.push_back(NULLTOKEN);
+            nodestack.push_back(expr); tokstack.push_back(nulltok);
         }
 
         // Shift.
         token = lex();
-        token.prec = prec;
+        token->prec = prec;
         nodestack.push_back(&NULLNODE);
         tokstack.push_back(token);
         markers.push_back(lookahead);
         expr = parseUnaryExpression();
         nodestack.push_back(expr);
-        tokstack.push_back(NULLTOKEN);
+        tokstack.push_back(nulltok);
     }
 
     // Final reduce to clean-up the stack.
@@ -4932,7 +5065,7 @@ Node* parseBinaryExpression() {
     while (i > 1) {
         tmpnode = new WrappingNode(markers.back());
         markers.pop_back();
-        tmpnode->finishBinaryExpression(tokstack[i - 1].strvalue, 
+        tmpnode->finishBinaryExpression(tokstack[i - 1]->strvalue, 
                                         nodestack[i - 2], expr);
         expr = tmpnode;
         i -= 2;
@@ -4951,7 +5084,7 @@ Node* parseConditionalExpression() {
     Node *expr, *tmpnode, 
         *consequent, *alternate;
     bool previousAllowIn;
-    TokenStruct startToken;
+    ptrTkn startToken;
 
     startToken = lookahead;
 
@@ -5063,7 +5196,7 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node* >& expressions) {
     if (opts.message == Messages[Mssg::StrictParamDupe]) {
         throwError(
                    //strict ? opts.stricted : opts.firstRestricted, //? replicate?
-                   NULLTOKEN,
+                   NULLPTRTKN,
                    opts.message,
                    {}
                    );
@@ -5096,11 +5229,11 @@ Node* parseArrowFunctionExpression(const ReinterpretOut options,
     body = parseConciseBody();
 
     if (strict && !(options.firstRestricted->isNull)) { 
-        throwError(NULLTOKEN, options.message, {});
+        throwError(NULLPTRTKN, options.message, {});
         //        throwError(options.firstRestricted, options.message, {});
     }
     if (strict && !(options.stricted->isNull)) {
-        throwError(NULLTOKEN, options.message, {});
+        throwError(NULLPTRTKN, options.message, {});
         //        throwErrorTolerant(options.stricted, options.message, {});
     }
 
@@ -5121,7 +5254,7 @@ Node* parseArrowFunctionExpression(const ReinterpretOut options,
 Node* parseAssignmentExpression() {
     DEBUGIN(" parseAssignmentExpression()", false);
     int oldParenthesisCount;
-    TokenStruct token, startToken;
+    ptrTkn token, startToken;
     Node *expr, *right, *tmpnode;
     vector<Node*> reIn;
     ReinterpretOut list;
@@ -5147,9 +5280,9 @@ Node* parseAssignmentExpression() {
                 list = reinterpretAsCoverFormalsList(reIn);
             } else if (expr->type == Syntax[Synt::SequenceExpression]) {
                 list = reinterpretAsCoverFormalsList(expr->expressions);
-                delNode(expr);
+                expr->unused();
             } else if (expr->type == PlaceHolders["ArrowParameterPlaceHolder"].type) {
-                delNode (expr);
+                expr->unused();
                 list = reinterpretAsCoverFormalsList(reIn); 
             }
             if (!(list.isNull)) {
@@ -5161,7 +5294,7 @@ Node* parseAssignmentExpression() {
     if (matchAssign()) {
         // LeftHandSideExpression
         if (!isLeftHandSide(expr)) {
-            throwErrorTolerant(NULLTOKEN, 
+            throwErrorTolerant(NULLPTRTKN, 
                                Messages[Mssg::InvalidLHSInAssignment], {});
         }
 
@@ -5177,7 +5310,7 @@ Node* parseAssignmentExpression() {
         right = parseAssignmentExpression();
         tmpnode = new WrappingNode(startToken);
 
-        tmpnode->finishAssignmentExpression(token.strvalue, expr, right); 
+        tmpnode->finishAssignmentExpression(token->strvalue, expr, right); 
         DEBUGOUT("parseAssignExpr2", false); 
         return tmpnode;
     }
@@ -5191,7 +5324,7 @@ Node* parseAssignmentExpression() {
 Node* parseExpression() { 
     DEBUGIN(" parseExpression()", false);
     Node *expr; 
-    TokenStruct startToken = lookahead;
+    ptrTkn startToken = lookahead;
     vector< Node* > expressions;
 
     expr = parseAssignmentExpression();
@@ -5263,16 +5396,16 @@ Node* parseBlock() {
 //throw_
 Node* parseVariableIdentifier() { 
     DEBUGIN(" parseVariableIdentifier()", false);
-    TokenStruct token;
+    ptrTkn token;
     Node *node = new Node(true, true);
 
     token = lex();
 
-    if (token.type != TknType::Identifier) {
+    if (token->type != TknType::Identifier) {
         throwUnexpected(token);
     }
 
-    node->finishIdentifier(token.strvalue);
+    node->finishIdentifier(token->strvalue);
     DEBUGOUT("parseVariableIdent", false); 
     return node;
 }
@@ -5288,7 +5421,7 @@ Node* parseVariableDeclaration(const string kind) {
 
     // 12.2.1
     if (strict && isRestrictedWord(id->name)) {
-        throwErrorTolerant(NULLTOKEN, Messages[Mssg::StrictVarName], {});
+        throwErrorTolerant(NULLPTRTKN, Messages[Mssg::StrictVarName], {});
     }
 
     if (kind == "const") {
@@ -5451,13 +5584,13 @@ Node* parseWhileStatement(Node* node) {
 //throw_
 Node* parseForVariableDeclaration() { 
     DEBUGIN(" parseForVariableDeclaration()", false);
-    TokenStruct token;
+    ptrTkn token;
     vector< Node* > declarations;
     Node *node = new Node(true, true);
 
     token = lex();
     declarations = parseVariableDeclarationList("");
-    node->finishVariableDeclaration(declarations, token.strvalue);
+    node->finishVariableDeclaration(declarations, token->strvalue);
     DEBUGOUT("parseForVariableDeclaration", false); 
     return node;
 }
@@ -5501,7 +5634,7 @@ Node* parseForStatement(Node* node) {
             if (matchKeyword("in")) {
                 // LeftHandSideExpression
                 if (!isLeftHandSide(init)) {
-                    throwErrorTolerant(NULLTOKEN, 
+                    throwErrorTolerant(NULLPTRTKN, 
                                        Messages[Mssg::InvalidLHSInForIn],{});
                 }
 
@@ -5563,7 +5696,7 @@ Node* parseContinueStatement(Node* node) {
         lex();
 
         if (!(state.inIteration)) {
-            throwError(NULLTOKEN, Messages[Mssg::IllegalContinue],{});
+            throwError(NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
         }
 
         node->finishContinueStatement(&NULLNODE);
@@ -5574,7 +5707,7 @@ Node* parseContinueStatement(Node* node) {
     pltresult = peekLineTerminator();
     if (pltresult) {
         if (!state.inIteration) {
-            throwError(NULLTOKEN, Messages[Mssg::IllegalContinue],{});
+            throwError(NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
         }
 
         node->finishContinueStatement(&NULLNODE);
@@ -5582,14 +5715,14 @@ Node* parseContinueStatement(Node* node) {
         return node;
     }
 
-    if (lookahead.type == TknType::Identifier) {
+    if (lookahead->type == TknType::Identifier) {
 
         label = parseVariableIdentifier();
 
         key = "$";
         key.append(label->name);
         if (!(hasSet(key, state.labelSet))) {
-            throwError(NULLTOKEN, 
+            throwError(NULLPTRTKN, 
                        Messages[Mssg::UnknownLabel], {label->name});
         }
     }
@@ -5597,7 +5730,7 @@ Node* parseContinueStatement(Node* node) {
     consumeSemicolon();
 
     if (label->isNull && !(state.inIteration)) {
-        throwError(NULLTOKEN, Messages[Mssg::IllegalContinue],{});
+        throwError(NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
     }
 
     node->finishContinueStatement(label);
@@ -5621,7 +5754,7 @@ Node* parseBreakStatement(Node* node) {
         lex();
 
         if (!(state.inIteration || state.inSwitch)) {
-            throwError(NULLTOKEN, Messages[Mssg::IllegalBreak],{});
+            throwError(NULLPTRTKN, Messages[Mssg::IllegalBreak],{});
         }
 
         node->finishBreakStatement(&NULLNODE);
@@ -5632,7 +5765,7 @@ Node* parseBreakStatement(Node* node) {
     pltresult = peekLineTerminator();
     if (pltresult) {
         if (!(state.inIteration || state.inSwitch)) {
-            throwError(NULLTOKEN, Messages[Mssg::IllegalBreak],{});
+            throwError(NULLPTRTKN, Messages[Mssg::IllegalBreak],{});
         }
 
         node->finishBreakStatement(&NULLNODE);
@@ -5640,14 +5773,14 @@ Node* parseBreakStatement(Node* node) {
         return node;
     }
 
-    if (lookahead.type == TknType::Identifier) {
+    if (lookahead->type == TknType::Identifier) {
         label = parseVariableIdentifier();
 
         key = "$";
         key.append(label->name);
 
         if (!(hasSet(key, state.labelSet))) {
-            throwError(NULLTOKEN, 
+            throwError(NULLPTRTKN, 
                        Messages[Mssg::UnknownLabel], {label->name});
         }
     }
@@ -5655,7 +5788,7 @@ Node* parseBreakStatement(Node* node) {
     consumeSemicolon();
 
     if (label == &NULLNODE && !(state.inIteration || state.inSwitch)) {
-        throwError(NULLTOKEN, Messages[Mssg::IllegalBreak], {});
+        throwError(NULLPTRTKN, Messages[Mssg::IllegalBreak], {});
     }
 
     node->finishBreakStatement(label);
@@ -5674,7 +5807,7 @@ Node* parseReturnStatement(Node* node) {
     expectKeyword("return");
 
     if (!(state.inFunctionBody)) {
-        throwErrorTolerant(NULLTOKEN, Messages[Mssg::IllegalReturn], {});
+        throwErrorTolerant(NULLPTRTKN, Messages[Mssg::IllegalReturn], {});
     }
 
     // 'return' followed by a space and an identifier is very common.
@@ -5696,7 +5829,7 @@ Node* parseReturnStatement(Node* node) {
     }
 
     if (!match(";")) {
-        if (!match("}") && lookahead.type != TknType::EOFF) {
+        if (!match("}") && lookahead->type != TknType::EOFF) {
             argument = parseExpression();
         }
     }
@@ -5717,7 +5850,7 @@ Node* parseWithStatement(Node* node) {
     if (strict) {
         // TODO(ikarienator): Should we update the test cases instead?
         skipComment(); //ev
-        throwErrorTolerant(NULLTOKEN, 
+        throwErrorTolerant(NULLPTRTKN, 
                            Messages[Mssg::StrictModeWith], {});
     }
 
@@ -5794,7 +5927,7 @@ Node* parseSwitchStatement(Node *node) {
                                 json_require(clause->jv,  "test", false), 
                                 json_type_null)) {
             if (defaultFound) {
-                throwError(NULLTOKEN, 
+                throwError(NULLPTRTKN, 
                            Messages[Mssg::MultipleDefaultsInSwitch],{});
             }
             defaultFound = true;
@@ -5819,7 +5952,7 @@ Node* parseThrowStatement(Node* node) {
     expectKeyword("throw");
     pltresult = peekLineTerminator();
     if (pltresult) {
-        throwError(NULLTOKEN, 
+        throwError(NULLPTRTKN, 
                    Messages[Mssg::NewlineAfterThrow],{});
     }
     argument = parseExpression();
@@ -5847,7 +5980,7 @@ Node* parseCatchClause() {
     param = parseVariableIdentifier();
     // 12.14.1
     if (strict && isRestrictedWord(param->name)) { 
-        throwErrorTolerant(NULLTOKEN, 
+        throwErrorTolerant(NULLPTRTKN, 
                            Messages[Mssg::StrictCatchVariable],{});
     }
 
@@ -5886,7 +6019,7 @@ Node* parseTryStatement(Node* node) {
     }
 
     if (handlers.size() == 0 && finalizer->isNull) {
-        throwError(NULLTOKEN, Messages[Mssg::NoCatchOrFinally], {});
+        throwError(NULLPTRTKN, Messages[Mssg::NoCatchOrFinally], {});
     }
 
     node->finishTryStatement(block, EMPTY_NODE_LIST, 
@@ -5913,7 +6046,7 @@ Node* parseDebuggerStatement(Node* node) {
 //throw_
 Node* parseStatement() {
     DEBUGIN(" parseStatement()", false);
-    TknType type = lookahead.type;
+    TknType type = lookahead->type;
     string key, tokval;
     Node *expr, *node, *labeledBody;
 
@@ -5921,22 +6054,22 @@ Node* parseStatement() {
         throwUnexpected(lookahead);
     }
 
-    if (type == TknType::Punctuator && lookahead.strvalue == "{") {
+    if (type == TknType::Punctuator && lookahead->strvalue == "{") {
         return DBGRET("parseStatement", parseBlock());
     }
     
     node = new Node(true, true);
 
     if (type == TknType::Punctuator) {
-        tokval = lookahead.strvalue;
+        tokval = lookahead->strvalue;
         if (tokval == ";") {
-            delNode (node);
+            node->unused();
             return DBGRET("parseStatement", parseEmptyStatement());
         } else if (tokval == "(") {
             return DBGRET("parseStatement", parseExpressionStatement(node));
         }
     } else if (type == TknType::Keyword) {
-        tokval = lookahead.strvalue;
+        tokval = lookahead->strvalue;
         if (tokval == "break") {
             return DBGRET("parseStatement", parseBreakStatement(node));
         } else if (tokval == "continue") {
@@ -5980,7 +6113,7 @@ Node* parseStatement() {
         key.append(expr->name);
 
         if (hasSet(key, state.labelSet)) {
-            throwError(NULLTOKEN, Messages[Mssg::Redeclaration], 
+            throwError(NULLPTRTKN, Messages[Mssg::Redeclaration], 
                        {"Label", expr->name}); 
         }
         state.labelSet.insert(key);
@@ -6006,15 +6139,15 @@ Node* parseFunctionSourceElements() {
     Node *sourceElement, 
         *node = new Node(true, true);
     vector< Node* > sourceElements;
-    TokenStruct token, firstRestricted;
+    ptrTkn token, firstRestricted = makeToken();
     u16string directive;
     StateStruct oldstate;
 
     expect("{");
 
-    firstRestricted.isNull = true;
+    firstRestricted->isNull = true;
     while (idx < length) {
-        if (lookahead.type != TknType::StringLiteral) {
+        if (lookahead->type != TknType::StringLiteral) {
             break;
         }
         token = lookahead;
@@ -6034,17 +6167,17 @@ Node* parseFunctionSourceElements() {
             // this is not directive
             break;
         }
-        directive = slice(sourceraw, token.start + 1, token.end - 1);
+        directive = slice(sourceraw, token->start + 1, token->end - 1);
         if (directive == u"use strict") {
             strict = true;
-            if (!(firstRestricted.isNull)) {
+            if (!(firstRestricted->isNull)) {
                 throwErrorTolerant(firstRestricted, 
                                    Messages[Mssg::StrictOctalLiteral], {});
             }
         } else {
-            if (firstRestricted.isNull && token.octal) {
+            if (firstRestricted->isNull && token->octal) {
                 firstRestricted = token;
-                firstRestricted.isNull = false;
+                firstRestricted->isNull = false;
             }
         }
     }
@@ -6083,7 +6216,7 @@ Node* parseFunctionSourceElements() {
 
 //throw_ 
 void validateParam(ParseParamsOptions& options, 
-                    TokenStruct param, const string name) {
+                    ptrTkn param, const string name) {
      DEBUGIN("validateParam", false);
      string key = "$";
      key.append(name);
@@ -6097,7 +6230,7 @@ void validateParam(ParseParamsOptions& options,
              options.stricted = param;
              options.message = Messages[Mssg::StrictParamDupe];
          }
-     } else if (options.firstRestricted.isNull) {
+     } else if (options.firstRestricted->isNull) {
          if (isRestrictedWord(name)) {
              options.firstRestricted = param;
              options.message = Messages[Mssg::StrictParamName];
@@ -6118,7 +6251,7 @@ void validateParam(ParseParamsOptions& options,
 //throw_ 
 bool parseParam(ParseParamsOptions& options) {
     DEBUGIN(" parseParam(ParseParamsOptions options)", false);
-    TokenStruct token; 
+    ptrTkn token; 
     Node *param, *def;
 
     token = lookahead;
@@ -6129,7 +6262,7 @@ bool parseParam(ParseParamsOptions& options) {
     //! a string so we cast it here, but the token grabbed might be
     //! a numeric literal?? if so perhaps the thing to do is check
     //! for token.type and if it is of numeric types cast it?
-    validateParam(options, token, token.strvalue);
+    validateParam(options, token, token->strvalue);
 
     if (match("=")) {
         lex();
@@ -6144,13 +6277,13 @@ bool parseParam(ParseParamsOptions& options) {
 }
 
 //throw_ 
-ParseParamsOut parseParams(TokenStruct firstRestricted) {
-    DEBUGIN(" parseParamS(TokenStruct firstRestricted)", false);
+ParseParamsOut parseParams(ptrTkn firstRestricted) {
+    DEBUGIN(" parseParamS(ptrTkn firstRestricted)", false);
     ParseParamsOptions options;
     ParseParamsOut out;
     options.defaultCount = 0;
     options.firstRestricted = firstRestricted;
-    options.stricted.isNull = true;
+    options.stricted->isNull = true;
 
     expect("(");
 
@@ -6181,7 +6314,7 @@ ParseParamsOut parseParams(TokenStruct firstRestricted) {
 //throw_ 
 Node* parseFunctionDeclaration() {
     DEBUGIN(" parseFunctionDeclaration()", false);
-    TokenStruct token, firstRestricted, stricted;
+    ptrTkn token, stricted, firstRestricted = makeToken();
     string message;
     Node *body, *id, 
         *node = new Node(true, true);    
@@ -6196,16 +6329,16 @@ Node* parseFunctionDeclaration() {
     token = lookahead;
     id = parseVariableIdentifier(); 
 
-    firstRestricted.isNull = true;
+    firstRestricted->isNull = true;
     if (strict) {
-        if (isRestrictedWord(token.strvalue)) {
+        if (isRestrictedWord(token->strvalue)) {
             throwErrorTolerant(token, Messages[Mssg::StrictFunctionName], {});
         }
     } else {
-        if (isRestrictedWord(token.strvalue)) {
+        if (isRestrictedWord(token->strvalue)) {
             firstRestricted = token;
             message = Messages[Mssg::StrictFunctionName];
-        } else if (isStrictModeReservedWord(token.strvalue)) {
+        } else if (isStrictModeReservedWord(token->strvalue)) {
             firstRestricted = token;
             message = Messages[Mssg::StrictReservedWord];
         }
@@ -6227,10 +6360,10 @@ Node* parseFunctionDeclaration() {
 
     previousStrict = strict;
     body = parseFunctionSourceElements();
-    if (strict && !(firstRestricted.isNull)) {
+    if (strict && !(firstRestricted->isNull)) {
         throwError(firstRestricted, message, {});
     }
-    if (strict && !(stricted.isNull)) {
+    if (strict && !(stricted->isNull)) {
         throwErrorTolerant(stricted, message, {});
     }
     strict = previousStrict;
@@ -6243,8 +6376,8 @@ Node* parseFunctionDeclaration() {
 //throw_ 
 Node* parseFunctionExpression() {
     DEBUGIN(" parseFunctionExpression()", false);
-    TokenStruct token, firstRestricted, stricted;
-    firstRestricted.isNull = true;
+    ptrTkn token, firstRestricted = makeToken(), stricted;
+    firstRestricted->isNull = true;
     string message, tokval;
     Node *body, *id, 
         *node = new Node(true, true);    
@@ -6260,7 +6393,7 @@ Node* parseFunctionExpression() {
     if (!match("(")) {
         token = lookahead;
         id = parseVariableIdentifier(); 
-        tokval = token.strvalue;
+        tokval = token->strvalue;
         if (strict) {
             if (isRestrictedWord(tokval)) {
                 throwErrorTolerant(token, 
@@ -6289,10 +6422,10 @@ Node* parseFunctionExpression() {
 
     previousStrict = strict;
     body = parseFunctionSourceElements();
-    if (strict && !(firstRestricted.isNull)) {
+    if (strict && !(firstRestricted->isNull)) {
         throwError(firstRestricted, message, {});
     }
-    if (strict && !(stricted.isNull)) {
+    if (strict && !(stricted->isNull)) {
         throwErrorTolerant(stricted, message, {});
     }
     strict = previousStrict;
@@ -6309,8 +6442,8 @@ Node* parseFunctionExpression() {
 Node* parseSourceElement() {
     DEBUGIN(" parseSourceElement()", false);
     string val;
-    if (lookahead.type == TknType::Keyword) {
-        val = lookahead.strvalue;
+    if (lookahead->type == TknType::Keyword) {
+        val = lookahead->strvalue;
         if (val == "const" || val == "let") {
             return DBGRET("", parseConstLetDeclaration(val));
         } else if (val == "function") {
@@ -6321,7 +6454,7 @@ Node* parseSourceElement() {
         }
     }
 
-    if (lookahead.type != TknType::EOFF) {
+    if (lookahead->type != TknType::EOFF) {
         return DBGRET("", parseStatement());
     }
 
@@ -6334,13 +6467,13 @@ vector< Node* > parseSourceElements() {
     DEBUGIN(" parseSourceElementS() ", false);
     Node *sourceElement;
     vector< Node* > sourceElements;
-    TokenStruct token, firstRestricted;
+    ptrTkn token, firstRestricted = makeToken();
     u16string directive;
 
-    firstRestricted.isNull = true;
+    firstRestricted->isNull = true;
     while (idx < length) {
         token = lookahead;
-        if (token.type != TknType::StringLiteral) {
+        if (token->type != TknType::StringLiteral) {
             break;
         }
 
@@ -6355,19 +6488,19 @@ vector< Node* > parseSourceElements() {
             // this is not directive
             break;
         }
-        directive = slice(sourceraw, token.start + 1, token.end - 1);
+        directive = slice(sourceraw, token->start + 1, token->end - 1);
         if (directive == u"use strict") {
             strict = true;
 
-            if (!(firstRestricted.isNull)) { 
+            if (!(firstRestricted->isNull)) { 
 
                 throwErrorTolerant(firstRestricted, 
                                    Messages[Mssg::StrictOctalLiteral],{});
             }
         } else {
-            if (firstRestricted.isNull && token.octal) {
+            if (firstRestricted->isNull && token->octal) {
                 firstRestricted = token;
-                firstRestricted.isNull = false; //#probably not neces.
+                firstRestricted->isNull = false; //#probably not neces.
             }
         }
     }
@@ -6453,7 +6586,8 @@ json_object* tokenizeImpl(const u16string code,
     lineNumber = (code.size() > 0) ? 1 : 0;
     lineStart = 0;
     length = code.length();
-    lookahead = NULLTOKEN;
+    lookahead = makeToken();
+    lookahead->isNull = true;
 
     state = StateStruct();
     //? parenthesisCount for state not provided here normally as in parse. 
@@ -6491,7 +6625,7 @@ json_object* tokenizeImpl(const u16string code,
     peek();
 #endif
 
-    if (lookahead.type == TknType::EOFF) {
+    if (lookahead->type == TknType::EOFF) {
         json_put(outJson, "tokenlist", 
                  vec2jsonCallback<TokenRecord>(extra.tokenRecords, 
                        &TokenRecord::toJson));
@@ -6499,10 +6633,10 @@ json_object* tokenizeImpl(const u16string code,
     }
 
     lex();
-    while (lookahead.type != TknType::EOFF) {
+    while (lookahead->type != TknType::EOFF) {
 #ifndef THROWABLE
-        TokenStruct out = lex();
-        if (out.err) { 
+        ptrTkn out = lex().val;
+        if (out->err) { 
             if (extra.errorTolerant) {
                 extra.errors.push_back(retError); 
                 break;
@@ -6609,7 +6743,8 @@ json_object* parseImpl(const u16string code,
     lineNumber = (code.size() > 0) ? 1 : 0;
     lineStart = 0;
     length = code.length();
-    lookahead = NULLTOKEN;
+    lookahead = makeToken();
+    lookahead->isNull = true;
     state = StateStruct();
 
     extra = ExtraStruct();
@@ -6791,8 +6926,8 @@ int main() {
     unsigned int resultlength = 0;
     
     string finput;
-    //ifstream ifs("/home/n/coding/esp3/bench/cases/active/Chart.js");
-    ifstream ifs("/home/n/coding/esp3/test/codetotest.js");
+    ifstream ifs("/home/n/coding/esp3/bench/cases/active/Chart.js");
+    //ifstream ifs("/home/n/coding/esp3/test/codetotest.js");
 
     finput.assign( (std::istreambuf_iterator<char>(ifs) ),
                     (std::istreambuf_iterator<char>()    ) );    
@@ -6807,7 +6942,7 @@ int main() {
     allopt = "{ 'loc':true, 'range':true, 'tokens':true }";
     //    ProfilerStart("/tmp/profile2");
     //system_clock::time_point begin = system_clock::now();
-    int reps = 1;
+    int reps = 10;
     for (int j = 0; j<reps; j++) {
         for (unsigned int i=0; i<codeSamples.size(); i++){ 
             result = string(parseRetString(

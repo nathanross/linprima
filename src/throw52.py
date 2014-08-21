@@ -432,7 +432,7 @@ class Throw52Task:
                 if use_wrap:
                     text[i] = text[i].replace(normalvar, 
                                               callret_type + \
-                                              " " + newvar)
+                                              " " + newvar, 1)
                     finish_call = "".join([finish_call, 
                                            normalvar, " = ", 
                                            newvar, ".val; "])
