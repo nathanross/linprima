@@ -1259,7 +1259,8 @@ void clearHeap() {
 }
 
 const char16_t * sourceraw;
-inline char16_t source(int idx) { return *(sourceraw + idx); }
+reqinline 
+char16_t source(int idx) { return *(sourceraw + idx); }
 
 void TokenRecord::toJson(Value& out, AllocatorType* alloc) {
     DEBUGIN(" TokenRecord::toJson", false);    
@@ -1783,7 +1784,11 @@ int skipSingleLineComment(int idxtmp, const int offset) {
     while (idxtmp < length) {
         ch = source(idxtmp);
         ++idxtmp;
-        if (isLineTerminator(ch)) {
+        switch (ch) {
+        case 0x0A: //line terminators;
+        case 0x0D:
+        case 0x2028:
+        case 0x2029:
             if (extra.commentTracking) {
                 comment = toU8(slice(sourceraw, start + offset, idxtmp-1));
                 loc.endLine = lineNumber;
@@ -1797,8 +1802,10 @@ int skipSingleLineComment(int idxtmp, const int offset) {
             lineStart = idxtmp;
             DEBUGOUT("", false); 
             return idxtmp;
+        default:
+            break;
         }
-    }
+    } 
 
     if (extra.commentTracking) {
         comment = toU8(slice(sourceraw, start + offset, idxtmp)); 
@@ -1827,7 +1834,11 @@ int skipMultiLineComment(int idxtmp) {
 
     while (idxtmp < length) {
         ch = source(idxtmp);
-        if (isLineTerminator(ch)) {
+        switch (ch) {
+        case 0x0A: //line terminators;
+        case 0x0D:
+        case 0x2028:
+        case 0x2029:
             if (ch == 0x0D && source(idxtmp + 1) == 0x0A) {
                 ++idxtmp;
             }
@@ -1839,7 +1850,8 @@ int skipMultiLineComment(int idxtmp) {
                 throwError(NULLPTRTKN, 
                            Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
             }
-        } else if (ch == 0x2A) {
+            break;
+        case 0x2A:
             // Block comment ends with ''.
             if (source(idxtmp + 1) == 0x2F) {
                 ++idxtmp;
@@ -1855,8 +1867,10 @@ int skipMultiLineComment(int idxtmp) {
                 return idxtmp;
             }
             ++idxtmp;
-        } else {
+            break;
+        default:
             ++idxtmp;
+            break;
         }
     }
 
@@ -1871,60 +1885,99 @@ void skipComment() {
     DEBUGIN(" skipComment()", false);
     char16_t ch;
     bool start;
-    int idxtmp = idx;
-    start = (idxtmp == 0);
-    while (idxtmp < length) {
-        ch = source(idxtmp);
+    start = (idx == 0);
+    while (idx < length) {
+        ch = source(idx);
 
-        if (isWhiteSpace(ch)) {
-            ++idxtmp;
-        } else if (isLineTerminator(ch)) {
-            ++idxtmp;
-            if (ch == 0x0D && source(idxtmp) == 0x0A) {
-                ++idxtmp;
+        //alternative to switch we've explored,
+        //make an array of all whitespace and other
+        //cases below, if not present in array, exit,
+        //and move all whitespace cases to the default:
+        //clause. We're talking maybe a ms of difference though.
+        //both approaches work relatively very well.
+        //if (! binary_search(MAYBE_COMMENT, 
+        //               MAYBE_COMMENT+29,
+        //              ch)) { return; }
+
+        switch(ch) {
+        case 0x20: 
+        case 0x09: 
+        case 0x0B: 
+        case 0x0C: 
+        case 0xA0: 
+        case 0xFEFF: 
+        case 0x1680: 
+        case 0x180E: 
+        case 0x2000: 
+        case 0x2001: 
+        case 0x2002: 
+        case 0x2003: 
+        case 0x2004: 
+        case 0x2005: 
+        case 0x2006: 
+        case 0x2007: 
+        case 0x2008: 
+        case 0x2009: 
+        case 0x200A:
+        case 0x202F: 
+        case 0x205F: 
+        case 0x3000: 
+            ++idx;
+            break;
+        case 0x0A: //line terminators;
+        case 0x0D:
+        case 0x2028:
+        case 0x2029:
+            ++idx;
+            if (ch == 0x0D && source(idx) == 0x0A) {
+                ++idx;
             }
             ++lineNumber;
-            lineStart = idxtmp;
+            lineStart = idx;
             start = true;
-        } else if (ch == 0x2F) { // U+002F is '/'
-            ch = source(idxtmp + 1);
+            break;
+        case 0x2F: // U+002F is '/'
+            ch = source(idx + 1);
             if (ch == 0x2F) {
-                ++idxtmp;
-                ++idxtmp;
-                idxtmp = skipSingleLineComment(idxtmp, 2);
+                ++idx;
+                ++idx;
+                idx = skipSingleLineComment(idx, 2);
                 start = true;
             } else if (ch == 0x2A) {  // U+002A is '*'
-                ++idxtmp;
-                ++idxtmp;
-                idxtmp = skipMultiLineComment(idxtmp); 
+                ++idx;
+                ++idx;
+                idx = skipMultiLineComment(idx); 
             } else {
-                break;
+                return;
             }
-        } else if (start && ch == 0x2D) { // U+002D is '-'
-            // U+003E is '>'
-            if ((source(idxtmp + 1) == 0x2D) 
-                && (source(idxtmp + 2) == 0x3E)) {
-                // '-->' is a single-line comment
-                idxtmp += 3;
-                idxtmp = skipSingleLineComment(idxtmp, 3);
-            } else {
-                break;
-            }
-        } else if (ch == 0x3C) { // U+003C is '<'
-            if (slice(sourceraw, idxtmp + 1, idxtmp + 4) == u"!--") {
-                ++idxtmp; // `<`
-                ++idxtmp; // `!`
-                ++idxtmp; // `-`
-                ++idxtmp; // `-`
-                idxtmp = skipSingleLineComment(idxtmp, 4);
-            } else {
-                break;
-            }
-        } else {
             break;
+        case 0x2D: // U+002D is '-'
+            // U+003E is '>'
+            if (start 
+                && (source(idx + 1) == 0x2D) 
+                && (source(idx + 2) == 0x3E)) {
+                // '-->' is a single-line comment
+                idx += 3;
+                idx = skipSingleLineComment(idx, 3);
+            } else {
+                return;
+            }
+            break;
+        case 0x3C: // U+003C is '<'
+            if (slice(sourceraw, idx + 1, idx + 4) == u"!--") {
+                ++idx; // `<`
+                ++idx; // `!`
+                ++idx; // `-`
+                ++idx; // `-`
+                idx = skipSingleLineComment(idx, 4);
+            } else {
+                return; //whitespace
+            }    
+            break;        
+        default:
+            return;
         }
     }
-    idx = idxtmp;
     DEBUGOUT("", false);
     return; //throw52; 
 }
