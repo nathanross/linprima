@@ -21,6 +21,9 @@
 #include <exception>
 #endif
 
+//#define pushinline __inline__ __attribute__((always_inline))
+//#define reqinline __attribute__((always_inline)) // inline or die
+#define reqinline inline //save tweaking this for last. Talking maybe 10ms system / 20 ms asm in one rep of Chart.js (huge file), so pretty low return on optimization.
 
 using namespace rapidjson;
 using namespace std;
@@ -296,7 +299,7 @@ public:
 #ifdef LIBSTDC
 
 //assume everything is ascii.    
-string toU8(const u16string input) { 
+string toU8(const u16string& input) { 
     char * outtmp = new char[input.length()+1];
     for (unsigned int i=0; i<input.length(); i++) {
         outtmp[i] = (char) ((int) input[i]);
@@ -310,7 +313,7 @@ string toU8(const char16_t* input) {
     return toU8(u16string(input));
 }
 
-u16string toU16string(const string input){ 
+u16string toU16string(const string& input){ 
     char16_t * outtmp = new char16_t[input.length()+1];
     for (unsigned int i=0; i<input.length(); i++) {
         outtmp[i] = (char16_t) ((int) input[i]);
@@ -321,10 +324,12 @@ u16string toU16string(const string input){
 }
 #endif
 #ifndef LIBSTDC
- 
+
+std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> convu8;
+
+reqinline 
 string toU8(const u16string input){ 
-    std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
-    return myconv.to_bytes(input);
+    return convu8.to_bytes(input);
 }
 
 string toU8(const char16_t* input) {
@@ -336,10 +341,11 @@ wstring toWstring(const string input) {
   return myconv.from_bytes(input);
 }
 
+reqinline
 u16string toU16string(const string input){ 
-    std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> myconv;
-
- return myconv.from_bytes(input);
+    //#TODO moving this outside of the func causes a test failure? look into.
+    std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t> convu16;
+    return convu16.from_bytes(input);
 }
 #endif
 
@@ -369,23 +375,23 @@ void vec2jsonCallback(Value& root,
 
 //non-parallel functions
 // example: has<int>(3, {1,2,3,4,5}) // would return true
-inline
+reqinline
 bool hasSet(const u16string needle, const unordered_set<u16string>& haystack) {
     return (haystack.find(needle) != haystack.end());
 }
-inline
+reqinline
 bool hasSet(const string needle, const unordered_set<string>& haystack) {
     return (haystack.find(needle) != haystack.end());
 }
-inline 
+reqinline 
 bool has(const u16string needle, const vector<u16string>& haystack) {
     return find(haystack.begin(), haystack.end(), needle) != haystack.end();
 }
-inline 
+reqinline 
 bool has(const string needle, const vector<string>& haystack) {
     return find(haystack.begin(), haystack.end(), needle) != haystack.end();
 }
-inline 
+reqinline 
 bool has(const int needle, const vector<int>& haystack) {
     return find(haystack.begin(), haystack.end(), needle) != haystack.end();
 }
@@ -412,12 +418,14 @@ template<typename T> bool hasStringKey(const string needle, const map<string,T> 
 }
 
 
-inline u16string slice(const char16_t *arr, int start, int end) {
+reqinline 
+u16string slice(const char16_t *arr, int start, int end) {
     //start inclusive, end exclusive, just like js
     const char16_t * startptr = arr + start;    
     return u16string(startptr, (end-start));
 }
 
+reqinline
 void append(u16string &base, char16_t tail) { 
     base.append(u16string({tail})); 
     //? switch to u16stringstream? but there's nothing like that
@@ -506,31 +514,12 @@ RegexHalf::RegexHalf() {
         end = -1; 
 }
 
-struct Position {
-    int line;
-    int column;
-    Position();
-    void toJson(Value& out, AllocatorType* alloc) const;
-};
-
-Position::Position() {
-    DEBUGIN("Position()", true);
-    line = lineNumber;
-    column = idx - lineStart;
-    DEBUGOUT("Position()", true);
-}
-
-void Position::toJson(Value& out, AllocatorType* alloc) const {
-    //DEBUGIN(" posToJson(Position p)", false);    
-    out.AddMember("line", this->line, *alloc);
-    out.AddMember("column", this->column, *alloc);
-    //DEBUGOUT("posToJSon(Position)", false); 
-}
-
 struct Loc { 
     //aka SourceLocation
-    Position start;
-    Position end;
+    int startLine;
+    int startColumn;
+    int endLine;
+    int endColumn;
     bool hasSource;
     string source;
 
@@ -538,12 +527,10 @@ struct Loc {
     void toJson(Value& out, AllocatorType* alloc) const;
 };
 
-Loc::Loc() {
+Loc::Loc() : startLine(lineNumber), startColumn(idx-lineStart),
+             endLine(-1), endColumn(-1), hasSource(false),
+             source("") {
     DEBUGIN("Loc()", true);
-    this->end.line = -1;
-    this->end.column = -1;
-    this->hasSource = false;
-    this->source = "";
     DEBUGOUT("loc()", true);
 }
 
@@ -571,11 +558,13 @@ void jsonAddString(Value& out, AllocatorType* alloc,
 void Loc::toJson(Value& out, AllocatorType* alloc) const { 
     //DEBUGIN(" locToJson(Loc l)", false);
     Value startjson(kObjectType);
-    this->start.toJson(startjson, alloc);
+    startjson.AddMember("line", startLine, *alloc);
+    startjson.AddMember("column", startColumn, *alloc);
     out.AddMember("start", startjson, *alloc);
-    if (this->end.line != -1) {        
+    if (this->endLine != -1) {        
         Value endjson(kObjectType);
-        this->end.toJson(endjson, alloc);
+        endjson.AddMember("line", endLine, *alloc);
+        endjson.AddMember("column", endColumn, *alloc);
         out.AddMember("end", endjson, *alloc);
     }
     if (this->hasSource) {
@@ -1584,14 +1573,14 @@ void softAssert(const bool condition, const string message) {
 
 #endif
 
-//inline 
+reqinline
 bool isDecimalDigit(const char16_t& ch) {
     DEBUGIN("   isDecimalDigit(const char16_t ch)", false);
     DEBUGOUT("", false); 
     return (ch >= 0x30 && ch <= 0x39); //0..9
 }
 
-//inline 
+reqinline
 bool isHexDigit(const char16_t& ch) {
     DEBUGIN("   isHexDigit(const char16_t ch)", false);
     DEBUGOUT("", false); 
@@ -1599,7 +1588,7 @@ bool isHexDigit(const char16_t& ch) {
            != std::string::npos);    
 }
 
-//inline
+reqinline
 bool isOctalDigit(const char16_t& ch) {
     DEBUGIN("   isOctalDigit(const char16_t ch)", false);
     DEBUGOUT("", false); 
@@ -1620,7 +1609,7 @@ char16_t toLowercaseHex(const char16_t& ch) { //used in scanHexEscape
 }
 
 //7.2 White Space
-//inline
+reqinline
 bool isWhiteSpace(const char16_t& ch) {
     DEBUGIN("   isWhiteSpace(const char16_t ch)", false);
     DEBUGOUT("", false); 
@@ -1629,7 +1618,7 @@ bool isWhiteSpace(const char16_t& ch) {
 }
 
 // 7.3 Line Terminators
-//inline
+reqinline
 bool isLineTerminator(const char16_t& ch) {
     DEBUGIN("   isLineTerminator(const char16_t ch)", false);
     DEBUGOUT("", false); 
@@ -1650,7 +1639,7 @@ bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * a
                        && key == range_starts->at(pos+1)));
 }
 
-inline
+reqinline
 bool isIdentifierStart(const char16_t ch) {
      DEBUGIN("   isIdentifierStart(const char16_t ch)", false);
      DEBUGOUT("", false); 
@@ -1662,7 +1651,7 @@ bool isIdentifierStart(const char16_t ch) {
                                                &nonasciiIdentifierstart));
  } 
 
-//inline
+reqinline
 bool isIdentifierPart(const char16_t ch) {
      DEBUGIN("   isIdentifierPart(const char16_t ch)", false);
      DEBUGOUT("", false); 
@@ -1675,8 +1664,8 @@ bool isIdentifierPart(const char16_t ch) {
                                                &nonasciiIdentifierpart));
  }
 
- // 7.6.1.2 Future Reserved Words
-//inline
+// 7.6.1.2 Future Reserved Words
+reqinline
 bool isFutureReservedWord(const string id) {
      DEBUGIN("   isFutureReservedWord(const u16string id)", false);
      DEBUGOUT("", false); 
@@ -1690,7 +1679,7 @@ bool isFutureReservedWord(const string id) {
              });
  }
 
-//inline
+reqinline
 bool isStrictModeReservedWord(const string id) {
      DEBUGIN("   isStrictModeReservedWord(const u16string id)", false);
      DEBUGOUT("", false); 
@@ -1707,7 +1696,7 @@ bool isStrictModeReservedWord(const string id) {
              });
  }
 
-//inline
+reqinline
 bool isRestrictedWord(const string id) {
  DEBUGIN("   isRestrictedWord(const u16string id)", false);
  DEBUGOUT("", false);
@@ -1725,7 +1714,8 @@ const vector<string> KEYWORDSET =
      "instanceof"};
  
 // 7.6.1.1 Keywords
- bool isKeyword(const string id) {
+reqinline
+bool isKeyword(const string id) {
      DEBUGIN("   isKeyword(const u16string id)", false);
      if (strict && isStrictModeReservedWord(id)) { 
          DEBUGOUT("", false); 
@@ -1738,10 +1728,9 @@ const vector<string> KEYWORDSET =
      // Some others are from future reserved words.
      return has(id, KEYWORDSET);
 
- }
+}
 
  // 7.4 Comments
-
 
 //# only called if extra.commentTracking
 void addComment(const string& type, const string& value, 
@@ -1788,8 +1777,8 @@ int skipSingleLineComment(int idxtmp, const int offset) {
     string comment;
     
     start = idxtmp - offset;
-    loc.start.line = lineNumber;
-    loc.start.column = idxtmp - lineStart - offset;
+    loc.startLine = lineNumber;
+    loc.startColumn = idxtmp - lineStart - offset;
 
     while (idxtmp < length) {
         ch = source(idxtmp);
@@ -1797,8 +1786,8 @@ int skipSingleLineComment(int idxtmp, const int offset) {
         if (isLineTerminator(ch)) {
             if (extra.commentTracking) {
                 comment = toU8(slice(sourceraw, start + offset, idxtmp-1));
-                loc.end.line = lineNumber;
-                loc.end.column = idxtmp - lineStart - 1;
+                loc.endLine = lineNumber;
+                loc.endColumn = idxtmp - lineStart - 1;
                 addComment("Line", comment, start, idxtmp - 1, loc);
             }
             if (ch == 13 && source(idxtmp) == 10) {
@@ -1813,8 +1802,8 @@ int skipSingleLineComment(int idxtmp, const int offset) {
 
     if (extra.commentTracking) {
         comment = toU8(slice(sourceraw, start + offset, idxtmp)); 
-        loc.end.line = lineNumber;
-        loc.end.column = idxtmp - lineStart;
+        loc.endLine = lineNumber;
+        loc.endColumn = idxtmp - lineStart;
         addComment("Line", comment, start, idxtmp, loc);
     }
     DEBUGOUT("", false);
@@ -1832,8 +1821,8 @@ int skipMultiLineComment(int idxtmp) {
 
     if (extra.commentTracking) {
         start = idxtmp - 2;
-        loc.start.line = lineNumber;
-        loc.start.column = idxtmp - lineStart - 2 ;
+        loc.startLine = lineNumber;
+        loc.startColumn = idxtmp - lineStart - 2 ;
     }
 
     while (idxtmp < length) {
@@ -1857,8 +1846,8 @@ int skipMultiLineComment(int idxtmp) {
                 ++idxtmp;
                 if (extra.commentTracking) {
                     comment = toU8(slice(sourceraw, start + 2, idxtmp - 2));
-                    loc.end.line = lineNumber;
-                    loc.end.column = idxtmp - lineStart;
+                    loc.endLine = lineNumber;
+                    loc.endColumn = idxtmp - lineStart;
                     addComment("Block", comment, start, idxtmp, loc);
                 }
                 DEBUGOUT("", false); 
@@ -2764,12 +2753,12 @@ ptrTkn collectRegex() {
     skipComment();
 
     pos = idx;
-    loc.start.line = lineNumber;
-    loc.start.column = idx - lineStart;
+    loc.startLine = lineNumber;
+    loc.startColumn = idx - lineStart;
 
     regex = scanRegExp(); //etkns
-    loc.end.line = lineNumber;
-    loc.end.column = idx - lineStart;
+    loc.endLine = lineNumber;
+    loc.endColumn = idx - lineStart;
 
     if (!extra.tokenize) {
         TokenRecord token, tr;
@@ -2956,12 +2945,12 @@ ptrTkn collectToken() {
     u16string value;
 
     skipComment(); //ev
-    loc.start.line = lineNumber;
-    loc.start.column = idx - lineStart;
+    loc.startLine = lineNumber;
+    loc.startColumn = idx - lineStart;
 
     token = advance(); //etkns
-    loc.end.line = lineNumber;
-    loc.end.column = idx - lineStart;
+    loc.endLine = lineNumber;
+    loc.endColumn = idx - lineStart;
 
     if (token->type != TknType::EOFF) { 
         //this didn't check against string. is fine.
@@ -3059,7 +3048,8 @@ Node::Node(bool lookaheadAvail, bool exists) {
 
         if (extra.loc) {
             hasLoc = true;
-            loc.start = Position();
+            loc.startLine = lineNumber;
+            loc.startColumn = idx - lineStart;
         } 
     }
     //DEBUGOUT("", true);
@@ -3080,7 +3070,8 @@ void Node::lookavailInit() {
          lineStart = lookahead->lineStart;
      }
      if (hasRange) { //#should always be true, but keep it open while testing.
-         loc.start = Position();
+         loc.startLine = lineNumber;
+         loc.startColumn = idx - lineStart;
          range[0] = idx;
      }
  }
@@ -3100,26 +3091,26 @@ void Node::lookavailInit() {
      delNode(this);
  }
 
-inline
+reqinline
 void Node::jvput(const char* path, const string b)  {
     jv.AddMember(StringRef(path), 
               Value(b.data(), b.length(), *glblAlloc).Move(), 
               *glblAlloc); 
 }
 
-inline
+reqinline
 void Node::jvput(const char* path, const int b) 
 {jv.AddMember(StringRef(path), b, *glblAlloc); }
 
-inline
+reqinline
 void Node::jvput(const char* path, const bool b) 
 {jv.AddMember(StringRef(path), b, *glblAlloc); }
 
-inline
+reqinline
 void Node::jvput_dbl(const char* path, const double b) 
 {jv.AddMember(StringRef(path), b, *glblAlloc); }
 
-inline
+reqinline
 void Node::jvput_null(const char* path)
 { Value tmp; jv.AddMember(StringRef(path), tmp, *glblAlloc); }
  
@@ -3344,9 +3335,9 @@ void Node::finish() {
     if (extra.range) {
         this->range[1] = idx; 
     }
-    if (extra.loc) {
-        Position newpos;
-        loc.end = newpos;
+    if (extra.loc) {        
+        loc.endLine = lineNumber;
+        loc.endColumn = idx-lineStart;
         if (extra.hasSource) {
             loc.source = extra.source; 
             loc.hasSource = true;
@@ -3879,15 +3870,15 @@ Loc WrappingNode::WrappingSourceLocation(ptrTkn startToken) {
     DEBUGIN("WrappingSourceLocation (Token)", true);
     Loc result;
     if (startToken->type == TknType::StringLiteral) {
-        result.start.line = startToken->startLineNumber;
-        result.start.column = 
+        result.startLine = startToken->startLineNumber;
+        result.startColumn = 
             startToken->start - startToken->startLineStart;
     } else {
-        result.start.line = startToken->lineNumber;
-        result.start.column = startToken->start - startToken->lineStart;
+        result.startLine = startToken->lineNumber;
+        result.startColumn = startToken->start - startToken->lineStart;
     }
-    result.end.line = -1;
-    result.end.column = -1;
+    result.endLine = -1;
+    result.endColumn = -1;
     //return result;
     DEBUGOUT("WrappingSrcLoc", true); 
     return result;
@@ -4019,7 +4010,7 @@ void throwUnexpected(ptrTkn token) {
     // If not, an exception will be thrown.
 
 
-//inline
+reqinline
 //throw_
 void expect(const string value) { 
     //DEBUGIN(" expect(u16string value)", false);
@@ -4058,6 +4049,7 @@ void expectTolerant(const string value) {
 
 // Expect the next token to match the specified keyword.
 // If not, an exception will be thrown.
+reqinline
 //throw_
 void expectKeyword(const string keyword) { 
     ptrTkn token = lex();
@@ -4071,7 +4063,7 @@ void expectKeyword(const string keyword) {
 
 // Return true if the next token matches the specified punctuator.
 
-//inline 
+reqinline
 bool match(const string value) { 
     return lookahead->type == TknType::Punctuator 
         && lookahead->strvalue == value;
@@ -4079,8 +4071,7 @@ bool match(const string value) {
 
 // Return true if the next token matches the specified keyword
 
-
-//inline 
+reqinline
 bool matchKeyword(const string keyword) {
     // DEBUGIN(" matchKeyword(const u16string keyword)", false);
     //  DEBUGOUT("matchKey", false); 
@@ -4090,8 +4081,7 @@ bool matchKeyword(const string keyword) {
 
     // Return true if the next token is an assignment operator
 
-
-//inline 
+reqinline
 bool matchAssign() { 
     if (lookahead->type != TknType::Punctuator) {
         return false;
@@ -6799,8 +6789,8 @@ int main() {
     unsigned int resultlength = 0;
     
     string finput;
-    //ifstream ifs("/home/n/coding/esp3/bench/cases/active/Chart.js");
-    ifstream ifs("/home/n/coding/esp3/test/codetotest.js");
+    ifstream ifs("/home/n/coding/esp3/bench/cases/active/Chart.js");
+    //ifstream ifs("/home/n/coding/esp3/test/codetotest.js");
 
     finput.assign( (std::istreambuf_iterator<char>(ifs) ),
                     (std::istreambuf_iterator<char>()    ) );    
@@ -6818,8 +6808,8 @@ int main() {
     int reps = 10;
     for (int j = 0; j<reps; j++) {
         for (unsigned int i=0; i<codeSamples.size(); i++){ 
-            result = string(tokenizeRetString(
-           //result = string(parseRetString(
+           //result = string(tokenizeRetString(
+           result = string(parseRetString(
                                            toU16string(codeSamples[i]),
                                            OptionsStruct(allopt.data())));
             resultlength += result.length() % 6;
