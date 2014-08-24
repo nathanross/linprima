@@ -1,16 +1,17 @@
-#line 1 "linprima.cpp"
+#line 2 "linprima.cpp"
 #include <vector>
 #include <map>
 #include <string>
+#include <unordered_set>
 
 #ifndef LIBSTDC
 #include <locale>
 #include <codecvt>
 #endif
 
+//algorithm is for find(vector.begin()
 #include <algorithm>
 #include <functional>
-#include <unordered_set>
 #include <memory>
 
 #ifdef USE_PROFINY
@@ -21,12 +22,10 @@
 #endif
 
 
-
-//#include "json-c/json.h"
-//#include "json-c/json_object.h"
-//#include "json-c/printbuf.h"
-//algorithm is for find(vector.begin()
+using namespace rapidjson;
 using namespace std;
+
+typedef Document::AllocatorType AllocatorType;
 
 int debuglevel = 1;
 vector<string> stackfuncs;
@@ -35,6 +34,46 @@ static inline std::string &ltrim(std::string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
     return s;
 }
+
+//for debugging 
+//shows you which entry is unitialized when one of the 
+//items in the json is uninitialized (leading to a segfault)
+//walks json, printing each path before trying to access/print
+//value at that path.
+void walkJson(string path, const Value& a) {
+    string nextpath;
+    if (a.IsObject()) {
+        for (Value::ConstMemberIterator itr = a.MemberBegin();
+             itr != a.MemberEnd(); ++itr)
+            {
+                nextpath = path;
+                nextpath.append("/");
+                nextpath.append(itr->name.GetString());
+                printf("Path %s\n", nextpath.data());
+                walkJson(nextpath, itr->value);
+            }
+    } else if (a.IsArray()) {
+        int i=0;
+        for (Value::ConstValueIterator itr = a.Begin(); 
+             itr != a.End(); 
+             ++itr) 
+            {
+                nextpath = path;
+                nextpath.append("/");
+                nextpath.append(to_string(i));
+                printf("Path %s\n", nextpath.data());
+                walkJson(nextpath, *itr);
+                i++;
+            }
+    } else if (a.IsInt()) {
+        printf("%i\n", a.GetInt());
+    } else if (a.IsNull()) {
+        printf("null\n");
+    } else if (a.IsString()) {
+        printf("%s\n", a.GetString());
+    }
+}
+
 
 #ifdef DO_DEBUG
 #define DEBUGIN(A,B) DEBUG_IN(A,B)
@@ -254,7 +293,6 @@ public:
 
 #endif
 
-
 #ifdef LIBSTDC
 
 //assume everything is ascii.    
@@ -305,281 +343,28 @@ u16string toU16string(const string input){
 }
 #endif
 
-
-//json_put_dbl: pass in the string you want in the json, and it'll get put in there without the quotes.
-// assumes you're putting in a safe number that won't mess up json validity.
-
-extern int doubleSerializer(struct json_object *jso, 
-                            struct printbuf *pb, int level, int flags) {
-
-    sprintbuf(pb, json_object_get_string(jso));
-   return 0;
-}
-
-inline json_object* json_newint(int in) 
-{ return json_object_new_double(in); };
-
-inline json_object* json_newstr(string in) 
-{ return  json_object_new_string(in.data()); };
-
-inline json_object* json_newbool(bool in) 
-{ return json_object_new_boolean(in?1:0); };
-
-inline json_object* json_newmap()
-{ return json_object_new_object(); };
-
-inline json_object* json_newarr() 
-{ return json_object_new_array(); };
-
-json_object*  json_newdbl(const char * in) { 
-    json_object * tmp = json_object_new_string(in);
-    json_object_set_serializer(tmp, doubleSerializer, 
-                               0x0, json_object_free_userdata);
-   return tmp;
-}
-
-json_object* json_put_dbl(json_object *a, const char *b, string c) { 
-    json_object *tmp = json_object_new_string(c.data());
-    json_object_object_add(a, b, tmp);
-    json_object_set_serializer(tmp, doubleSerializer, 
-                               0x0, json_object_free_userdata);
-   return tmp;
-}
-inline json_object* json_put_dbl(json_object *a, const char *b, u16string c) { return json_put_dbl(a,b,toU8(c)); }
-
-inline
-json_object* json_push_dbl(json_object *a, string c) { 
-    json_object *tmp = json_object_new_string(c.data());
-    json_object_array_add(a, tmp);
-    json_object_set_serializer(tmp, doubleSerializer, 
-                               0x0, json_object_free_userdata);
-   return tmp;
-}
-inline 
-json_object* json_push_dbl(json_object *a, const char *b, u16string c) { return json_push_dbl(a,toU8(c)); }
-
-inline
-json_object* json_put_newmap(json_object *a, const char *b) { 
-    json_object *tmp = json_object_new_object();
-    json_object_object_add(a, b, tmp);
-   return tmp;
-}
-inline
-json_object* json_push_newmap(json_object *a) { 
-    json_object *tmp = json_object_new_object();
-    json_object_array_add(a, tmp);
-   return tmp;
-}
-inline
-json_object* json_put_newarr(json_object *a, const char *b) { 
-    json_object *tmp = json_object_new_array();
-    json_object_object_add(a, b, tmp);
-   return tmp;
-}
-inline
-json_object* json_push_newarr(json_object *a) { 
-    json_object *tmp = json_object_new_array();
-    json_object_array_add(a, tmp);
-   return tmp;
-}
-inline
-void json_put_null(json_object *a, const char *b) { 
-    json_object_object_add(a, b, NULL);    
-}
-inline
-void json_push_null(json_object *a) { 
-    json_object_array_add(a, NULL);
-
-}
-
- //we keep int separate in case we want to implement a separate call method for double
- //it allows to keep easy to track which calls we'll actually have to change.
-inline
-json_object* json_put(json_object * a, const char* b, string c) { 
-    json_object *tmp = json_object_new_string(c.data());
-    json_object_object_add(a, b, tmp);
-   return tmp;
-}
-inline 
-json_object* json_put(json_object *a, const char *b, const u16string c) 
-{ return json_put(a,b,toU8(c)); }
-
-inline
-json_object* json_put(json_object *a, const char *b, const int c) { 
-    json_object *tmp = json_object_new_double(c);
-    json_object_object_add(a, b, tmp);
-   return tmp;
-}
-inline
-json_object* json_put(json_object *a, const char *b, const bool c) { 
-    json_object *tmp = json_object_new_boolean(c?1:0);
-    json_object_object_add(a, b, tmp);
-   return tmp;
-}
-inline
-json_object* json_put(json_object *a, const char *b, json_object* c) { 
-    json_object_object_add(a, b, c);
-   return c;
-}
-
-inline 
-json_object* json_push(json_object *a, const string c) { 
-    json_object *tmp = json_object_new_string(c.data());
-    json_object_array_add(a, tmp);
-   return tmp;
-}
-inline 
-json_object* json_push(json_object *a, const u16string c) { return json_push(a,toU8(c)); }
-
-inline
-json_object* json_push(json_object *a, const int c) { 
-    json_object *tmp = json_object_new_double(c);
-    json_object_array_add(a, tmp);
-   return tmp;
-}
-inline
-json_object* json_push(json_object *a, const bool c) { 
-    json_object *tmp = json_object_new_boolean(c?1:0);
-    json_object_array_add(a, tmp);
-   return tmp;
-}
-inline
-json_object* json_push(json_object *a, json_object *c) { 
-    json_object_array_add(a, c);
-   return c;
-}
-
-//# incrRef increases the reference count of the json_object
-//# returned. This means you're essentially saying 'keep this
-//# object around, even if the parent json object containing it gets
-//# freed' via json_object_put called on it or some parent of it,
-//# or parent of that, etc.
-
-//# the consequence of that is that later you need to free 
-//# this retrieved object individually via json_object_put
-//# to decrease the refcount to 0 and have libjson-c free it.
-//# otherwise you'll have a memory leak. best policy
-//# for primitives is just find json objects and get their values 
-//# then return the values not the object, and when possible
-//# for objects and arrays, don't increment, make all necessary
-//# reads and writes in scope find is called.
-
-//# again, if you return the json out of the function find is 
-//# called in, the object will still exist until put is called
-//# on a parent, but it makes for spaghetti freeing.
-
-bool json_find(json_object *root, const char * eqkey, 
-               json_object*& out, const bool incrRef, 
-               const json_type eqType) { 
-    json_object_object_foreach(root, jkey, jval) {
-        if (strcmp(jkey, eqkey) == 0) {
-            if (json_object_is_type(jval, eqType)) {
-                if (incrRef) { out = json_object_get(jval); }
-                else { out = jval; }
-                return true;
-            }
-            return false;
-        }
-    }    
-    return false;
-    /*    bool exists;
-    json_object ** value =0x0;
-
-    exists = json_object_object_get_ex(root, eqkey, value);
-
-    if (! exists || 
-        !(json_object_is_type(*value, eqType))) {
-        return false;
-    }    
-
-    out = *value; 
-    if (incrRef) { json_object_get(out); }
-    return true; */
-}
-
-//# note: there is no json_any_type type
-bool json_find(json_object *root, const char* eqkey,
-                       json_object*& out, const bool incrRef) {
-
-    json_object_object_foreach(root, jkey, jval) {
-        if (strcmp(jkey, eqkey) == 0) {
-            if (incrRef) { out = json_object_get(jval); }
-            else { out = jval; }
-            return true;
-        }
-    }    
-    return false; 
-
-    /*bool exists;
-    json_object ** value = 0x0;
-    exists = json_object_object_get_ex(root, eqkey, value);
-    if ( !exists ) {
-        return false;
-    }
-
-    out = *value; 
-    if (incrRef) { json_object_get(out); }
-    return true; */
-}
-
-json_object* json_require(json_object *a, const char* eqkey,
-                          const bool incrRef) { 
-    json_object * out;
-    bool exists = json_find(a, eqkey, out, incrRef);
-    if (!exists) {
-        string errormsg = "json_find failed to find key : ";
-        errormsg.append(string(eqkey));
-        throw runtime_error(errormsg);
-    }
-   return out;
-}
-
-json_object* json_arrfind(json_object* a, bool incrRef, const int idx) { 
-    if (idx >= json_object_array_length(a)) {
-        throw runtime_error("json_arrIdx was asked to find an index outside of the array bounds");
-    }
-    json_object * result = json_object_array_get_idx(a, idx);
-    if (incrRef) { return json_object_get(result); }
-    return result;
-}
-
-void json_arrput(json_object* a, const int idx, json_object *c) {        
-    if (idx > json_object_array_length(a)) {
-        throw runtime_error("json_arrIdx was asked to set an index higher than array length");
-    }
-    json_object_array_put_idx(a, idx, c); 
-}
-
-void json_del(json_object *a, const char* key) { 
-    if (json_object_object_get_ex(a, key, NULL)) {
-        json_object_object_del(a, key);
-    }
-
-}
-
-// we could make this generic, but practically it's only valid for overrides of json_push
-// that 
-template <typename T>
-json_object* vec2json(const vector<T>& in) { //only practically valid for vectors of ints and strings.
-    //DEBUGIN("vec2json", false);
-    json_object * arr = json_object_new_array();
-    for (int i=0; i<in.size(); i++) {
-        json_push(arr, in[i]);
-    }
-    //DEBUGOUT("", false); 
-    return arr;
+Value& jsonKey(string in, AllocatorType* alloc) {
+    return Value(in.data(), in.length(), *alloc).Move();
 }
 
 template <typename T>
-json_object* vec2jsonCallback(vector<T> in,
-                              function<json_object*(T&)> const& f) {
+void vec2jsonCallback(Value& root,
+                        AllocatorType* alloc,
+                        string path,
+                        vector<T> in,
+                      function<void (T&, Value& el, 
+                                       AllocatorType* alloc)> const& f) {
     //DEBUGIN("vec2JsonCallback", false);
-    json_object * arr = json_object_new_array();
+    Value arr(kArrayType);
+    Value el;
     for (int i=0; i<in.size(); i++) {
-        json_push(arr, f(in[i]));
+        el.SetObject();        
+        f(in[i], el, alloc);
+        arr.PushBack(el, *alloc);
     }
-    //DEBUGOUT("", false); 
-    return arr;
+    root.AddMember(jsonKey(path, alloc), 
+                   arr, *alloc);
+    //DEBUGOUT("", false);     
 }
 
 //non-parallel functions
@@ -725,7 +510,7 @@ struct Position {
     int line;
     int column;
     Position();
-    json_object * toJson() const;
+    void toJson(Value& out, AllocatorType* alloc) const;
 };
 
 Position::Position() {
@@ -735,13 +520,11 @@ Position::Position() {
     DEBUGOUT("Position()", true);
 }
 
-json_object* Position::toJson() const {
-    //DEBUGIN(" posToJson(Position p)", false);
-    json_object * root = json_newmap();
-    json_put(root, "line", this->line);
-    json_put(root, "column", this->column);
+void Position::toJson(Value& out, AllocatorType* alloc) const {
+    //DEBUGIN(" posToJson(Position p)", false);    
+    out.AddMember("line", this->line, *alloc);
+    out.AddMember("column", this->column, *alloc);
     //DEBUGOUT("posToJSon(Position)", false); 
-    return root;
 }
 
 struct Loc { 
@@ -752,7 +535,7 @@ struct Loc {
     string source;
 
     Loc();
-    json_object* toJson() const;
+    void toJson(Value& out, AllocatorType* alloc) const;
 };
 
 Loc::Loc() {
@@ -764,18 +547,45 @@ Loc::Loc() {
     DEBUGOUT("loc()", true);
 }
 
-json_object* Loc::toJson() const { 
+//convenience function for using l-value (stack/non-temporary) as
+//json keys when using AddMember
+inline void MemberAdd(Value& out,
+                      const string& key, 
+                      Value& val, 
+                      AllocatorType& alloc) {
+    out.AddMember(Value(key.data(), key.length(), alloc).Move(),
+                  val,
+                  alloc);
+}
+
+//adds string via copy semantics.
+void jsonAddString(Value& out, AllocatorType* alloc, 
+                   string key, string val) {
+    MemberAdd(out, key, 
+                  Value(val.data(), 
+                        val.length(), 
+                        *alloc).Move(),
+                  *alloc);
+}
+
+void Loc::toJson(Value& out, AllocatorType* alloc) const { 
     //DEBUGIN(" locToJson(Loc l)", false);
-    json_object * root = json_newmap();
-    json_put(root, "start", (this->start).toJson());
-    if (this->end.line != -1) {
-        json_put(root, "end", (this->end).toJson());
+    Value startjson(kObjectType);
+    this->start.toJson(startjson, alloc);
+    out.AddMember("start", startjson, *alloc);
+    if (this->end.line != -1) {        
+        Value endjson(kObjectType);
+        this->end.toJson(endjson, alloc);
+        out.AddMember("end", endjson, *alloc);
     }
     if (this->hasSource) {
-        json_put(root, "source", this->source);
+        out.AddMember("source",
+                      Value(this->source.data(),
+                            this->source.length(), 
+                            *alloc).Move(),
+                      *alloc);
     }
     //DEBUGOUT("locToJson", false); 
-    return root;
 }
 
 struct Comment {
@@ -784,7 +594,7 @@ struct Comment {
     int range[2];
     Loc loc;
     Comment();
-    json_object * toJson();
+    void toJson(Value& out, AllocatorType* alloc);
 };
 Comment::Comment() {
     //DEBUGIN("Comment()", false);
@@ -810,15 +620,17 @@ class NodesComments {
 public:
     vector<Comment> leadingComments;
     vector<Comment> trailingComments;
-    json_object * nodesJv;
+    Value * nodesJv;
+    AllocatorType * nodesAlloc;
     int range[2];
     bool isNull;
-    NodesComments();
-    NodesComments(json_object * jv);
+    NodesComments(AllocatorType* alloc);
+    NodesComments(Value& jv,AllocatorType* alloc);
     void commentsIntoJson(const bool leading);
 };
 
-NodesComments::NodesComments() {
+NodesComments::NodesComments(AllocatorType* alloc): 
+    nodesAlloc(alloc) {
     nodesJv = 0x0;
     isNull = false;
     range[0] = -1;
@@ -826,8 +638,9 @@ NodesComments::NodesComments() {
     leadingComments.clear();
     trailingComments.clear();
 }
-NodesComments::NodesComments(json_object * jv) {
-    this->nodesJv = jv;
+NodesComments::NodesComments(Value& jv, AllocatorType* alloc) : 
+    nodesAlloc(alloc) {
+    this->nodesJv = &jv;
     isNull = false;
     range[0] = -1;
     range[1] = -1;
@@ -846,12 +659,17 @@ void NodesComments::commentsIntoJson(const bool leading) {
         key = "trailingComments";
         commentVec = &trailingComments;
     }
+    Value::ConstMemberIterator itr = nodesJv->FindMember(key.data());
+    if (itr != nodesJv->MemberEnd())  {
+        nodesJv->EraseMember(itr);
+        //switch to RemoveMember if this function becomes timesink.
+    }
     if (commentVec->size() > 0) {
-        json_put(nodesJv, key.data(), 
-                 vec2jsonCallback<Comment>(*commentVec,
-                                           &Comment::toJson));
-    } else {
-        json_del(nodesJv, key.data());
+        vec2jsonCallback<Comment>(*nodesJv,
+                                  nodesAlloc,
+                                  key.data(),
+                                  *commentVec,
+                                  &Comment::toJson);
     }
     //DEBUGOUT("commentsIntoJSon", false);
 }
@@ -870,8 +688,8 @@ public:
     int lineNumber;
     int column;
     ExError();
-    json_object * toJson();
-    json_object * toJsonTolerant();
+    void toJson(Value& out, AllocatorType* alloc);
+    void toJsonTolerant(Value& out, AllocatorType* alloc);
 };
 ExError::ExError() {
     description = "unknown error";
@@ -879,26 +697,22 @@ ExError::ExError() {
     lineNumber = 0;
     column = 0;
 }
-json_object* ExError::toJson() {
+void ExError::toJson(Value& out, AllocatorType* alloc) {
     DEBUGIN("Error::toJSON", false);
-    json_object * root = json_newmap();
-    json_put(root, "isError", true);
-    json_put(root, "description", description);
-    json_put(root, "index", this->index);
-    json_put(root, "lineNumber", this->lineNumber);
-    json_put(root, "column", this->column);
+    out.AddMember("isError", true, *alloc);
+    jsonAddString(out, alloc, "description", description);
+    out.AddMember("index", this->index, *alloc);
+    out.AddMember("lineNumber", this->lineNumber, *alloc);
+    out.AddMember("column", this->column, *alloc);
     DEBUGOUT("Error::toJSON", false); 
-    return root;
 }
-json_object* ExError::toJsonTolerant() {
+void ExError::toJsonTolerant(Value& out, AllocatorType* alloc) {
     DEBUGIN("Error::toJSON", false);
-    json_object * root = json_newmap();
-    json_put(root, "description", description);
-    json_put(root, "index", this->index);
-    json_put(root, "lineNumber", this->lineNumber);
-    json_put(root, "column", this->column);
+    jsonAddString(out, alloc, "description", description);
+    out.AddMember("index", this->index, *alloc);
+    out.AddMember("lineNumber", this->lineNumber, *alloc);
+    out.AddMember("column", this->column, *alloc);
     DEBUGOUT("Error::toJSON", false); 
-    return root;
 }
 
 #ifndef THROWABLE
@@ -910,16 +724,15 @@ class AssertError {
 public:
     string description;
     AssertError();
-    json_object * toJson();
+    void toJson(Value& out, AllocatorType* alloc);
 };
 AssertError::AssertError() {
     description = "";
 }
-json_object * AssertError::toJson() {
-    json_object * root = json_newmap();
-    json_put(root, "message", description);
-    json_put(root, "isAssert", true);
-    return root;
+void AssertError::toJson(Value& out, AllocatorType* alloc) {
+    jsonAddString(out, alloc, 
+                  "message", description);
+    out.AddMember("isAssert", true, *alloc);
 }
 
 AssertError retAssertError;
@@ -995,7 +808,7 @@ struct TokenRecord {
     string valuestring;
     string typestring;
     TokenRecord();
-    json_object * toJson();
+    void toJson(Value& out, AllocatorType* alloc);
 };
 TokenRecord::TokenRecord() {
     DEBUGIN("TokenRecord()", true);
@@ -1007,11 +820,10 @@ TokenRecord::TokenRecord() {
 enum class Synt;
 class Node {
 public:
-    bool isNull;
     string type;
 
     bool hasJv;
-    json_object * jv;
+    Value jv;
     Loc loc;
 #ifndef THROWABLE
     bool err;
@@ -1021,26 +833,23 @@ public:
     int range[2];
     vector< vector<string> > regexPaths; //lin only. obv.
 
-
+    shared_ptr<NodesComments> thisnc;
 
     string name;//for identifiers
     vector< Node* > expressions; //for sequence expressions.
-    shared_ptr<Node> left; //for assignment+reinterpretAsCover...
-    shared_ptr<Node> right; //same
+    Node* leftAssign; //for assignment+reinterpretAsCover...
+    Node* rightAssign; //same
 
     string s(const u16string in);
-
-    Node();
     Node(bool lookaheadAvail, bool storeStats);
-    json_object* toJson();
     void lookavailInit();
     void clear();
     void unused();
-    void jvput(const string path, const string b);
-    void jvput(const string path, const int b); 
-    void jvput(const string path, const bool b);
-    void jvput_dbl(const string path, const string b);
-    void jvput_null(const string path); 
+    void jvput(const char* path, const string b);
+    void jvput(const char* path, const int b); 
+    void jvput(const char* path, const bool b);
+    void jvput_dbl(const char* path, const double b);
+    void jvput_null(const char* path); 
     void regNoadd(const vector<string> paths, 
                   Node * child);
     void reg(const string path, 
@@ -1048,8 +857,8 @@ public:
     void nodeVec(const string path, 
                  const vector<Node*>& nodes);
     void addType(const Synt in);
-    json_object* regexPaths2json();
-    void commentsIntoJson(const bool leading);
+    void regexPaths2json(Value& out);
+    //void commentsIntoJson(const bool leading);
     void processComment();
     void finish();
     void finishArrayExpression(const vector< Node* >& elements);
@@ -1152,6 +961,9 @@ public:
     }
 };
 
+//class ErrWrapValueRef {
+//};
+
 class ErrWrapNodePtr {
 public:
     bool err;
@@ -1181,12 +993,13 @@ public:
 
 TokenStruct NULLTOKEN;
 ptrTkn NULLPTRTKN;
-Node NULLNODE(false,false);
+Node * NULLNODE = 0x0;
+
 
 
 vector<Node*> heapNodes;
 void delNode(Node * toDel) {
-    if (toDel == &NULLNODE) { return; }
+    if (toDel == NULLNODE) { return; }
     auto iter = find(heapNodes.begin(), heapNodes.end(), toDel);
     if (iter != heapNodes.end()) { heapNodes.erase(iter); }
     delete (toDel);
@@ -1197,8 +1010,8 @@ void clearNodeHeap() {
         auto it = heapNodes.begin();
         tmp = *it;
         heapNodes.erase(it);
-        if (tmp->jv != nullptr)
-            { json_object_put(tmp->jv); tmp->jv = nullptr; }
+        //if (tmp->jv != nullptr)
+        //    { json_object_put(tmp->jv); tmp->jv = nullptr; }
 
         delete (tmp);
     }
@@ -1234,7 +1047,7 @@ struct ExtraStruct {
     bool attachComment;
     vector<Comment> leadingComments;
     vector<Comment> trailingComments;
-    vector< NodesComments > bottomRightStack; //! todo Node header text.
+    vector< shared_ptr<NodesComments> > bottomRightStack; //! todo Node header text.
 
     ExtraStruct();
 };
@@ -1280,7 +1093,7 @@ struct OptionsStruct {
     bool hasSource;
     string source;
     OptionsStruct();
-    bool json_getbool(json_object* in, 
+    bool json_getbool(Value& in, 
                       const string key, 
                       const bool defaultVal);
     OptionsStruct(const char *in_o);
@@ -1297,21 +1110,24 @@ OptionsStruct::OptionsStruct() {
     hasSource = false;
     DEBUGOUT("OptionsStruct()", true);
 }
-bool OptionsStruct::json_getbool(json_object* in, 
+bool OptionsStruct::json_getbool(Value& jsonMap, 
                                  const string key, 
                                  const bool defaultVal) {
-    json_object* tmp;
-    bool exists = json_find(in, key.data(), tmp,
-                            false, json_type_boolean);
-    if (!exists) { return defaultVal; }
-    bool result = (bool) json_object_get_boolean(tmp);
-    return result;
+    Value::ConstMemberIterator itr = jsonMap.FindMember(key.data());
+    if (itr != jsonMap.MemberEnd()) {        
+        
+        if (itr->value.IsBool()) {
+            bool result = itr->value.GetBool();
+            return result;
+        } 
+    }
+    return defaultVal;
 }
 OptionsStruct::OptionsStruct(const char *in_o) {
     DEBUGIN("OptionsStruct(char*)", true);
-    json_tokener_error tkErr;
-    json_object *in = json_tokener_parse_verbose(in_o, &tkErr);
-    if (tkErr != json_tokener_success) {
+    Document d;
+    d.Parse(in_o);
+    if (d.HasParseError()) {
         //#I don't think this will ever come up outside of manual
         //# debugging unless there's some serious encoding error.
         DEBUGIN("failed to parse options string provided", false);
@@ -1323,19 +1139,19 @@ OptionsStruct::OptionsStruct(const char *in_o) {
         tokens = false;
         hasSource = false;
     } else { 
-        json_object* tmp;
-        range = json_getbool(in, "range", false);
-        loc = json_getbool(in, "loc", false);
-        attachComment = json_getbool(in, "attachComment", false);
-        comment = json_getbool(in, "comment", false);
-        tolerant = json_getbool(in, "tolerant", false);
-        tokens = json_getbool(in, "tokens", false);
-        hasSource = json_find(in, "source", tmp,
-                              false, json_type_string);
-        if (hasSource) { 
-            source = json_object_get_string(tmp);         }
+        range = json_getbool(d, "range", false);
+        loc = json_getbool(d, "loc", false);
+        attachComment = json_getbool(d, "attachComment", false);
+        comment = json_getbool(d, "comment", false);
+        tolerant = json_getbool(d, "tolerant", false);
+        tokens = json_getbool(d, "tokens", false);
+        Value::ConstMemberIterator itr = d.FindMember("source");
+        hasSource = (itr != d.MemberEnd() 
+                     && itr->value.IsString());
+        if (hasSource) {
+            source = itr->value.GetString();            
+        }
     }
-    json_object_put(in);
     DEBUGOUT("OptionsStruct(char*)", true);
 }
 
@@ -1395,8 +1211,8 @@ struct ReinterpretOptions {
 };
 
 ReinterpretOptions::ReinterpretOptions() {
-    firstRestricted = &NULLNODE; //?
-    stricted = &NULLNODE; //? nec.? had it only in reinOut before.
+    firstRestricted = NULLNODE; //?
+    stricted = NULLNODE; //? nec.? had it only in reinOut before.
     //? not sure if context will make it different.
 }
 
@@ -1418,8 +1234,8 @@ ReinterpretOut::ReinterpretOut() {
     err = false;
 #endif
     isNull=false;
-    firstRestricted = &NULLNODE;
-    stricted = &NULLNODE;
+    firstRestricted = NULLNODE;
+    stricted = NULLNODE;
 }
 
 //---- ----------  -----------------------------
@@ -1438,6 +1254,7 @@ OptionsStruct options;
 ExtraStruct extra;
 StateStruct state;
 ptrTkn lookahead;
+AllocatorType * glblAlloc;
 
 void clearHeap() {
     extra = ExtraStruct();
@@ -1455,42 +1272,40 @@ void clearHeap() {
 const char16_t * sourceraw;
 inline char16_t source(int idx) { return *(sourceraw + idx); }
 
-
-json_object*  TokenRecord::toJson() {
-    DEBUGIN(" TokenRecord::toJson()", false);
-    json_object *root = json_newmap(), *rangearr;
-    json_put(root, "type", this->typestring);
-    json_put(root, "value", this->valuestring);
+void TokenRecord::toJson(Value& out, AllocatorType* alloc) {
+    DEBUGIN(" TokenRecord::toJson", false);    
+    jsonAddString(out, alloc, "type", this->typestring);
+    jsonAddString(out, alloc, "value", this->valuestring);
     if (extra.range) {
-        rangearr = json_newarr();
-        json_push(rangearr, this->range[0]);
-        json_push(rangearr, this->range[1]);
-        json_put(root, "range", rangearr);
+        Value rangearr(kArrayType);
+        rangearr.PushBack(this->range[0], *alloc);
+        rangearr.PushBack(this->range[1], *alloc);
+        out.AddMember("range", rangearr, *alloc);
     }
     if (extra.loc) {
-        json_put(root, "loc", (this->loc).toJson());
+        Value locjson(kObjectType);
+        this->loc.toJson(locjson, alloc);
+        out.AddMember("loc", locjson, *alloc);
     }
-
     DEBUGOUT("TokenRecord::toJson()", false);
-    return root;
 }
 
-json_object * Comment::toJson() {
+void Comment::toJson(Value& out, AllocatorType* alloc) {
     DEBUGIN("Comment::toJson", false);
-    json_object *root = json_newmap(), *rangearr;
-    json_put(root, "type", this->type);
-    json_put(root, "value", this->value);
+    jsonAddString(out, alloc, "type", this->type);
+    jsonAddString(out, alloc, "value", this->value);
     if (extra.range) {
-        rangearr = json_newarr();
-        json_push(rangearr, this->range[0]);
-        json_push(rangearr, this->range[1]);
-        json_put(root, "range", rangearr);
+        Value rangearr(kArrayType);
+        rangearr.PushBack(this->range[0], *alloc);
+        rangearr.PushBack(this->range[1], *alloc);
+        out.AddMember("range", rangearr, *alloc);
     }
     if (extra.loc) {
-        json_put(root, "loc", (this->loc).toJson());
+        Value locjson(kObjectType);
+        this->loc.toJson(locjson, alloc);
+        out.AddMember("loc", locjson, *alloc);
     }
     DEBUGOUT("comment::toJson", false);
-    return root;
 }
 
 
@@ -1625,8 +1440,12 @@ map<Synt, string> Syntax = {
     {Synt::WithStatement, "WithStatement"}
 };
 
-map<string, Node> PlaceHolders { 
-    {"ArrowParameterPlaceHolder", Node()} 
+unique_ptr<Node> make_unique_Node() {
+    unique_ptr<Node> a(new Node(false, true));
+    return a;
+}
+
+map<string, unique_ptr<Node>> PlaceHolders { 
 };
  //map<string, int> 
 
@@ -1716,14 +1535,14 @@ map<Mssg, string> Messages = {
     vector< vector < unsigned int> > nonasciiIdentifierpart = { {170,181,186,192,216,248,710,736,748,750,768,886,887,890,895,902,904,908,910,931,1015,1155,1162,1329,1369,1377,1425,1471,1473,1474,1476,1477,1479,1488,1520,1552,1568,1646,1749,1759,1770,1791,1808,1869,1984,2042,2048,2112,2208,2276,2406,2417,2437,2447,2448,2451,2474,2482,2486,2492,2503,2504,2507,2519,2524,2525,2527,2534,2561,2565,2575,2576,2579,2602,2610,2611,2613,2614,2616,2617,2620,2622,2631,2632,2635,2641,2649,2654,2662,2689,2693,2703,2707,2730,2738,2739,2741,2748,2759,2763,2768,2784,2790,2817,2821,2831,2832,2835,2858,2866,2867,2869,2876,2887,2888,2891,2902,2903,2908,2909,2911,2918,2929,2946,2947,2949,2958,2962,2969,2970,2972,2974,2975,2979,2980,2984,2990,3006,3014,3018,3024,3031,3046,3072,3077,3086,3090,3114,3133,3142,3146,3157,3158,3160,3161,3168,3174,3201,3205,3214,3218,3242,3253,3260,3270,3274,3285,3286,3294,3296,3302,3313,3314,3329,3333,3342,3346,3389,3398,3402,3415,3424,3430,3450,3458,3459,3461,3482,3507,3517,3520,3530,3535,3542,3544,3558,3570,3571,3585,3648,3664,3713,3714,3716,3719,3720,3722,3725,3732,3737,3745,3749,3751,3754,3755,3757,3771,3776,3782,3784,3792,3804,3840,3864,3865,3872,3893,3895,3897,3902,3913,3953,3974,3993,4038,4096,4176,4256,4295,4301,4304,4348,4682,4688,4696,4698,4704,4746,4752,4786,4792,4800,4802,4808,4824,4882,4888,4957,4992,5024,5121,5743,5761,5792,5870,5888,5902,5920,5952,5984,5998,6002,6003,6016,6103,6108,6109,6112,6155,6160,6176,6272,6320,6400,6432,6448,6470,6512,6528,6576,6608,6656,6688,6752,6783,6800,6823,6832,6912,6992,7019,7040,7168,7232,7245,7376,7380,7416,7417,7424,7676,7960,7968,8008,8016,8025,8027,8029,8031,8064,8118,8126,8130,8134,8144,8150,8160,8178,8182,8204,8205,8255,8256,8276,8305,8319,8336,8400,8417,8421,8450,8455,8458,8469,8473,8484,8486,8488,8490,8495,8508,8517,8526,8544,11264,11312,11360,11499,11520,11559,11565,11568,11631,11647,11680,11688,11696,11704,11712,11720,11728,11736,11744,11823,12293,12321,12337,12344,12353,12441,12442,12445,12449,12540,12549,12593,12704,12784,13312,19968,40960,42192,42240,42512,42560,42612,42623,42655,42775,42786,42891,42896,42928,42929,42999,43072,43136,43216,43232,43259,43264,43312,43360,43392,43471,43488,43520,43584,43600,43616,43642,43739,43744,43762,43777,43785,43793,43808,43816,43824,43868,43876,43877,43968,44012,44013,44016,44032,55216,55243,63744,64112,64256,64275,64285,64298,64312,64318,64320,64321,64323,64324,64326,64467,64848,64914,65008,65024,65056,65075,65076,65101,65136,65142,65296,65313,65343,65345,65382,65474,65482,65490,65498}, {170,181,186,214,246,705,721,740,748,750,884,886,887,893,895,902,906,908,929,1013,1153,1159,1327,1366,1369,1415,1469,1471,1473,1474,1476,1477,1479,1514,1522,1562,1641,1747,1756,1768,1788,1791,1866,1969,2037,2042,2093,2139,2226,2403,2415,2435,2444,2447,2448,2472,2480,2482,2489,2500,2503,2504,2510,2519,2524,2525,2531,2545,2563,2570,2575,2576,2600,2608,2610,2611,2613,2614,2616,2617,2620,2626,2631,2632,2637,2641,2652,2654,2677,2691,2701,2705,2728,2736,2738,2739,2745,2757,2761,2765,2768,2787,2799,2819,2828,2831,2832,2856,2864,2866,2867,2873,2884,2887,2888,2893,2902,2903,2908,2909,2915,2927,2929,2946,2947,2954,2960,2965,2969,2970,2972,2974,2975,2979,2980,2986,3001,3010,3016,3021,3024,3031,3055,3075,3084,3088,3112,3129,3140,3144,3149,3157,3158,3160,3161,3171,3183,3203,3212,3216,3240,3251,3257,3268,3272,3277,3285,3286,3294,3299,3311,3313,3314,3331,3340,3344,3386,3396,3400,3406,3415,3427,3439,3455,3458,3459,3478,3505,3515,3517,3526,3530,3540,3542,3551,3567,3570,3571,3642,3662,3673,3713,3714,3716,3719,3720,3722,3725,3735,3743,3747,3749,3751,3754,3755,3769,3773,3780,3782,3789,3801,3807,3840,3864,3865,3881,3893,3895,3897,3911,3948,3972,3991,4028,4038,4169,4253,4293,4295,4301,4346,4680,4685,4694,4696,4701,4744,4749,4784,4789,4798,4800,4805,4822,4880,4885,4954,4959,5007,5108,5740,5759,5786,5866,5880,5900,5908,5940,5971,5996,6000,6002,6003,6099,6103,6108,6109,6121,6157,6169,6263,6314,6389,6430,6443,6459,6509,6516,6571,6601,6617,6683,6750,6780,6793,6809,6823,6845,6987,7001,7027,7155,7223,7241,7293,7378,7414,7416,7417,7669,7957,7965,8005,8013,8023,8025,8027,8029,8061,8116,8124,8126,8132,8140,8147,8155,8172,8180,8188,8204,8205,8255,8256,8276,8305,8319,8348,8412,8417,8432,8450,8455,8467,8469,8477,8484,8486,8488,8493,8505,8511,8521,8526,8584,11310,11358,11492,11507,11557,11559,11565,11623,11631,11670,11686,11694,11702,11710,11718,11726,11734,11742,11775,11823,12295,12335,12341,12348,12438,12441,12442,12447,12538,12543,12589,12686,12730,12799,19893,40908,42124,42237,42508,42539,42607,42621,42653,42737,42783,42888,42894,42925,42928,42929,43047,43123,43204,43225,43255,43259,43309,43347,43388,43456,43481,43518,43574,43597,43609,43638,43714,43741,43759,43766,43782,43790,43798,43814,43822,43866,43871,43876,43877,44010,44012,44013,44025,55203,55238,55291,64109,64217,64262,64279,64296,64310,64316,64318,64320,64321,64323,64324,64433,64829,64911,64967,65019,65039,65069,65075,65076,65103,65140,65276,65305,65338,65343,65370,65470,65479,65487,65495,65500} };
 
 void initglobals() {
-    DEBUGIN(" initglobals()", true);
-    PlaceHolders["ArrowParameterPlaceHolder"].type="ArrowParameterPlaceholder";
+    DEBUGIN(" initglobals()", true);    
+    PlaceHolders["ArrowParameterPlaceHolder"] = make_unique_Node(); 
+    PlaceHolders["ArrowParameterPlaceHolder"]->type="ArrowParameterPlaceholder";
     NULLTOKEN.isNull = true;
     NULLPTRTKN = makeToken();
     (*NULLPTRTKN).isNull = true;
     lookahead = makeToken();
     lookahead->isNull = true;
-    NULLNODE.isNull = true;
     DEBUGOUT("", true);
 }
 
@@ -3214,9 +3033,6 @@ void peek() {
  //Loc 
 
 
-
- 
-
 //#this is the ONLY constructor in this code capable of 
 //#modifying state, it ALWAYS and ONLY changes state if lookaheadAvail
 //#is true. Important to keep in mind when making 
@@ -3227,8 +3043,6 @@ Node::Node(bool lookaheadAvail, bool exists) {
     err = false;
 #endif
     hasJv = false;
-    jv = nullptr;
-    isNull = false;
     hasRange = false;
     hasLoc = false;
     if (lookaheadAvail) {
@@ -3250,61 +3064,65 @@ Node::Node(bool lookaheadAvail, bool exists) {
     }
     //DEBUGOUT("", true);
 }
-Node::Node() : Node(false, true) {} 
-
-json_object* Node::toJson() { 
-  return this->jv;
-}
 
 string Node::s(const u16string in) { return toU8(in); }
 
 void Node::lookavailInit() {
     hasJv = true;
-    jv = json_newmap();
+    jv.SetObject();
 
-    idx = lookahead->start;
-    if (lookahead->type == TknType::StringLiteral) {
-        lineNumber = lookahead->startLineNumber;
-        lineStart = lookahead->startLineStart;
-    } else {
-        lineNumber = lookahead->lineNumber;
-        lineStart = lookahead->lineStart;
-    }
-    if (hasRange) { //#should always be true, but keep it open while testing.
-        loc.start = Position();
-        range[0] = idx;
-    }
+     idx = lookahead->start;
+     if (lookahead->type == TknType::StringLiteral) {
+         lineNumber = lookahead->startLineNumber;
+         lineStart = lookahead->startLineStart;
+     } else {
+         lineNumber = lookahead->lineNumber;
+         lineStart = lookahead->lineStart;
+     }
+     if (hasRange) { //#should always be true, but keep it open while testing.
+         loc.start = Position();
+         range[0] = idx;
+     }
+ }
+
+ void Node::clear() {
+     regexPaths.clear();
+     expressions.clear();
+
+     hasLoc = false;
+     hasRange = false;
+ }
+
+ void Node::unused() {
+     //if (hasJv) {
+         //json_object_put(this->jv);
+         //}
+     delNode(this);
+ }
+
+inline
+void Node::jvput(const char* path, const string b)  {
+    jv.AddMember(StringRef(path), 
+              Value(b.data(), b.length(), *glblAlloc).Move(), 
+              *glblAlloc); 
 }
 
-void Node::clear() {
-    regexPaths.clear();
-    expressions.clear();
+inline
+void Node::jvput(const char* path, const int b) 
+{jv.AddMember(StringRef(path), b, *glblAlloc); }
 
-    hasLoc = false;
-    hasRange = false;
-}
+inline
+void Node::jvput(const char* path, const bool b) 
+{jv.AddMember(StringRef(path), b, *glblAlloc); }
 
-void Node::unused() {
-    if (hasJv) {
-        json_object_put(this->jv);
-    }
-    delNode(this);
-}
 inline
-void Node::jvput(const string path, const string b) 
-    {json_put(jv, path.data(), b); }
+void Node::jvput_dbl(const char* path, const double b) 
+{jv.AddMember(StringRef(path), b, *glblAlloc); }
+
 inline
-void Node::jvput(const string path, const int b) 
-    {json_put(jv, path.data(), b); }
-inline
-void Node::jvput(const string path, const bool b) 
-    {json_put(jv, path.data(), b); }
-inline
-void Node::jvput_dbl(const string path, const string b) 
-    {json_put_dbl(jv, path.data(), b); }
-inline
-void Node::jvput_null(const string path) 
-    { json_put_null(jv, path.data()); }
+void Node::jvput_null(const char* path)
+{ Value tmp; jv.AddMember(StringRef(path), tmp, *glblAlloc); }
+ 
 
 //# different name to prevent easy bug of forgetting the string.
 //# root path, should be first in vector, then path within it, etc.
@@ -3312,14 +3130,18 @@ void Node::regNoadd(const vector<string> paths, Node * child) {
     string debugmsg = " Node::regNoadd(vector<string> paths, Node &child) :::";
     debugmsg.append(paths[0]);
     //DEBUGIN(debugmsg, false);
-    if (child->isNull) { return; }
+    if (child == NULLNODE) { return; }
 
     if (child->hasRange) {
-        json_put(child->jv, "range", 
-                 vec2json<int>({child->range[0], child->range[1]}));
+        Value rangearr(kArrayType);
+        rangearr.PushBack(child->range[0], *glblAlloc);
+        rangearr.PushBack(child->range[1], *glblAlloc);
+        child->jv.AddMember("range", rangearr, *glblAlloc);
     } 
-    if (child->hasLoc) {
-        json_put(child->jv, "loc", child->loc.toJson());
+    if (child->hasLoc) {        
+        Value locjson(kObjectType);
+        child->loc.toJson(locjson, glblAlloc);
+        child->jv.AddMember("loc", locjson, *glblAlloc);
     }
     if (child->regexPaths.size() > 0) {
         if (child->regexPaths[0][0] == ".") {
@@ -3348,55 +3170,82 @@ void Node::reg(const string path, Node * child) {
     //to reinterpret them as children of a different node
     //and then cleanly delete sequenceexpression node
     //without having to extricate children objects from json, etc.
-    if (child->type == Syntax[Synt::SequenceExpression]) {
-        child->nodeVec("expressions", child->expressions);
-    }
+    if (child != NULLNODE) {
+        if (child->type == Syntax[Synt::SequenceExpression]) {
+            child->nodeVec("expressions", child->expressions);
+        } else if (child->type == Syntax[Synt::AssignmentExpression]) {
+            child->reg("left", child->leftAssign);
+            child->reg("right", child->rightAssign);
+        }
 
-    regNoadd({path}, child);
-    if (! child->isNull && child->jv != nullptr) {
-        json_put(jv, path.data(), child->jv);
-        child->jv = nullptr;
+        regNoadd({path}, child);
+    
+        jv.AddMember(Value(path.data(),path.length(), *glblAlloc).Move(), 
+                      child->jv.Move(), 
+                     *glblAlloc);
+    
+        if (child->thisnc) {
+            child->thisnc->nodesJv = &(jv[path.data()]);
+        }
+        delNode (child); 
     } else {
-        json_put_null(jv, path.data());
+        Value tmp;
+        jv.AddMember(Value(path.data(),path.length(), *glblAlloc).Move(), 
+                      tmp, *glblAlloc);
     }
-    if (child != &NULLNODE)
-        { delNode (child); }
     //DEBUGOUT("node::reg", false);
 }
 
 void Node::nodeVec(const string path, const vector< Node* > & nodes) { 
     //DEBUGIN("nodeVec(string path, vector< Node > & nodes)", false);
-    json_object * root = json_newarr();
+    Value arr(kArrayType);
     for (unsigned int i=0; i<nodes.size(); i++) {
-        if (nodes[i]->isNull) {
-            json_push_null(root);
-        } else {
+        if (nodes[i] != NULLNODE) {
+            if (nodes[i]->type == Syntax[Synt::SequenceExpression]) {
+                nodes[i]->nodeVec("expressions", nodes[i]->expressions);
+            } else if (nodes[i]->type == Syntax[Synt::AssignmentExpression]) {
+                nodes[i]->reg("left", nodes[i]->leftAssign);
+                nodes[i]->reg("right", nodes[i]->rightAssign);
+            }
             regNoadd({path, to_string(i)}, nodes[i]);
-            json_push(root, nodes[i]->jv);
+            arr.PushBack(nodes[i]->jv.Move(), *glblAlloc);
+            if (nodes[i]->thisnc) {
+                nodes[i]->thisnc->nodesJv = &(arr[i]);
+            }
+            delNode (nodes[i]);
+        } else {
+            Value tmp;
+            arr.PushBack(tmp, *glblAlloc);
         }
-        if (nodes[i] != &NULLNODE)
-            { delNode (nodes[i]); }
     } 
-    json_put(jv, path.data(), root);
+    jv.AddMember(Value(path.data(),path.length(), *glblAlloc).Move(), 
+                 arr, *glblAlloc);
     //DEBUGOUT("node::nodeVec", false);
 }
 inline
 void Node::addType(const Synt in) { 
     type = Syntax[in];
-    json_put(jv, "type", type);
+    jv.AddMember("type",
+                 Value(type.data(), type.length(), *glblAlloc).Move(),
+                  *glblAlloc);
 }
-json_object* Node::regexPaths2json() { 
+void Node::regexPaths2json(Value& out) { 
     //DEBUGIN("Node::regexPaths2json()", false);
-    json_object *tmp, *root = json_newarr();
+    out.SetArray();    
+    Value path;
     for (unsigned int i=0; i<regexPaths.size(); i++) {
-        tmp = json_newarr();
+        path.SetArray();
         for (int j=regexPaths[i].size()-1; j>=0; j--) {
-            json_push(tmp, regexPaths[i][j]);            
+            string step;
+            path.PushBack(Value(regexPaths[i][j].data(), 
+                                regexPaths[i][j].length(), 
+                                *glblAlloc).Move(),
+  
+                          *glblAlloc);            
         } 
-        json_push(root, tmp);
+        out.PushBack(path, *glblAlloc);
     }
-    //DEBUGOUT("", false); 
-    return root;
+    //DEBUGOUT("", false);     
 }
 
 
@@ -3410,29 +3259,27 @@ void Node::processComment() {
 
     vector< Comment > trailingComments;
 
-    vector< NodesComments > * bottomRight = &(extra.bottomRightStack);
-    NodesComments lastChild;
-    NodesComments last;
-    last.isNull = true; lastChild.isNull = true;
-    NodesComments thisnc(jv);
+    vector< shared_ptr<NodesComments> > * bottomRight = &(extra.bottomRightStack);
+    shared_ptr<NodesComments> lastChild;
+    shared_ptr<NodesComments> last;
+    thisnc.reset(new NodesComments(jv, glblAlloc));
     bool LEADING = true, TRAILING= false;
     if (bottomRight->size() > 0) {
         last = bottomRight->back();
     }
 
     if (type == Syntax[Synt::Program]) {  
-        if (json_object_array_length(
-                                     json_require(jv,"body", false)) > 0) {
+        if (jv["body"].Size() > 0) {
             DEBUGOUT("", false); 
             return;
         }
     }
 
-    thisnc.range[0] = range[0];
-    thisnc.range[1] = range[1];
+    thisnc->range[0] = range[0];
+    thisnc->range[1] = range[1];
 
     if (extra.trailingComments.size() > 0) {
-        if (extra.trailingComments[0].range[0] >= thisnc.range[1]) {
+        if (extra.trailingComments[0].range[0] >= thisnc->range[1]) {
             trailingComments = extra.trailingComments;
             extra.trailingComments.clear();
         } else {
@@ -3441,50 +3288,50 @@ void Node::processComment() {
             //# don't think there's an effective difference thoug
         }
     } else {
-        if (!(last.isNull) && 
-            last.trailingComments.size() > 0 && 
-            last.trailingComments[0].range[0] >= thisnc.range[1]) {
-            trailingComments = last.trailingComments;
-            last.trailingComments.clear();
-            last.commentsIntoJson(TRAILING);
-            //delete last.trailingComments; 
+        if (last && 
+            last->trailingComments.size() > 0 && 
+            last->trailingComments[0].range[0] >= thisnc->range[1]) {
+            trailingComments = last->trailingComments;
+            last->trailingComments.clear();
+            last->commentsIntoJson(TRAILING);
+            //delete last->trailingComments; 
             //? maybe have a boolean to say no trailing comments? length will prob. be workable.
         }
     }
 
     // Eating the stack.
-    if (!(last.isNull)) {
-        while ((!(last.isNull)) && last.range[0] >= thisnc.range[0]) {
+    if (last) {
+        while ((last) && last->range[0] >= thisnc->range[0]) {
             lastChild = last;
             if (bottomRight->size() > 0) { 
                 last = bottomRight->back(); 
                 bottomRight->pop_back();
             } else { 
-                last.isNull = true; 
+                last.reset();
             }
         }
     }
 
-    if (!(lastChild.isNull)) {
-        if (lastChild.leadingComments.size() > 0 &&
-            lastChild.leadingComments.back()
-            .range[1] <= thisnc.range[0]) {
-            thisnc.leadingComments = lastChild.leadingComments;
-            lastChild.leadingComments.clear();
-            lastChild.commentsIntoJson(LEADING);
-            thisnc.commentsIntoJson(LEADING);
+    if (lastChild) {
+        if (lastChild->leadingComments.size() > 0 &&
+            lastChild->leadingComments.back()
+            .range[1] <= thisnc->range[0]) {
+            thisnc->leadingComments = lastChild->leadingComments;
+            lastChild->leadingComments.clear();
+            lastChild->commentsIntoJson(LEADING);
+            thisnc->commentsIntoJson(LEADING);
         }
     } else if (extra.leadingComments.size() > 0 && 
                extra.leadingComments[extra.leadingComments.size() - 1]
-               .range[1] <= thisnc.range[0]) {
-        thisnc.leadingComments = extra.leadingComments;
+               .range[1] <= thisnc->range[0]) {
+        thisnc->leadingComments = extra.leadingComments;
         extra.leadingComments.clear();
-        thisnc.commentsIntoJson(LEADING);
+        thisnc->commentsIntoJson(LEADING);
     }
 
     if (trailingComments.size() > 0) {
-        thisnc.trailingComments = trailingComments;
-        thisnc.commentsIntoJson(TRAILING);
+        thisnc->trailingComments = trailingComments;
+        thisnc->commentsIntoJson(TRAILING);
     }
 
     bottomRight->push_back(thisnc);
@@ -3548,18 +3395,9 @@ void Node::finishAssignmentExpression(const string oper,
     addType(Synt::AssignmentExpression);
     jvput("operator", oper);
 
+    leftAssign = left;
+    rightAssign = right;
 
-
-    Node * tmpleft = new Node(false, true);
-    *tmpleft = *left;
-    shared_ptr<Node> tmpleftshared (tmpleft);
-    this->left = tmpleftshared; 
-    reg("left", left);
-    Node * tmpright = new Node(false, true);
-    *tmpright = *right;
-    shared_ptr<Node> tmprightshared (tmpright);
-    this->right = tmprightshared; 
-    reg("right", right);
     this->finish();
     DEBUGOUT("", false);
 }
@@ -3770,7 +3608,6 @@ void Node::finishLabeledStatement(Node * label,
     DEBUGOUT("", false);
 }
 
-//# ?maybe check against js to make sure we're not missing anything.
 void Node::finishLiteral(ptrTkn token) {
     DEBUGIN("finishLiteral(ptrTkn token)", false);
     addType(Synt::Literal);
@@ -3779,18 +3616,26 @@ void Node::finishLiteral(ptrTkn token) {
     } else if (token->literaltype == LiteralType["Int"]) {
         jvput("value", token->intvalue);
     } else if (token->literaltype == LiteralType["Double"]) {
-        jvput_dbl("value", token->strvalue);
+        jvput_dbl("value", stod(token->strvalue));
     } else if (token->literaltype == LiteralType["Bool"]) {
         jvput("value", token->bvalue);
     } else if (token->literaltype == LiteralType["Null"]) {
         jvput_null("value");
     } else if (token->literaltype == LiteralType["Regexp"]) {
-        json_put(jv, "value", 
-                 vec2json<string>({token->strvalue, 
-                             token->flags,
-                             to_string(lineNumber),
-                             to_string(token->end), 
-                             to_string(token->end+1)}));
+        Value reg(kArrayType);
+        vector<string> regvals = {token->strvalue, 
+                                  token->flags,
+                                  to_string(lineNumber),
+                                  to_string(token->end), 
+                                  to_string(token->end+1)};
+        for (int i=0;i<regvals.size();i++) {
+            reg.PushBack(
+                         Value(regvals[i].data(),
+                               regvals[i].length(),
+                               *glblAlloc).Move(),
+                         *glblAlloc);
+        }
+        jv.AddMember("value", reg, *glblAlloc);
         regexPaths.push_back({"."});
     }
     jvput("raw", s(slice(sourceraw, token->start, token->end)));
@@ -3848,13 +3693,18 @@ void Node::finishProgram(const vector< Node* >& body) {
     DEBUGIN("finishProgram", false);
     addType(Synt::Program);
     nodeVec("body", body);
-    this->finish(); 
+    this->finish();
     //no parent node to call reg so add these atts. here.
     if (extra.range) {
-        json_put(jv, "range",vec2json<int>({range[0], range[1]}));
+        Value rangearr(kArrayType);
+        rangearr.PushBack(this->range[0], *glblAlloc);
+        rangearr.PushBack(this->range[1], *glblAlloc);
+        jv.AddMember("range", rangearr, *glblAlloc);
     }
     if (extra.loc) {
-        json_put(jv, "loc", loc.toJson());
+        Value locjson(kObjectType);
+        this->loc.toJson(locjson, glblAlloc);
+        jv.AddMember("loc", locjson, *glblAlloc);
     }
     DEBUGOUT("", false);    
 }
@@ -4007,7 +3857,7 @@ public:
     WrappingNode(ptrTkn startToken) : Node(false, true) {
         DEBUGIN("WrappingNode(Token)", true);
         if (!hasJv) { 
-            jv = json_newmap(); 
+            jv.SetObject();
             hasJv=true;
         }
         if (extra.range) {
@@ -4338,7 +4188,7 @@ Node* parseArrayInitialiser() {
 
         if (match(",")) {
             lex();
-            elements.push_back(&NULLNODE);
+            elements.push_back(NULLNODE);
         } else {
 #ifndef THROWABLE
             Node *tmp = parseAssignmentExpression();
@@ -4375,7 +4225,7 @@ Node* parsePropertyFunction(vector<Node*>& param, ptrTkn first) {
         throwErrorTolerant(first, Messages[Mssg::StrictParamName],{});
     }
     strict = previousStrict;
-    node->finishFunctionExpression(&NULLNODE, param, 
+    node->finishFunctionExpression(NULLNODE, param, 
                                   EMPTY_NODE_LIST, body); 
     DEBUGOUT("parsePropFunction", false);
     return node;
@@ -4480,7 +4330,7 @@ Node* parseObjectProperty() {
     if (token->type == TknType::EOFF || token->type == TknType::Punctuator) {
         throwUnexpected(token);
         DEBUGOUT("parseObjProp", false); 
-        return &NULLNODE; //#just to satisfy warnings.
+        return NULLNODE; //#just to satisfy warnings.
     } else {
         key = parseObjectPropertyKey();
         expect(":");
@@ -4491,18 +4341,8 @@ Node* parseObjectProperty() {
     }
 }
 
-string json_tostring(json_object * in) {
-    DEBUGIN("json_tostring", false);
-    json_type objtype = json_object_get_type(in);
-    if (objtype == json_type_string) {
-        return DBGRET("json_tostring", json_object_get_string(in));
-    } else if (objtype == json_type_double) {
-        return DBGRET("json_tostring", to_string(json_object_get_double(in)));
-    } else if (objtype == json_type_boolean) {
-        return DBGRET("json_tostring", to_string(json_object_get_boolean(in)));
-    }
-    DEBUGOUT("json_tostring", false);
-    return "";
+string GetStringCorrect(const Value& val) {
+    return string(val.GetString(), val.GetStringLength());
 }
 
 //throw_
@@ -4512,7 +4352,7 @@ Node* parseObjectInitialiser() {
     ptrTkn token;
     Node *property, 
         *node = new Node(true, true);
-    json_object * keyobj;
+    
     string keytype, key, name, kindname;
     int kind;
     map<string, int> kmap;
@@ -4521,19 +4361,22 @@ Node* parseObjectInitialiser() {
 
     while (!match("}")) {
         property = parseObjectProperty();
-        keyobj = json_require(property->jv, "key", false);
-        keytype = json_object_get_string(
-                       json_require(keyobj, "type", false));
+        
+
+        const Value& keyobj = property->jv["key"];
+
+        keytype = GetStringCorrect(keyobj["type"]);
 
         if (keytype == Syntax[Synt::Identifier]) {
-            name = json_object_get_string(
-                      json_require(keyobj,  "name", false));
+            name = GetStringCorrect(keyobj["name"]);            
         } else {
-            name = json_tostring(
-                      json_require(keyobj,  "value", false));
+            if (keyobj["value"].IsString()) {
+                name = GetStringCorrect(keyobj["value"]);
+            } else {
+                name = to_string(keyobj["value"].GetDouble());
+            }
         }
-        kindname = json_object_get_string(
-                      json_require(property->jv,  "kind", false));
+        kindname = GetStringCorrect(property->jv["kind"]);
         kind = (kindname == "init") ? PropertyKind["Data"] : 
             (kindname == "get") ? PropertyKind["Get"] : PropertyKind["Set"];
 
@@ -4586,8 +4429,7 @@ Node* parseGroupExpression() {
         lex();
         DEBUGOUT("", false);
         Node *tmpnode = new Node(false, true);
-        
-        (*tmpnode) = PlaceHolders["ArrowParameterPlaceHolder"];
+        tmpnode->type = PlaceHolders["ArrowParameterPlaceHolder"]->type;
         return tmpnode;
     }
     ++(state.parenthesisCount);
@@ -5005,7 +4847,7 @@ Node* parseBinaryExpression() {
 
     left = parseUnaryExpression();
 
-    if (left->type == PlaceHolders["ArrowParameterPlaceHolder"].type) {
+    if (left->type == PlaceHolders["ArrowParameterPlaceHolder"]->type) {
         //? placeholder
         DEBUGOUT("parseBinary1", false); 
         return left;
@@ -5031,7 +4873,7 @@ Node* parseBinaryExpression() {
     //and access the right stack at the right time.
     nodestack.push_back(left);
     tokstack.push_back(nulltok);
-    nodestack.push_back(&NULLNODE);
+    nodestack.push_back(NULLNODE);
     tokstack.push_back(token);
     nodestack.push_back(right);
     tokstack.push_back(nulltok);
@@ -5060,7 +4902,7 @@ Node* parseBinaryExpression() {
         // Shift.
         token = lex();
         token->prec = prec;
-        nodestack.push_back(&NULLNODE);
+        nodestack.push_back(NULLNODE);
         tokstack.push_back(token);
         markers.push_back(lookahead);
         expr = parseUnaryExpression();
@@ -5099,7 +4941,7 @@ Node* parseConditionalExpression() {
     startToken = lookahead;
 
     expr = parseBinaryExpression();
-    if (expr->type == PlaceHolders["ArrowParameterPlaceHolder"].type) { 
+    if (expr->type == PlaceHolders["ArrowParameterPlaceHolder"]->type) { 
         //? ever supposed to eval. to true? cause it might in some cases
         //? even tho it seems in javascript it never ever will.
 
@@ -5149,7 +4991,7 @@ void validateParamNode(ReinterpretOptions& options,
             options.stricted = param;
             options.message = Messages[Mssg::StrictParamDupe];
         }
-    } else if (options.firstRestricted->isNull) {
+    } else if (options.firstRestricted == NULLNODE) {
         if (isRestrictedWord(name)) {
             options.firstRestricted = param;
             options.message = Messages[Mssg::StrictParamName];
@@ -5183,14 +5025,12 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node* >& expressions) {
         param = expressions[i];
         if (param->type == Syntax[Synt::Identifier]) {
             params.push_back(param);
-            defaults.push_back(&NULLNODE);
+            defaults.push_back(NULLNODE);
             //null defaults might be skipped instead of regged check this.
             validateParamNode(opts, param, param->name);
         } else if (param->type == Syntax[Synt::AssignmentExpression]) {
-            Node *l = new Node(false, true); 
-            *l = *(param->left);
-            Node *r = new Node(false, true); 
-            *r = *(param->right);
+            Node *l = param->leftAssign; 
+            Node *r = param->rightAssign; 
 
             params.push_back(l);
             defaults.push_back(r);
@@ -5238,11 +5078,11 @@ Node* parseArrowFunctionExpression(const ReinterpretOut options,
 
     body = parseConciseBody();
 
-    if (strict && !(options.firstRestricted->isNull)) { 
+    if (strict && options.firstRestricted != NULLNODE) { 
         throwError(NULLPTRTKN, options.message, {});
         //        throwError(options.firstRestricted, options.message, {});
     }
-    if (strict && !(options.stricted->isNull)) {
+    if (strict && options.stricted != NULLNODE) {
         throwError(NULLPTRTKN, options.message, {});
         //        throwErrorTolerant(options.stricted, options.message, {});
     }
@@ -5277,7 +5117,7 @@ Node* parseAssignmentExpression() {
 
     expr = parseConditionalExpression();
     list.isNull = true;
-    if (expr->type == PlaceHolders["ArrowParameterPlaceHolder"].type //? will work?
+    if (expr->type == PlaceHolders["ArrowParameterPlaceHolder"]->type //? will work?
         || match("=>")) {
 
         if (state.parenthesisCount == oldParenthesisCount ||
@@ -5288,10 +5128,11 @@ Node* parseAssignmentExpression() {
             } else if (expr->type == Syntax[Synt::AssignmentExpression]) {
                 reIn.push_back(expr);
                 list = reinterpretAsCoverFormalsList(reIn);
+                expr->unused();
             } else if (expr->type == Syntax[Synt::SequenceExpression]) {
                 list = reinterpretAsCoverFormalsList(expr->expressions);
                 expr->unused();
-            } else if (expr->type == PlaceHolders["ArrowParameterPlaceHolder"].type) {
+            } else if (expr->type == PlaceHolders["ArrowParameterPlaceHolder"]->type) {
                 expr->unused();
                 list = reinterpretAsCoverFormalsList(reIn); 
             }
@@ -5376,7 +5217,7 @@ vector< Node* > parseStatementList() {
             break;
         }
         statement = parseSourceElement();
-        if (statement->isNull) { 
+        if (statement == NULLNODE) { 
             break;
         }
         list.push_back(statement);
@@ -5425,7 +5266,7 @@ Node* parseVariableDeclaration(const string kind) {
     DEBUGIN(" parseVariableDeclaration(u16string kind)", false);
     Node *id, *init,
         *node = new Node(true, true);
-    init = &NULLNODE;
+    init = NULLNODE;
 
     id = parseVariableIdentifier();
 
@@ -5541,7 +5382,7 @@ Node* parseIfStatement(Node *node) {
         lex();
         alternate = parseStatement();
     } else {
-        alternate = &NULLNODE;
+        alternate = NULLNODE;
     }
     node->finishIfStatement(test, consequent, alternate);
     DEBUGOUT("parseIfStatement", false); 
@@ -5613,8 +5454,8 @@ Node* parseForStatement(Node* node) {
 
     Node *body, *left, *right, 
         *update, *test, *init;
-    left=&NULLNODE;
-    update=&NULLNODE; test=&NULLNODE; init=&NULLNODE;
+    left=NULLNODE;
+    update=NULLNODE; test=NULLNODE; init=NULLNODE;
 
     expectKeyword("for");
     expect("(");
@@ -5627,14 +5468,13 @@ Node* parseForStatement(Node* node) {
             init = parseForVariableDeclaration();
             state.allowIn = previousAllowIn;
 
-            if (json_object_array_length(
-                 json_require(init->jv,  "declarations", false)) == 1 
+            if (init->jv["declarations"].Size() == 1 
                 && matchKeyword("in")) { 
 
                 lex();
                 left = init;
                 right = parseExpression();
-                init = &NULLNODE;
+                init = NULLNODE;
             }
         } else {
             state.allowIn = false;
@@ -5645,22 +5485,23 @@ Node* parseForStatement(Node* node) {
                 // LeftHandSideExpression
                 if (!isLeftHandSide(init)) {
                     throwErrorTolerant(NULLPTRTKN, 
-                                       Messages[Mssg::InvalidLHSInForIn],{});
+                                       Messages[Mssg::InvalidLHSInForIn],
+                                       {});
                 }
 
                 lex();
                 left = init;
                 right = parseExpression();
-                init = &NULLNODE;
+                init = NULLNODE;
             }
         }
 
-        if (left == &NULLNODE) {
+        if (left == NULLNODE) {
             expect(";");
         }
     }
 
-    if (left == &NULLNODE) {
+    if (left == NULLNODE) {
 
         if (!match(";")) {
             test = parseExpression();
@@ -5681,7 +5522,7 @@ Node* parseForStatement(Node* node) {
 
     state.inIteration = oldInIteration;
 
-    if (left == &NULLNODE) {
+    if (left == NULLNODE) {
         node->finishForStatement(init, test, update, body);
     } else {
         node->finishForInStatement(left, right, body);
@@ -5695,7 +5536,7 @@ Node* parseForStatement(Node* node) {
 Node* parseContinueStatement(Node* node) {
     DEBUGIN(" parseContinueStatement(Node node)", false);
     Node *label;
-    label = &NULLNODE;
+    label = NULLNODE;
     string key;
     bool pltresult;
 
@@ -5709,7 +5550,7 @@ Node* parseContinueStatement(Node* node) {
             throwError(NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
         }
 
-        node->finishContinueStatement(&NULLNODE);
+        node->finishContinueStatement(NULLNODE);
         DEBUGOUT("parseContinueStatement", false); 
         return node;
     }
@@ -5720,7 +5561,7 @@ Node* parseContinueStatement(Node* node) {
             throwError(NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
         }
 
-        node->finishContinueStatement(&NULLNODE);
+        node->finishContinueStatement(NULLNODE);
         DEBUGOUT("parseContinueStatement", false); 
         return node;
     }
@@ -5739,7 +5580,7 @@ Node* parseContinueStatement(Node* node) {
 
     consumeSemicolon();
 
-    if (label->isNull && !(state.inIteration)) {
+    if (label == NULLNODE && !(state.inIteration)) {
         throwError(NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
     }
 
@@ -5755,7 +5596,7 @@ Node* parseBreakStatement(Node* node) {
     Node *label;
     string key;
     bool pltresult;
-    label = &NULLNODE;
+    label = NULLNODE;
 
     expectKeyword("break");
 
@@ -5767,7 +5608,7 @@ Node* parseBreakStatement(Node* node) {
             throwError(NULLPTRTKN, Messages[Mssg::IllegalBreak],{});
         }
 
-        node->finishBreakStatement(&NULLNODE);
+        node->finishBreakStatement(NULLNODE);
         DEBUGOUT("parseBreakStatement", false); 
         return node;
     }
@@ -5778,7 +5619,7 @@ Node* parseBreakStatement(Node* node) {
             throwError(NULLPTRTKN, Messages[Mssg::IllegalBreak],{});
         }
 
-        node->finishBreakStatement(&NULLNODE);
+        node->finishBreakStatement(NULLNODE);
         DEBUGOUT("parseBreakStatement", false); 
         return node;
     }
@@ -5797,7 +5638,7 @@ Node* parseBreakStatement(Node* node) {
 
     consumeSemicolon();
 
-    if (label == &NULLNODE && !(state.inIteration || state.inSwitch)) {
+    if (label == NULLNODE && !(state.inIteration || state.inSwitch)) {
         throwError(NULLPTRTKN, Messages[Mssg::IllegalBreak], {});
     }
 
@@ -5812,7 +5653,7 @@ Node* parseReturnStatement(Node* node) {
     DEBUGIN(" parseReturnStatement(Node node)", false);
     Node *argument;
     bool pltresult;
-    argument = &NULLNODE;
+    argument = NULLNODE;
 
     expectKeyword("return");
 
@@ -5833,7 +5674,7 @@ Node* parseReturnStatement(Node* node) {
 
     pltresult = peekLineTerminator();
     if (pltresult) {
-        node->finishReturnStatement(&NULLNODE);
+        node->finishReturnStatement(NULLNODE);
         DEBUGOUT("parseReturnStatement", false);
         return node;
     }
@@ -5884,7 +5725,7 @@ Node* parseSwitchCase() {
 
     if (matchKeyword("default")) {
         lex();
-        test = &NULLNODE;
+        test = NULLNODE;
     } else {
         expectKeyword("case");
         test = parseExpression();
@@ -5933,9 +5774,7 @@ Node* parseSwitchStatement(Node *node) {
             break;
         }
         clause = parseSwitchCase();
-        if (json_object_is_type(
-                                json_require(clause->jv,  "test", false), 
-                                json_type_null)) {
+        if (clause->jv["test"].IsNull()) {
             if (defaultFound) {
                 throwError(NULLPTRTKN, 
                            Messages[Mssg::MultipleDefaultsInSwitch],{});
@@ -6007,7 +5846,7 @@ Node* parseTryStatement(Node* node) {
     Node *block, *finalizer; 
     vector< Node* > handlers;
 
-    finalizer = &NULLNODE;
+    finalizer = NULLNODE;
 
     expectKeyword("try");
 
@@ -6028,7 +5867,7 @@ Node* parseTryStatement(Node* node) {
         finalizer = parseBlock();
     }
 
-    if (handlers.size() == 0 && finalizer->isNull) {
+    if (handlers.size() == 0 && finalizer == NULLNODE) {
         throwError(NULLPTRTKN, Messages[Mssg::NoCatchOrFinally], {});
     }
 
@@ -6166,11 +6005,8 @@ Node* parseFunctionSourceElements() {
         //# returns in turn the value of parseStatement for stringLiteral 
         //# so returns a string literal expression node wrapped in an expressionStatement node.
         sourceElements.push_back(sourceElement); 
-        if (strcmp(
-                   json_object_get_string(
-  json_require(json_require(sourceElement->jv, "expression", false),
-             "type", false)), 
-                   (Syntax[Synt::Literal]).data()) != 0) {
+        if (GetStringCorrect(sourceElement->jv["expression"]["type"]) !=
+            Syntax[Synt::Literal]) {
             //? this one I doubt there's more an efficient way to do this
             //? then json-c accesses. Storing node hierarchies just to fix this call seems to 
             //? be likely less performant.
@@ -6205,7 +6041,7 @@ Node* parseFunctionSourceElements() {
             break;
         }
         sourceElement = parseSourceElement();
-        if (sourceElement == &NULLNODE) {
+        if (sourceElement == NULLNODE) {
             break;
         }
         sourceElements.push_back(sourceElement);
@@ -6332,7 +6168,7 @@ Node* parseFunctionDeclaration() {
     vector< Node* > params;
     vector< Node* > defaults;
     bool previousStrict;
-    id = &NULLNODE;
+    id = NULLNODE;
 
     expectKeyword("function");
 
@@ -6397,7 +6233,7 @@ Node* parseFunctionExpression() {
     bool previousStrict;
 
 
-    id = &NULLNODE;
+    id = NULLNODE;
     expectKeyword("function");
 
     if (!match("(")) {
@@ -6469,7 +6305,7 @@ Node* parseSourceElement() {
     }
 
     DEBUGOUT("parseSourceElement", false);
-    return &NULLNODE;
+    return NULLNODE;
 }
 
 //throw_ 
@@ -6491,10 +6327,9 @@ vector< Node* > parseSourceElements() {
         sourceElements.push_back(sourceElement);
         //#todo make a function that accepts vector of nested finds
         //#so we can make tests like this more legible.
-        if (strcmp(json_object_get_string(
-   json_require(json_require(sourceElement->jv, "expression", false), 
-                                                       "type", false)), 
-                   (Syntax[Synt::Literal]).data()) != 0) {         
+
+        if (GetStringCorrect(sourceElement->jv["expression"]["type"]) != 
+            (Syntax[Synt::Literal])) {
             // this is not directive
             break;
         }
@@ -6518,7 +6353,7 @@ vector< Node* > parseSourceElements() {
     while (idx < length) {
         sourceElement = parseSourceElement();
 
-        if (sourceElement == &NULLNODE) {
+        if (sourceElement == NULLNODE) {
             break;
         }
         sourceElements.push_back(sourceElement);
@@ -6582,13 +6417,14 @@ void filterTokenLocation() {
 //# -2. no js regex validation unless passed through a js environment 
 //#    afterwards for validation with a tool like linprima-wrapfuncs.js
  
-json_object* tokenizeImpl(const u16string code, 
-                          OptionsStruct options,
-                          const bool retErrorsAsJson) { 
+void tokenizeImpl(Document &outJson,
+                  const u16string code, 
+                  OptionsStruct options,
+                  const bool retErrorsAsJson) { 
+    outJson.SetObject();
+    AllocatorType& alloc = outJson.GetAllocator();
+    glblAlloc = &alloc;
     vector<TokenRecord> tokens;
-    json_object *outJson = json_newmap();
-
-
    
     initglobals();
     sourceraw = code.data();
@@ -6623,11 +6459,13 @@ json_object* tokenizeImpl(const u16string code,
     ErrWrapint tmp = peek();
     if (tmp.err) {
         if (!extra.errorTolerant) {
-            json_object_put(outJson);
+            //json_object_put(outJson);
             if (errorType == 0) {
-                return retError.toJson();
+                retError.toJson(outJson, &alloc);
+                return;
             }
-            return retAssertError.toJson();
+            retAssertError.toJson(outJson, &alloc);
+            return;
         }
     }
 #endif
@@ -6636,26 +6474,27 @@ json_object* tokenizeImpl(const u16string code,
 #endif
 
     if (lookahead->type == TknType::EOFF) {
-        json_put(outJson, "tokenlist", 
-                 vec2jsonCallback<TokenRecord>(extra.tokenRecords, 
-                       &TokenRecord::toJson));
-      return outJson;
+         vec2jsonCallback<TokenRecord>(outJson, &alloc, "tokenlist",
+                                               extra.tokenRecords, 
+                                               &TokenRecord::toJson);
+         return;
     }
 
     lex();
     while (lookahead->type != TknType::EOFF) {
 #ifndef THROWABLE
-        ptrTkn out = lex().val;
-        if (out->err) { 
+        ErrWrapptrTkn out = lex();
+        if (out.err) { 
             if (extra.errorTolerant) {
                 extra.errors.push_back(retError); 
                 break;
             } else {
-                json_object_put(outJson);
                 if (errorType == 0) {
-                    return retError.toJson();
+                    retError.toJson(outJson, &alloc);
+                    return;
                 }
-                return retAssertError.toJson();   
+                retAssertError.toJson(outJson, &alloc);
+                return;
             }
         }
 #endif
@@ -6668,8 +6507,9 @@ json_object* tokenizeImpl(const u16string code,
                 break;
             } else {
                 if (retErrorsAsJson) {
-                    json_object_put(outJson);
-                    return e.toJson();
+                    //json_object_put(outJson);
+                    e.toJson(outJson, &alloc);
+                    return; 
                 }
                 throw e;
             }
@@ -6678,44 +6518,49 @@ json_object* tokenizeImpl(const u16string code,
     }
 
     filterTokenLocation();
-    json_put(outJson, "tokenlist", 
-             vec2jsonCallback<TokenRecord>(extra.tokenRecords, 
-                                                    &TokenRecord::toJson)); 
+    vec2jsonCallback<TokenRecord>(outJson, &alloc, "tokenlist",
+                                  extra.tokenRecords, 
+                                  &TokenRecord::toJson); 
     if (extra.commentTracking) {
-        json_put(outJson, "comments", 
-                 vec2jsonCallback<Comment>(extra.comments,
-                                               &Comment::toJson));
+        vec2jsonCallback<Comment>(outJson, &alloc, "comments",
+                                  extra.comments,
+                                  &Comment::toJson);
     }
     if (extra.errorTolerant) {
-        json_put(outJson, "errors",  
-                 vec2jsonCallback<ExError>(extra.errors,
-                                             &ExError::toJsonTolerant));
+        vec2jsonCallback<ExError>(outJson, &alloc, "errors",
+                                  extra.errors,
+                                  &ExError::toJsonTolerant);
     }
 
-  return outJson;
+    return;
 }
 
 
-json_object*  tokenize(const u16string code, const OptionsStruct options) { 
-    return tokenizeImpl(code, options, false);
+void tokenizeImpl(Document& d, 
+                  const u16string code, const OptionsStruct options) { 
+    tokenizeImpl(d, code, options, false);
 }
-json_object*  tokenize(const string code, const OptionsStruct options) { 
-    return tokenizeImpl(toU16string(code), options, false);
+void tokenizeImpl(Document &d,
+                  const string code, const OptionsStruct options) { 
+    tokenizeImpl(d, toU16string(code), options, false);
 }
-json_object*  tokenize(const string code) { 
+void tokenizeImpl(Document &d, const string code) { 
     OptionsStruct o;
-    return tokenizeImpl(toU16string(code), o, false);
+    tokenizeImpl(d, toU16string(code), o, false);
 }
-json_object*  tokenize(const u16string code) { 
+void tokenizeImpl(Document &d, const u16string code) { 
     OptionsStruct o;
-    return tokenizeImpl(code, o, false);
+    tokenizeImpl(d, code, o, false);
 }
 
 string tokenizeRetString(const u16string code, const OptionsStruct options){
-    json_object * m = tokenizeImpl(code, options, true);
-    string result = json_object_to_json_string_ext(
-                                 m, JSON_C_TO_STRING_PLAIN); 
-    json_object_put(m);
+    
+    Document out;
+    tokenizeImpl(out, code, options, true);
+    StringBuffer buffer;
+    Writer<StringBuffer> writer(buffer);
+    out.Accept(writer);    
+    string result = buffer.GetString();
     return result;  
 }
 string tokenizeRetString(const string code, const OptionsStruct options) {
@@ -6738,12 +6583,14 @@ string tokenizeRetString(const string code, const OptionsStruct options) {
 //#    numeric literals are represented as strings, serialized to json string using a special
 //#    serializer that does not print quotes.
 
-json_object* parseImpl(const u16string code, 
-                       OptionsStruct options, //# nonconst 1:1
-                       const bool retErrorsAsJson) { 
-
+void parseImpl(Document &outJson,
+               const u16string code, 
+               OptionsStruct options, //# nonconst 1:1
+               const bool retErrorsAsJson) { 
+    outJson.SetObject();
+    AllocatorType& alloc = outJson.GetAllocator();    
+    glblAlloc = &alloc;
     Node *programNode;
-    json_object * programJson = json_newmap();
 
     initglobals();
 
@@ -6783,11 +6630,13 @@ json_object* parseImpl(const u16string code,
     ErrWrapNodePtr tmp = parseProgram();
     if (tmp.err) {
         clearHeap();
-        json_object_put(programJson);
+        //json_object_put(programJson);
         if (errorType == 0) {
-            return retError.toJson();
+            retError.toJson(outJson, &alloc);
+            return;
         }
-        return retAssertError.toJson();        
+        retAssertError.toJson(outJson, &alloc); 
+        return;
     }
     programNode = tmp.val;
 #endif
@@ -6797,64 +6646,78 @@ json_object* parseImpl(const u16string code,
     } catch(ExError& e) {        
         clearHeap();
         if (retErrorsAsJson) {
-            json_object_put(programJson);
-            return e.toJson();
+            //json_object_put(programJson);
+            e.toJson(outJson, &alloc);
+            return;
         }
         throw e;
     }
 #endif
-   json_put(programJson, "program", programNode->jv);
-   json_put(programJson, "regexp", programNode->regexPaths2json());
-
+    outJson.AddMember("program", programNode->jv.Move(), alloc);
+    Value regexList(kArrayType);
+    programNode->regexPaths2json(regexList);
+    outJson.AddMember("regexp", 
+                      regexList, 
+                      alloc);
 
    if (extra.commentTracking) {
-       json_put(programJson, "comments", 
-                vec2jsonCallback<Comment>(extra.comments,
-                                          &Comment::toJson)); 
+       vec2jsonCallback<Comment>(outJson, &alloc,
+                                 "comments", extra.comments,
+                                 &Comment::toJson); 
    }
 
    if (extra.tokenTracking) {
        filterTokenLocation();
-       json_put(programJson, "tokens", 
-                vec2jsonCallback<TokenRecord>(extra.tokenRecords,
-                                              &TokenRecord::toJson));
+       vec2jsonCallback<TokenRecord>(outJson, &alloc, "tokens",
+                                     extra.tokenRecords,
+                                     &TokenRecord::toJson);
    }
 
    if (extra.errorTolerant) {
-       json_put(programJson, "errors", 
-                vec2jsonCallback<ExError>(extra.errors,
-                                          &ExError::toJsonTolerant));
+       vec2jsonCallback<ExError>(outJson, &alloc, "errors",
+                                 extra.errors,
+                                 &ExError::toJsonTolerant);
    }
 
 
    extra = ExtraStruct();
    delNode(programNode);
-   return programJson;
+   return;
 }
-json_object*  parse(const u16string code, OptionsStruct options) {    
-    return parseImpl(code, options, false);
+void parseImpl(Document& d, const u16string code,
+                OptionsStruct options) {    
+    parseImpl(d, code, options, false);
 }
-json_object*  parse(const string code, OptionsStruct options) {    
-    return parseImpl(toU16string(code), options, false);
+void parseImpl(Document& d, const string code, 
+                OptionsStruct options) {    
+    parseImpl(d, toU16string(code), options, false);
 }
-json_object*  parse(const string code) { 
+
+void parseImpl(Document& d, const string code) { 
     OptionsStruct o;
-    return parseImpl(toU16string(code), o, false);
+    parseImpl(d, toU16string(code), o, false);
 }
-json_object*  parse(const u16string code) { 
+
+void parseImpl(Document& d, const u16string code) { 
     OptionsStruct o;
-    return parseImpl(code, o, false);
+    parseImpl(d, code, o, false);
 }
+
 
 //# return json as string.
 string parseRetString(const u16string code, OptionsStruct options) {    
-    json_object * m = parseImpl(code, options, true);
-    string result = json_object_to_json_string_ext(
-                     m, JSON_C_TO_STRING_PRETTY); 
-    json_object_put(m);
-    return result; 
+    Document out;
+    out.SetObject();
+    parseImpl(out, code, options, true);
+    //walkJson("root", out);
+    StringBuffer buffer;
+    Writer<StringBuffer> writer(buffer);
+    out.Accept(writer); 
+    string result = buffer.GetString();
+    return result;  
 }
-string parseRetString(const string code, OptionsStruct options) { 
+string parseRetString(const string code,
+                      OptionsStruct options) { 
     return parseRetString(toU16string(code), options);
 }
 
@@ -6869,7 +6732,7 @@ char* strToChar(string in) {
     delete[] outchars;
     outchars = new char[in.size()+1];
     strcpy(outchars, in.c_str());
-  return outchars;
+    return outchars;
 }
 
 
@@ -6936,8 +6799,8 @@ int main() {
     unsigned int resultlength = 0;
     
     string finput;
-    ifstream ifs("/home/n/coding/esp3/bench/cases/active/Chart.js");
-    //ifstream ifs("/home/n/coding/esp3/test/codetotest.js");
+    //ifstream ifs("/home/n/coding/esp3/bench/cases/active/Chart.js");
+    ifstream ifs("/home/n/coding/esp3/test/codetotest.js");
 
     finput.assign( (std::istreambuf_iterator<char>(ifs) ),
                     (std::istreambuf_iterator<char>()    ) );    
@@ -6955,7 +6818,8 @@ int main() {
     int reps = 10;
     for (int j = 0; j<reps; j++) {
         for (unsigned int i=0; i<codeSamples.size(); i++){ 
-            result = string(parseRetString(
+            result = string(tokenizeRetString(
+           //result = string(parseRetString(
                                            toU16string(codeSamples[i]),
                                            OptionsStruct(allopt.data())));
             resultlength += result.length() % 6;
