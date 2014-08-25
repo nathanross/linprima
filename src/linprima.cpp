@@ -2177,7 +2177,16 @@ string getIdentifier() {
             idx = start;
             return DBGRET("", getEscapedIdentifier());
         }
-        if (isIdentifierPart(ch)) {
+        // this is a hotpath (e.g. about 10th-15th in # calls)
+        // force-inlining isIdentifierPart here and 
+        // removing the 2x jumps per loop
+        // saves about 95% of its cost.
+        if ((ch == 0x24) || (ch == 0x5F) ||  // $ (dollar) and _ (underscore)
+         (ch >= 0x41 && ch <= 0x5A) ||         // A..Z
+         (ch >= 0x61 && ch <= 0x7A) ||         // a..z
+         (ch >= 0x30 && ch <= 0x39) ||         // 0..9
+         ((ch >= 0x80) && intervalarr_contains((unsigned int) ch, 
+                                               &nonasciiIdentifierpart))) {
             ++idx;
         } else {
             break;
