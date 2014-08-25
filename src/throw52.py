@@ -228,7 +228,9 @@ class Throw52Task:
         typestr = "[a-zA-Z_](?:[a-zA-Z_0-9\*]*|[a-zA-Z_0-9]*<[a-zA-Z_0-9\*\s]+>\*?)?"
         #'a', 'ab', and 'a.b' are all valid. 'a.' is not,
         #ident = "[a-zA-Z_]"  #'a', 'ab', and 'a.b' are all valid. 'a.' is not,
-        re_header = re.compile("\s?//\s?" + self._params['throws_indicator'])
+        re_header = re.compile("\s*//\s?" + self._params['throws_indicator'])
+        re_header_beginblock = re.compile("\s*//\s?" + self._params['throws_indicator'] + "begin")
+        re_header_endblock = re.compile("\s*//\s?" + self._params['throws_indicator'] + "end")
         re_signature = re.compile("^\s?(?P<rettype>"+typestr+")\s[a-zA-Z_][a-zA-Z0-9_:]*\(.*?")
         re_func_name = re.compile("(" + ident + ")\s*\(")
         void_call = re.compile("^\s*(" +ident +")\s*\([^;]*;?")
@@ -236,7 +238,17 @@ class Throw52Task:
         ERROR_CLASS=self._params['error_class']
 
         ident_sig = "[a-zA-Z_][a-zA-Z_0-9]*"
-        re_sig = re.compile("^\s?(?P<ret>" + typestr + "[\s\*]*?)\s*" \
+        re_sig = re.compile("^\s?(?P<ret>" + typestr + "[\s\*\&]*?)\s*" \
+                            "(?:" + ident_sig + "\s+)?"
+                                     "(?P<class>(?:" + ident_sig + \
+                                     "::)?)(?P<name>"+ ident_sig + \
+                                     ")\((?P<rest>.*)")
+        # a superset of re_sig
+        # that instead of accepting only up to one space before
+        # return type, accepts up to five (5 not 4 because not in the 
+        # business of enforcing whitespace via causing confusing failures 
+        # from minor whitespace errors.
+        re_sig_throwblock = re.compile("^\s{0,5}(?P<ret>" + typestr + "[\s\*\&]*?)\s*" \
                             "(?:" + ident_sig + "\s+)?"
                                      "(?P<class>(?:" + ident_sig + \
                                      "::)?)(?P<name>"+ ident_sig + \
@@ -255,6 +267,8 @@ class Throw52Task:
         igblock_open = self._params['igblock_open']
         igblock_close = self._params['igblock_close']
         in_ignored_block = False
+
+        in_throw_block = False
 
         outer_is_void = False
         outer_ret_type = ""
@@ -278,19 +292,22 @@ class Throw52Task:
                 continue
             if (line.upper()).find(igblock_open) != -1:
                 in_ignored_block = True
-                continue    
-            m = re.match(re_sig, text[i])
+                continue               
+            m = re.match((re_sig_throwblock if in_throw_block else re_sig),
+                         text[i])
             if m:
                 newret = m.group("ret")
                 #this assignshouldn't ever be used anyway... 
                 #no need to know ret. type if no throwing func calls w/in.
                 outer_ret_type = newret 
                 outer_is_void = (newret == 'void')                
-                outer_throws = re.match(re_header, text[i-1])
+                outer_throws = in_throw_block
+                if not outer_throws:
+                    outer_throws = re.match(re_header, text[i-1])
                 outer_func_name = m.group('name')
                 if outer_throws:     
-                    if m.group('class'):
-                        raise "don't know what to do with throwing class member"
+                    #if m.group('class'):
+                    #    raise "don't know what to do with throwing class member"
                     f_map[m.group('name')] = {'name':"", 
                                               'wrap':True, 
                                               'void':False}
@@ -316,10 +333,18 @@ class Throw52Task:
                         outer_ret_type = "".join([self._params['error_class'],
                                                   newret])
                     f_map[m.group('name')]['name'] = outer_ret_type
-                    text[i] = re.sub(re_sig, 
+                    text[i] = re.sub(re_sig_throwblock, 
                                      outer_ret_type + \
                                      " \g<class>\g<name>(\g<rest>", 
                                      text[i])
+                continue
+            
+            if not in_throw_block:
+                if re.match(re_header_beginblock, text[i]):
+                    in_throw_block = True
+                    continue
+            elif re.match(re_header_endblock, text[i]):
+                in_throw_block = False
                 continue
             if not outer_throws and not self._params['extra_tests']:
                 continue

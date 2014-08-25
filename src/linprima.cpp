@@ -829,8 +829,10 @@ public:
     Node* leftAssign; //for assignment+reinterpretAsCover...
     Node* rightAssign; //same
 
+    vector<Node*>* heapNodes;
+
     string s(const u16string in);
-    Node(bool lookaheadAvail, bool storeStats);
+    Node(bool lookaheadAvail, bool storeStats, vector<Node*>* heapNodes);
     void lookavailInit();
     void clear();
     void unused();
@@ -932,6 +934,10 @@ public:
                               Node * body);
     void finishWithStatement(Node * object, 
                              Node * body);
+    void delNode(Node * toDel);
+
+private:
+
 
 }; 
 
@@ -983,28 +989,6 @@ public:
 TokenStruct NULLTOKEN;
 ptrTkn NULLPTRTKN;
 Node * NULLNODE = 0x0;
-
-
-
-vector<Node*> heapNodes;
-void delNode(Node * toDel) {
-    if (toDel == NULLNODE) { return; }
-    auto iter = find(heapNodes.begin(), heapNodes.end(), toDel);
-    if (iter != heapNodes.end()) { heapNodes.erase(iter); }
-    delete (toDel);
-}
-void clearNodeHeap() {
-    Node *tmp;
-    while (heapNodes.size() > 0) {
-        auto it = heapNodes.begin();
-        tmp = *it;
-        heapNodes.erase(it);
-        //if (tmp->jv != nullptr)
-        //    { json_object_put(tmp->jv); tmp->jv = nullptr; }
-
-        delete (tmp);
-    }
-}
 
 struct ExtraStruct {
     //# port-specific member to replace "if (extra.tokens)"
@@ -1245,19 +1229,6 @@ StateStruct state;
 ptrTkn lookahead;
 AllocatorType * glblAlloc;
 
-void clearHeap() {
-    extra = ExtraStruct();
-    state = StateStruct();
-    options = OptionsStruct();
-    clearNodeHeap();
-    /*extra.comments.clear();
-    extra.tokenRecords.clear();
-    extra.leadingComments.clear();
-    extra.trailingComments.clear();
-    extra.errors.clear();
-    */
-}
-
 const char16_t * sourceraw;
 reqinline 
 char16_t source(int idx) { return *(sourceraw + idx); }
@@ -1431,7 +1402,7 @@ map<Synt, string> Syntax = {
 };
 
 unique_ptr<Node> make_unique_Node() {
-    unique_ptr<Node> a(new Node(false, true));
+    unique_ptr<Node> a(new Node(false, false, 0x0));
     return a;
 }
 
@@ -1948,6 +1919,7 @@ void skipComment() {
                 ++idx;
                 idx = skipMultiLineComment(idx); 
             } else {
+                DEBUGOUT("", false);
                 return;
             }
             break;
@@ -1960,6 +1932,7 @@ void skipComment() {
                 idx += 3;
                 idx = skipSingleLineComment(idx, 3);
             } else {
+                DEBUGOUT("", false);
                 return;
             }
             break;
@@ -1971,10 +1944,12 @@ void skipComment() {
                 ++idx; // `-`
                 idx = skipSingleLineComment(idx, 4);
             } else {
+                DEBUGOUT("", false);
                 return; //whitespace
             }    
             break;        
         default:
+            DEBUGOUT("", false);
             return;
         }
     }
@@ -3079,8 +3054,8 @@ void peek() {
 //#modifying state, it ALWAYS and ONLY changes state if lookaheadAvail
 //#is true. Important to keep in mind when making 
 //#1:1 updates.
-Node::Node(bool lookaheadAvail, bool exists) { 
-    //DEBUGIN("Node::Node(bool, bool)", true);
+Node::Node(bool lookaheadAvail, bool exists, vector<Node*>* heapNodes) { 
+    DEBUGIN("Node::Node(bool, bool)", false);
 #ifndef THROWABLE
     err = false;
 #endif
@@ -3089,10 +3064,11 @@ Node::Node(bool lookaheadAvail, bool exists) {
     hasLoc = false;
     if (lookaheadAvail) {
         //#not true for nullnode or parseProgram's node.
-        heapNodes.push_back(this);
         lookavailInit();
     } 
     if (lookaheadAvail || exists) {
+        this->heapNodes = heapNodes;
+        heapNodes->push_back(this);
         if (extra.range) {
             hasRange = true;
             range[0] = idx;
@@ -3105,7 +3081,7 @@ Node::Node(bool lookaheadAvail, bool exists) {
             loc.startColumn = idx - lineStart;
         } 
     }
-    //DEBUGOUT("", true);
+    DEBUGOUT("", false);
 }
 
 string Node::s(const u16string in) { return toU8(in); }
@@ -3266,8 +3242,9 @@ void Node::nodeVec(const string path, const vector< Node* > & nodes) {
                  arr, *glblAlloc);
     //DEBUGOUT("node::nodeVec", false);
 }
-inline
+reqinline
 void Node::addType(const Synt in) { 
+    //DEBUGIN("addType", false);
     type = Syntax[in];
     jv.AddMember("type",
                  Value(type.data(), type.length(), *glblAlloc).Move(),
@@ -3898,8 +3875,9 @@ void Node::finishWithStatement(Node * object,
 
 class WrappingNode : public Node {
 public:
-    WrappingNode(ptrTkn startToken) : Node(false, true) {
-        DEBUGIN("WrappingNode(Token)", true);
+    WrappingNode(ptrTkn startToken, vector<Node*>*heapNodesArg) 
+        : Node(false, true, heapNodesArg) {
+        DEBUGIN("WrappingNode(Token)", false);
         if (!hasJv) { 
             jv.SetObject();
             hasJv=true;
@@ -3914,7 +3892,7 @@ public:
             loc = this->WrappingSourceLocation(startToken);
         }
 
-        DEBUGOUT("WrappingNode(Token)", true);
+        DEBUGOUT("WrappingNode(Token)", false);
     }
     Loc WrappingSourceLocation(ptrTkn startToken);
 };
@@ -4063,9 +4041,140 @@ void throwUnexpected(ptrTkn token) {
     // If not, an exception will be thrown.
 
 
+// Return true if the next token matches the specified punctuator.
+
+//clang++ _refuses_ to inline match(val) properly on its own.
+//TODO: switch this to typedefs for better typing integration.
+//#define match(A) (lookahead->type == TknType::Punctuator && lookahead->strvalue == A)
+
+class ParseTools {
+public:
+    ParseTools();
+    ~ParseTools();
+    //#throw_begin
+    Node* parseProgram();
+    //#throw_end
+private:
+    vector<Node*> heapNodes;
+    void clearNodeHeap();
+    //#throw_begin
+    void expect(const string value);
+    void expectTolerant(const string value);
+    void expectKeyword(const string keyword);
+    //#throw_end
+    bool match(const string value);
+    bool matchKeyword(const string keyword);
+    bool matchAssign();
+    //#throw_begin
+    void consumeSemicolon();
+    //#throw_end
+    static bool isLeftHandSide(Node* expr);
+
+    //#throw_begin
+    Node* parseArrayInitialiser();
+    Node* parsePropertyFunction(vector<Node*>& param, ptrTkn first);
+    Node* parseObjectPropertyKey();
+    Node* parseObjectProperty();
+    Node* parseObjectInitialiser();
+    Node* parseGroupExpression();
+    Node* parsePrimaryExpression();
+    vector< Node* > parseArguments();
+    Node* parseNonComputedProperty();
+    Node* parseNonComputedMember();
+    Node* parseComputedMember();
+    Node* parseNewExpression();
+    Node* parseLeftHandSideExpressionAllowCall();
+    Node* parseLeftHandSideExpression();
+    Node* parsePostfixExpression();
+    Node* parseUnaryExpression();
+    //#throw_end
+    static int binaryPrecedence(const TokenStruct *token, 
+                                const bool allowIn);
+    //#throw_begin
+    Node* parseBinaryExpression();
+    Node* parseConditionalExpression();
+    Node* parseConciseBody();
+    //#throw_end
+    void validateParamNode(ReinterpretOptions& options,
+                           Node *param, const string name);
+    //#throw_begin
+    ReinterpretOut reinterpretAsCoverFormalsList(vector< Node* >& expressions);
+    Node* parseArrowFunctionExpression(const ReinterpretOut options, 
+                                   Node *node);
+    Node* parseAssignmentExpression();
+    Node* parseExpression();
+    vector< Node* > parseStatementList();
+    Node* parseBlock();
+    Node* parseVariableIdentifier();
+    Node* parseVariableDeclaration(const string kind);
+    vector< Node* > parseVariableDeclarationList(const string kind);
+    Node* parseVariableStatement(Node* node);
+    Node* parseConstLetDeclaration(const string kind);
+    Node* parseEmptyStatement();
+    Node* parseExpressionStatement(Node *node);
+    Node* parseIfStatement(Node *node);
+    Node* parseDoWhileStatement(Node *node);
+    Node* parseWhileStatement(Node* node);
+    Node* parseForVariableDeclaration();
+    Node* parseForStatement(Node* node);
+    Node* parseContinueStatement(Node* node);
+    Node* parseBreakStatement(Node* node);
+    Node* parseReturnStatement(Node* node);
+    Node* parseWithStatement(Node* node);
+    Node* parseSwitchCase();
+    Node* parseSwitchStatement(Node *node);
+    Node* parseThrowStatement(Node* node);
+    Node* parseCatchClause();
+    Node* parseTryStatement(Node* node);
+    Node* parseDebuggerStatement(Node* node);
+    Node* parseStatement();
+    Node* parseFunctionSourceElements();
+    void validateParam(ParseParamsOptions& options, 
+                       ptrTkn param, const string name);
+    bool parseParam(ParseParamsOptions& options);
+    ParseParamsOut parseParams(ptrTkn firstRestricted);
+    Node* parseFunctionDeclaration();
+    Node* parseFunctionExpression();
+    Node* parseSourceElement();
+    vector< Node* > parseSourceElements();
+    //#throw_end
+};
+
+ParseTools::ParseTools() {
+}
+
+ParseTools::~ParseTools() {
+
+    extra = ExtraStruct();
+    state = StateStruct();
+    options = OptionsStruct();
+    clearNodeHeap();
+}
+
+
+void Node::delNode(Node * toDel) {
+    if (toDel == NULLNODE) { return; }
+    auto iter = find(heapNodes->begin(), heapNodes->end(), toDel);
+    if (iter != heapNodes->end()) { heapNodes->erase(iter); }
+    /*
+    delete (toDel);*/
+}
+void ParseTools::clearNodeHeap() {
+    Node *tmp;
+    while (heapNodes.size() > 0) {
+        auto it = heapNodes.begin();
+        tmp = *it;
+        heapNodes.erase(it);
+        //if (tmp->jv != nullptr)
+        //    { json_object_put(tmp->jv); tmp->jv = nullptr; }
+
+        delete (tmp);
+    }
+}
+
 reqinline
 //throw_
-void expect(const string value) { 
+void ParseTools::expect(const string value) { 
     //DEBUGIN(" expect(u16string value)", false);
     ptrTkn token = lex();
 
@@ -4080,7 +4189,7 @@ void expect(const string value) {
 
 
 //throw_
-void expectTolerant(const string value) {
+void ParseTools::expectTolerant(const string value) {
     // DEBUGIN(" expectTolerant(u16string value)", false);
     if (extra.errorTolerant) {
         ptrTkn token = lookahead;
@@ -4104,7 +4213,8 @@ void expectTolerant(const string value) {
 // If not, an exception will be thrown.
 reqinline
 //throw_
-void expectKeyword(const string keyword) { 
+void ParseTools::expectKeyword(const string keyword) { 
+    //DEBUGIN("expectKeyword", false);
     ptrTkn token = lex();
     if (token->type != TknType::Keyword || 
         token->strvalue != keyword) {
@@ -4113,29 +4223,23 @@ void expectKeyword(const string keyword) {
     return;
 }
 
-
-// Return true if the next token matches the specified punctuator.
-
-reqinline
-bool match(const string value) { 
+bool ParseTools::match(const string value) { 
+    //DEBUGIN("match", false);
     return lookahead->type == TknType::Punctuator 
         && lookahead->strvalue == value;
-}
+        } 
 
 // Return true if the next token matches the specified keyword
 
-reqinline
-bool matchKeyword(const string keyword) {
+bool ParseTools::matchKeyword(const string keyword) {
     // DEBUGIN(" matchKeyword(const u16string keyword)", false);
     //  DEBUGOUT("matchKey", false); 
     return lookahead->type == TknType::Keyword 
         && lookahead->strvalue == keyword;
 }
-
     // Return true if the next token is an assignment operator
 
-reqinline
-bool matchAssign() { 
+bool ParseTools::matchAssign() { 
     if (lookahead->type != TknType::Punctuator) {
         return false;
     }
@@ -4156,34 +4260,13 @@ bool matchAssign() {
 
 //#forward declarations of out-of-dependency order
 //#or cross-dependent functions, in rough order of req.
-//throw_
-Node* parseAssignmentExpression();
-//throw_
-Node* parseFunctionSourceElements();
-//throw_
-Node* parseVariableIdentifier();
-//throw_
-Node* parseExpression();
-//throw_
-Node* parseFunctionExpression();
-//throw_
-Node* parseLeftHandSideExpression();
-//throw_
-Node* parseSourceElement();
-//throw_
-Node* parseStatement();
-//throw_
-vector<Node*> parseVariableDeclarationList(const u16string in);
-//throw_
-Node* parseFunctionDeclaration();
-
 
 //#can't dynamically initialize empty vectors
 //#if func is passed by reference.
 vector<Node*> EMPTY_NODE_LIST;
 
 //throw_
-void consumeSemicolon() {
+void ParseTools::consumeSemicolon() {
     DEBUGIN(" consumeSemicolon()", false);
     int line;
 
@@ -4210,20 +4293,21 @@ void consumeSemicolon() {
 
     // Return true if provided expression is LeftHandSideExpression
 
-bool isLeftHandSide(Node* expr) {
+bool ParseTools::isLeftHandSide(Node* expr) {
     DEBUGIN("   isLeftHandSide(Node expr)", false);
     DEBUGOUT("isLeft", false);
     return expr->type == Syntax[Synt::Identifier] || expr->type == Syntax[Synt::MemberExpression];
 };
 
 
+
 // 11.1.4 Array Initialiser
 
 //throw_
-Node* parseArrayInitialiser() {
+Node* ParseTools::parseArrayInitialiser() {
     DEBUGIN(" parseArrayInitialiser()", false);
     vector< Node* > elements;
-    Node *node = new Node(true, true);    
+    Node *node = new Node(true, true, &heapNodes);    
 
     expect("[");
 
@@ -4256,11 +4340,12 @@ Node* parseArrayInitialiser() {
 // 11.1.5 Object Initialiser
 
 //throw_
-Node* parsePropertyFunction(vector<Node*>& param, ptrTkn first) {
-    DEBUGIN(" parsePropertyFunction(vector<Node>& param, ptrTkn first)", false);
+Node* ParseTools::parsePropertyFunction(vector<Node*>& param, 
+                                            ptrTkn first) {
+    DEBUGIN(" parsePropertyFunction", false);
     bool previousStrict;
     Node *body,
-        *node = new Node(true, true);
+        *node = new Node(true, true, &heapNodes);
 
     previousStrict = strict;
     body = parseFunctionSourceElements();
@@ -4275,10 +4360,10 @@ Node* parsePropertyFunction(vector<Node*>& param, ptrTkn first) {
 }
 
 //throw_
-Node* parseObjectPropertyKey() {
+Node* ParseTools::parseObjectPropertyKey() {
     DEBUGIN(" parseObjectPropertyKey()", false);
     ptrTkn token;
-    Node *node = new Node(true, true);
+    Node *node = new Node(true, true, &heapNodes);
 
     token = lex();
 
@@ -4308,12 +4393,12 @@ Node* parseObjectPropertyKey() {
 //@ an undefined variable. this might make the value null expectedly,
 //@ while making this version render empty list.
 //throw_
-Node* parseObjectProperty() {
+Node* ParseTools::parseObjectProperty() {
     DEBUGIN(" parseObjectProperty()", false);
     ptrTkn token;
     vector<Node*> param;
     Node *id, *key, *value, 
-        *node = new Node(true,true);
+        *node = new Node(true, true, &heapNodes);
 
     token = lookahead;
 
@@ -4389,12 +4474,12 @@ string GetStringCorrect(const Value& val) {
 }
 
 //throw_
-Node* parseObjectInitialiser() {
+Node* ParseTools::parseObjectInitialiser() {
     DEBUGIN(" parseObjectInitialiser()", false);
     vector<Node*> properties;
     ptrTkn token;
     Node *property, 
-        *node = new Node(true, true);
+        *node = new Node(true, true, &heapNodes);
     
     string keytype, key, name, kindname;
     int kind;
@@ -4464,14 +4549,14 @@ Node* parseObjectInitialiser() {
 
  // 11.1.6 The Grouping Operator
 //throw_
-Node* parseGroupExpression() {
+Node* ParseTools::parseGroupExpression() {
     DEBUGIN(" parseGroupExpression()", false);
     Node *expr;
     expect("(");
     if (match(")")) {
         lex();
         DEBUGOUT("", false);
-        Node *tmpnode = new Node(false, true);
+        Node *tmpnode = new Node(false, true, &heapNodes);
         tmpnode->type = PlaceHolders["ArrowParameterPlaceHolder"]->type;
         return tmpnode;
     }
@@ -4486,7 +4571,7 @@ Node* parseGroupExpression() {
 
 // 11.1 Primary Expressions
 //throw_
-Node* parsePrimaryExpression() {
+Node* ParseTools::parsePrimaryExpression() {
     DEBUGIN(" parsePrimaryExpression()", false);
     //# there's some opportunity here for nested function calls
     //# by using preprocess if defined / else / endifs 
@@ -4511,7 +4596,7 @@ Node* parsePrimaryExpression() {
     }
 
     type = lookahead->type;
-    node = new Node(true, true);
+    node = new Node(true, true, &heapNodes);
     expr = node;
 
     if (type == TknType::Identifier) {
@@ -4570,7 +4655,7 @@ Node* parsePrimaryExpression() {
 
 // 11.2 Left-Hand-Side Expressions
 //throw_
-vector< Node* > parseArguments() {
+vector< Node* > ParseTools::parseArguments() {
     DEBUGIN(" parseArguments()", false);
     vector< Node* > args; 
     expect("(");
@@ -4595,10 +4680,10 @@ vector< Node* > parseArguments() {
 }
 
 //throw_
-Node* parseNonComputedProperty() {
+Node* ParseTools::parseNonComputedProperty() {
     DEBUGIN(" parseNonComputedProperty()", false);
     ptrTkn token;
-    Node *node = new Node(true, true);
+    Node *node = new Node(true, true, &heapNodes);
 
     token = lex();
 
@@ -4612,14 +4697,14 @@ Node* parseNonComputedProperty() {
 }
 
 //throw_
-Node* parseNonComputedMember() {
+Node* ParseTools::parseNonComputedMember() {
     DEBUGIN(" parseNonComputedMember()", false);
     expect(".");
     return DBGRET("parseNonComp", parseNonComputedProperty());
 }
 
 //throw_
-Node* parseComputedMember() {
+Node* ParseTools::parseComputedMember() {
     DEBUGIN(" parseComputedMember()", false);
     Node *expr;
     expect("[");
@@ -4630,11 +4715,11 @@ Node* parseComputedMember() {
 }
 
 //throw_
-Node* parseNewExpression() {
+Node* ParseTools::parseNewExpression() {
     DEBUGIN(" parseNewExpression()", false);
     vector< Node* > args;
     Node *callee, 
-        *node = new Node(true, true);
+        *node = new Node(true, true, &heapNodes);
 
     expectKeyword("new");
     callee = parseLeftHandSideExpression();
@@ -4648,7 +4733,7 @@ Node* parseNewExpression() {
 }
 
 //throw_
-Node* parseLeftHandSideExpressionAllowCall() {
+Node* ParseTools::parseLeftHandSideExpressionAllowCall() {
     DEBUGIN(" parseLeftHandSideExpressionAllowCall()", false);
     vector< Node * > args;
     Node *expr, *property, *tmpnode;
@@ -4662,21 +4747,23 @@ Node* parseLeftHandSideExpressionAllowCall() {
     } else {
         expr = parsePrimaryExpression();
     }
-
     for (;;) {
         if (match(".")) {
             property = parseNonComputedMember();
-            tmpnode = new WrappingNode(startToken);
+            tmpnode = new WrappingNode(startToken, &heapNodes);
+            printf("nodes heapNodes: %li \n", (long) tmpnode->heapNodes);
+            printf("our heapNodes: %li \n", (long) &heapNodes);
+
             tmpnode->finishMemberExpression(u'.', expr, property);
             expr = tmpnode;
         } else if (match("(")) {
             args = parseArguments();
-            tmpnode = new WrappingNode(startToken);
+            tmpnode = new WrappingNode(startToken, &heapNodes);
             tmpnode->finishCallExpression(expr, args);
             expr = tmpnode;
         } else if (match("[")) {
             property = parseComputedMember();
-            tmpnode = new WrappingNode(startToken);
+            tmpnode = new WrappingNode(startToken, &heapNodes);            
             tmpnode->finishMemberExpression(u'[', expr, property);
             expr = tmpnode;
         } else {
@@ -4691,7 +4778,7 @@ Node* parseLeftHandSideExpressionAllowCall() {
 }
 
 //throw_
-Node* parseLeftHandSideExpression() {
+Node* ParseTools::parseLeftHandSideExpression() {
     DEBUGIN(" parseLeftHandSideExpression()", false);
     Node *tmpnode, *expr, *property;
     ptrTkn startToken;
@@ -4708,12 +4795,12 @@ Node* parseLeftHandSideExpression() {
     for (;;) {
         if (match("[")) {
             property = parseComputedMember();
-            tmpnode = new WrappingNode(startToken);
+            tmpnode = new WrappingNode(startToken, &heapNodes);
             tmpnode->finishMemberExpression(u'[', expr, property);
             expr = tmpnode;
         } else if (match(".")) {
             property = parseNonComputedMember();
-            tmpnode = new WrappingNode(startToken);
+            tmpnode = new WrappingNode(startToken, &heapNodes);
             tmpnode->finishMemberExpression(u'.', expr, property);
             expr = tmpnode;
         } else {            
@@ -4726,7 +4813,7 @@ Node* parseLeftHandSideExpression() {
 
 // 11.3 Postfix Expressions
 //throw_
-Node* parsePostfixExpression() {
+Node* ParseTools::parsePostfixExpression() {
     DEBUGIN(" parsePostfixExpression()", false);
     Node *expr, *tmpnode;
     bool pltresult;
@@ -4752,7 +4839,7 @@ Node* parsePostfixExpression() {
                 }
 
                 token = lex();
-                tmpnode = new WrappingNode(startToken);
+                tmpnode = new WrappingNode(startToken, &heapNodes);
                 tmpnode->finishPostfixExpression(token->strvalue, expr);
                 DEBUGOUT("parsePostfix", false); 
                 return tmpnode;
@@ -4766,7 +4853,7 @@ Node* parsePostfixExpression() {
 
 // 11.4 Unary Operators
 //throw_
-Node* parseUnaryExpression() {
+Node* ParseTools::parseUnaryExpression() {
     DEBUGIN(" parseUnaryExpression()", false);
     ptrTkn token, startToken;
     Node *expr, *tmpnode;
@@ -4790,7 +4877,7 @@ Node* parseUnaryExpression() {
                                Messages[Mssg::InvalidLHSInAssignment], {});
         }
 
-        tmpnode = new WrappingNode(startToken);
+        tmpnode = new WrappingNode(startToken, &heapNodes);
         tmpnode->finishUnaryExpression(token->strvalue, expr);
         DEBUGOUT("parseUnary", false); 
         return tmpnode;
@@ -4798,7 +4885,7 @@ Node* parseUnaryExpression() {
         startToken = lookahead;
         token = lex();
         expr = parseUnaryExpression();
-        tmpnode = new WrappingNode(startToken);
+        tmpnode = new WrappingNode(startToken, &heapNodes);
         tmpnode->finishUnaryExpression(token->strvalue, expr);
         DEBUGOUT("parseUnary", false); 
         return tmpnode;
@@ -4808,7 +4895,7 @@ Node* parseUnaryExpression() {
         startToken = lookahead;
         token = lex();
         expr = parseUnaryExpression();
-        tmpnode = new WrappingNode(startToken);
+        tmpnode = new WrappingNode(startToken, &heapNodes);
         tmpnode->finishUnaryExpression(token->strvalue, expr);
         if (strict && token->strvalue == "delete" 
             && expr->type == Syntax[Synt::Identifier]) {
@@ -4824,7 +4911,7 @@ Node* parseUnaryExpression() {
     return expr;
 }
 
-int binaryPrecedence(const TokenStruct *token, 
+int ParseTools::binaryPrecedence(const TokenStruct *token, 
                      const bool allowIn) {
     DEBUGIN(" binaryPrecedence(Tokenstruct token, bool allowIn)", false);
     int prec = 0;
@@ -4874,7 +4961,7 @@ int binaryPrecedence(const TokenStruct *token,
 // 11.10 Binary Bitwise Operators
 // 11.11 Binary Logical Operators
 //throw_
-Node* parseBinaryExpression() {
+Node* ParseTools::parseBinaryExpression() {
     DEBUGIN(" parseBinaryExpression()", false);
 
     Node *tmpnode, *expr, *left, 
@@ -4935,7 +5022,8 @@ Node* parseBinaryExpression() {
             nodestack.pop_back(); tokstack.pop_back();
             markers.pop_back();
 
-            expr = new WrappingNode(markers[markers.size() - 1]);
+            expr = new WrappingNode(markers[markers.size() - 1], 
+                                    &heapNodes);
 
             expr->finishBinaryExpression(oper, left, right);
 
@@ -4958,7 +5046,7 @@ Node* parseBinaryExpression() {
     expr = nodestack[i];
     markers.pop_back();
     while (i > 1) {
-        tmpnode = new WrappingNode(markers.back());
+        tmpnode = new WrappingNode(markers.back(), &heapNodes);
         markers.pop_back();
         tmpnode->finishBinaryExpression(tokstack[i - 1]->strvalue, 
                                         nodestack[i - 2], expr);
@@ -4974,7 +5062,7 @@ Node* parseBinaryExpression() {
 // 11.12 Conditional Operator
 
 //throw_
-Node* parseConditionalExpression() {
+Node* ParseTools::parseConditionalExpression() {
     DEBUGIN(" parseConditionalExpression()", false);
     Node *expr, *tmpnode, 
         *consequent, *alternate;
@@ -5000,7 +5088,7 @@ Node* parseConditionalExpression() {
         expect(":");
         alternate = parseAssignmentExpression();
 
-        tmpnode = new WrappingNode(startToken);
+        tmpnode = new WrappingNode(startToken, &heapNodes);
         tmpnode->finishConditionalExpression(expr, consequent, alternate);
         DEBUGOUT("parseCondExpr2", false); 
         return tmpnode;
@@ -5012,7 +5100,7 @@ Node* parseConditionalExpression() {
 
 // [ES6] 14.2 Arrow Function
 //throw_
-Node* parseConciseBody() {
+Node* ParseTools::parseConciseBody() {
     DEBUGIN(" parseConciseBody()", false);
     if (match("{")) {
         return DBGRET("parseConciseBody", parseFunctionSourceElements());
@@ -5020,7 +5108,7 @@ Node* parseConciseBody() {
     return DBGRET("parseConciseBody", parseAssignmentExpression());
 }
 
-void validateParamNode(ReinterpretOptions& options,
+void ParseTools::validateParamNode(ReinterpretOptions& options,
                        Node *param, const string name) {
     DEBUGIN("validateParamNode(Reinterp, Node, u16str)", false);
     string key = "$";
@@ -5051,7 +5139,8 @@ void validateParamNode(ReinterpretOptions& options,
 }
 
 //throw_
-ReinterpretOut reinterpretAsCoverFormalsList(vector< Node* >& expressions) { 
+ReinterpretOut ParseTools::reinterpretAsCoverFormalsList(
+                                    vector< Node* >& expressions) { 
     DEBUGIN("reinterpretAsCover", false);
     int i, len, defaultCount;
     Node *param;
@@ -5110,7 +5199,8 @@ ReinterpretOut reinterpretAsCoverFormalsList(vector< Node* >& expressions) {
 }
 
 //throw_
-Node* parseArrowFunctionExpression(const ReinterpretOut options, 
+Node* ParseTools::parseArrowFunctionExpression(
+                                   const ReinterpretOut options, 
                                    Node *node) {
     DEBUGIN(" parseArrowFunctionExpression", false);
     bool previousStrict;
@@ -5144,7 +5234,7 @@ Node* parseArrowFunctionExpression(const ReinterpretOut options,
 
 
 //throw_
-Node* parseAssignmentExpression() {
+Node* ParseTools::parseAssignmentExpression() {
     DEBUGIN(" parseAssignmentExpression()", false);
     int oldParenthesisCount;
     ptrTkn token, startToken;
@@ -5180,7 +5270,7 @@ Node* parseAssignmentExpression() {
                 list = reinterpretAsCoverFormalsList(reIn); 
             }
             if (!(list.isNull)) {
-                return DBGRET("parseAssignExpr1", parseArrowFunctionExpression(list, new WrappingNode(startToken)));
+                return DBGRET("parseAssignExpr1", parseArrowFunctionExpression(list, new WrappingNode(startToken, &heapNodes)));
             }
         }
     }
@@ -5202,7 +5292,7 @@ Node* parseAssignmentExpression() {
 
         token = lex();
         right = parseAssignmentExpression();
-        tmpnode = new WrappingNode(startToken);
+        tmpnode = new WrappingNode(startToken, &heapNodes);
 
         tmpnode->finishAssignmentExpression(token->strvalue, expr, right); 
         DEBUGOUT("parseAssignExpr2", false); 
@@ -5215,7 +5305,7 @@ Node* parseAssignmentExpression() {
 
 // 11.14 Comma Operator
 //throw_
-Node* parseExpression() { 
+Node* ParseTools::parseExpression() { 
     DEBUGIN(" parseExpression()", false);
     Node *expr; 
     ptrTkn startToken = lookahead;
@@ -5239,7 +5329,7 @@ Node* parseExpression() {
 #endif
         }
 
-        expr = new WrappingNode(startToken);
+        expr = new WrappingNode(startToken, &heapNodes);
         expr->finishSequenceExpression(expressions);
     }
     string debugmsg = "parseExpr()";
@@ -5250,7 +5340,7 @@ Node* parseExpression() {
 
 // 12.1 Block
 //throw_
-vector< Node* > parseStatementList() { 
+vector< Node* > ParseTools::parseStatementList() { 
     DEBUGIN(" parseStatementList()", false);
     vector< Node* > list;
     Node *statement;
@@ -5271,10 +5361,10 @@ vector< Node* > parseStatementList() {
 }
 
 //throw_
-Node* parseBlock() { 
+Node* ParseTools::parseBlock() { 
     DEBUGIN(" parseBlock()", false);
     vector< Node* > block;
-    Node *node = new Node(true, true);
+    Node *node = new Node(true, true, &heapNodes);
 
     expect("{");
     block = parseStatementList();
@@ -5288,10 +5378,10 @@ Node* parseBlock() {
 // 12.2 Variable Statement
 
 //throw_
-Node* parseVariableIdentifier() { 
+Node* ParseTools::parseVariableIdentifier() { 
     DEBUGIN(" parseVariableIdentifier()", false);
     ptrTkn token;
-    Node *node = new Node(true, true);
+    Node *node = new Node(true, true, &heapNodes);
 
     token = lex();
 
@@ -5305,10 +5395,10 @@ Node* parseVariableIdentifier() {
 }
 
 //throw_
-Node* parseVariableDeclaration(const string kind) { 
+Node* ParseTools::parseVariableDeclaration(const string kind) { 
     DEBUGIN(" parseVariableDeclaration(u16string kind)", false);
     Node *id, *init,
-        *node = new Node(true, true);
+        *node = new Node(true, true, &heapNodes);
     init = NULLNODE;
 
     id = parseVariableIdentifier();
@@ -5332,7 +5422,7 @@ Node* parseVariableDeclaration(const string kind) {
 }
 
 //throw_
-vector< Node* > parseVariableDeclarationList(const string kind) {
+vector< Node* > ParseTools::parseVariableDeclarationList(const string kind) {
     DEBUGIN("parseVariableDeclarationList", false);
     vector< Node* > list; 
 
@@ -5355,7 +5445,7 @@ vector< Node* > parseVariableDeclarationList(const string kind) {
 }
 
 //throw_
-Node* parseVariableStatement(Node* node) { 
+Node* ParseTools::parseVariableStatement(Node* node) { 
     DEBUGIN(" parseVariableStatement(Node node)", false);
     vector< Node* > declarations;
 
@@ -5373,10 +5463,10 @@ Node* parseVariableStatement(Node* node) {
 // see http://wiki.ecmascript.org/doku.php?id=harmony:const
 // and http://wiki.ecmascript.org/doku.php?id=harmony:let
 //throw_
-Node* parseConstLetDeclaration(const string kind) { 
+Node* ParseTools::parseConstLetDeclaration(const string kind) { 
     DEBUGIN(" parseConstLetDeclaration(u16string kind)", false);
     vector< Node* > declarations;
-    Node *node = new Node(true, true);
+    Node *node = new Node(true, true, &heapNodes);
 
     expectKeyword(kind);
     declarations = parseVariableDeclarationList(kind);
@@ -5389,9 +5479,9 @@ Node* parseConstLetDeclaration(const string kind) {
 // 12.3 Empty Statement
 
 //throw_
-Node* parseEmptyStatement() { 
+Node* ParseTools::parseEmptyStatement() { 
     DEBUGIN(" parseEmptyStatement()", false);
-    Node *node = new Node(true, true);
+    Node *node = new Node(true, true, &heapNodes);
     expect(";");
     node->finishEmptyStatement();
     DEBUGOUT("parseEmptyStatement", false); 
@@ -5400,7 +5490,7 @@ Node* parseEmptyStatement() {
 
 // 12.4 Expression Statement
 //throw_
-Node* parseExpressionStatement(Node *node) { 
+Node* ParseTools::parseExpressionStatement(Node *node) { 
     DEBUGIN(" parseExpressionStatement(Node node)", false);
     Node *expr;
     expr = parseExpression();
@@ -5412,7 +5502,7 @@ Node* parseExpressionStatement(Node *node) {
 
 // 12.5 If statement
 //throw_
-Node* parseIfStatement(Node *node) { 
+Node* ParseTools::parseIfStatement(Node *node) { 
     DEBUGIN(" parseIfStatement(Node node)", false);
     Node *test, 
         *consequent, *alternate;
@@ -5435,7 +5525,7 @@ Node* parseIfStatement(Node *node) {
 // 12.6 Iteration Statements
 
 //throw_
-Node* parseDoWhileStatement(Node *node) { 
+Node* ParseTools::parseDoWhileStatement(Node *node) { 
     DEBUGIN(" parseDoWhileStatement(Node node)", false);
     Node *body, *test;
     bool oldInIteration;
@@ -5458,7 +5548,7 @@ Node* parseDoWhileStatement(Node *node) {
 }
 
 //throw_
-Node* parseWhileStatement(Node* node) { 
+Node* ParseTools::parseWhileStatement(Node* node) { 
     DEBUGIN(" parseWhileStatement(Node node)", false);
     Node *test, *body;
     bool oldInIteration;
@@ -5476,11 +5566,11 @@ Node* parseWhileStatement(Node* node) {
 }
 
 //throw_
-Node* parseForVariableDeclaration() { 
+Node* ParseTools::parseForVariableDeclaration() { 
     DEBUGIN(" parseForVariableDeclaration()", false);
     ptrTkn token;
     vector< Node* > declarations;
-    Node *node = new Node(true, true);
+    Node *node = new Node(true, true, &heapNodes);
 
     token = lex();
     declarations = parseVariableDeclarationList("");
@@ -5490,7 +5580,7 @@ Node* parseForVariableDeclaration() {
 }
 
 //throw_
-Node* parseForStatement(Node* node) { 
+Node* ParseTools::parseForStatement(Node* node) { 
     DEBUGIN(" parseForStatement(Node node)", false);
 
     bool oldInIteration, previousAllowIn = state.allowIn;
@@ -5576,7 +5666,7 @@ Node* parseForStatement(Node* node) {
 
 // 12.7 The continue statement
 //throw_
-Node* parseContinueStatement(Node* node) {
+Node* ParseTools::parseContinueStatement(Node* node) {
     DEBUGIN(" parseContinueStatement(Node node)", false);
     Node *label;
     label = NULLNODE;
@@ -5634,7 +5724,7 @@ Node* parseContinueStatement(Node* node) {
 
 // 12.8 The break statement
 //throw_
-Node* parseBreakStatement(Node* node) {
+Node* ParseTools::parseBreakStatement(Node* node) {
     DEBUGIN(" parseBreakStatement(Node node)", false);
     Node *label;
     string key;
@@ -5692,7 +5782,7 @@ Node* parseBreakStatement(Node* node) {
 
 // 12.9 The return statement
 //throw_
-Node* parseReturnStatement(Node* node) {
+Node* ParseTools::parseReturnStatement(Node* node) {
     DEBUGIN(" parseReturnStatement(Node node)", false);
     Node *argument;
     bool pltresult;
@@ -5737,7 +5827,7 @@ Node* parseReturnStatement(Node* node) {
 
 // 12.10 The with statement
 //throw_
-Node* parseWithStatement(Node* node) {
+Node* ParseTools::parseWithStatement(Node* node) {
     DEBUGIN(" parseWithStatement(Node node)", false);
     Node *object, *body;
 
@@ -5760,10 +5850,10 @@ Node* parseWithStatement(Node* node) {
 
 // 12.10 The swith statement
 //throw_
-Node* parseSwitchCase() {
+Node* ParseTools::parseSwitchCase() {
     DEBUGIN(" parseSwitchCase()", false);
     Node *test, *statement, 
-        *node = new Node(true, true);
+        *node = new Node(true, true, &heapNodes);
     vector< Node* > consequent;
 
     if (matchKeyword("default")) {
@@ -5791,7 +5881,7 @@ Node* parseSwitchCase() {
 }
 
 //throw_
-Node* parseSwitchStatement(Node *node) {
+Node* ParseTools::parseSwitchStatement(Node *node) {
     DEBUGIN(" parseSwitchStatement(Node node)", false);
     Node *discriminant, *clause; 
     vector< Node* > cases; 
@@ -5836,7 +5926,7 @@ Node* parseSwitchStatement(Node *node) {
 
 // 12.13 The throw statement
 //throw_
-Node* parseThrowStatement(Node* node) {
+Node* ParseTools::parseThrowStatement(Node* node) {
     DEBUGIN(" parseThrowStatement", false);
     Node* argument;
     bool pltresult;
@@ -5857,10 +5947,10 @@ Node* parseThrowStatement(Node* node) {
 // 12.14 The try statement
 
 //throw_
-Node* parseCatchClause() {
+Node* ParseTools::parseCatchClause() {
     DEBUGIN(" parseCatchClause()", false);
     Node *body, *param, 
-        *node = new Node(true, true);
+        *node = new Node(true, true, &heapNodes);
 
     expectKeyword("catch");
 
@@ -5884,7 +5974,7 @@ Node* parseCatchClause() {
 }
 
 //throw_
-Node* parseTryStatement(Node* node) {
+Node* ParseTools::parseTryStatement(Node* node) {
     DEBUGIN(" parseTryStatement(Node node)", false);
     Node *block, *finalizer; 
     vector< Node* > handlers;
@@ -5923,7 +6013,7 @@ Node* parseTryStatement(Node* node) {
 // 12.15 The debugger statement
 
 //throw_
-Node* parseDebuggerStatement(Node* node) {
+Node* ParseTools::parseDebuggerStatement(Node* node) {
     DEBUGIN(" parseDebuggerStatement(Node node)", false);
     expectKeyword("debugger");
     consumeSemicolon();
@@ -5936,7 +6026,7 @@ Node* parseDebuggerStatement(Node* node) {
 
 //#partial
 //throw_
-Node* parseStatement() {
+Node* ParseTools::parseStatement() {
     DEBUGIN(" parseStatement()", false);
     TknType type = lookahead->type;
     string key, tokval;
@@ -5950,7 +6040,7 @@ Node* parseStatement() {
         return DBGRET("parseStatement", parseBlock());
     }
     
-    node = new Node(true, true);
+    node = new Node(true, true, &heapNodes);
 
     if (type == TknType::Punctuator) {
         tokval = lookahead->strvalue;
@@ -6026,10 +6116,10 @@ Node* parseStatement() {
 // 13 Function Definition
 
 //throw_
-Node* parseFunctionSourceElements() {
+Node* ParseTools::parseFunctionSourceElements() {
     DEBUGIN(" parseFunctionSourceElements()", false);
     Node *sourceElement, 
-        *node = new Node(true, true);
+        *node = new Node(true, true, &heapNodes);
     vector< Node* > sourceElements;
     ptrTkn token, firstRestricted = makeToken();
     u16string directive;
@@ -6104,8 +6194,8 @@ Node* parseFunctionSourceElements() {
 }
 
 //throw_ 
-void validateParam(ParseParamsOptions& options, 
-                    ptrTkn param, const string name) {
+void ParseTools::validateParam(ParseParamsOptions& options, 
+                               ptrTkn param, const string name) {
      DEBUGIN("validateParam", false);
      string key = "$";
      key.append(name);
@@ -6138,7 +6228,7 @@ void validateParam(ParseParamsOptions& options,
 
 
 //throw_ 
-bool parseParam(ParseParamsOptions& options) {
+bool ParseTools::parseParam(ParseParamsOptions& options) {
     DEBUGIN(" parseParam(ParseParamsOptions options)", false);
     ptrTkn token; 
     Node *param, *def;
@@ -6166,7 +6256,7 @@ bool parseParam(ParseParamsOptions& options) {
 }
 
 //throw_ 
-ParseParamsOut parseParams(ptrTkn firstRestricted) {
+ParseParamsOut ParseTools::parseParams(ptrTkn firstRestricted) {
     DEBUGIN(" parseParamS(ptrTkn firstRestricted)", false);
     ParseParamsOptions options;
     ParseParamsOut out;
@@ -6201,12 +6291,12 @@ ParseParamsOut parseParams(ptrTkn firstRestricted) {
 }
 
 //throw_ 
-Node* parseFunctionDeclaration() {
+Node* ParseTools::parseFunctionDeclaration() {
     DEBUGIN(" parseFunctionDeclaration()", false);
     ptrTkn token, stricted, firstRestricted = makeToken();
     string message;
     Node *body, *id, 
-        *node = new Node(true, true);    
+        *node = new Node(true, true, &heapNodes);    
     ParseParamsOut tmp;
     vector< Node* > params;
     vector< Node* > defaults;
@@ -6221,7 +6311,8 @@ Node* parseFunctionDeclaration() {
     firstRestricted->isNull = true;
     if (strict) {
         if (isRestrictedWord(token->strvalue)) {
-            throwErrorTolerant(token, Messages[Mssg::StrictFunctionName], {});
+            throwErrorTolerant(token, 
+                               Messages[Mssg::StrictFunctionName], {});
         }
     } else {
         if (isRestrictedWord(token->strvalue)) {
@@ -6263,13 +6354,13 @@ Node* parseFunctionDeclaration() {
 } 
 
 //throw_ 
-Node* parseFunctionExpression() {
+Node* ParseTools::parseFunctionExpression() {
     DEBUGIN(" parseFunctionExpression()", false);
     ptrTkn token, firstRestricted = makeToken(), stricted;
     firstRestricted->isNull = true;
     string message, tokval;
     Node *body, *id, 
-        *node = new Node(true, true);    
+        *node = new Node(true, true, &heapNodes);    
     ParseParamsOut tmp;
     vector< Node* > params;
     vector< Node* > defaults;
@@ -6328,7 +6419,7 @@ Node* parseFunctionExpression() {
     // 14 Program
 
 //throw_ 
-Node* parseSourceElement() {
+Node* ParseTools::parseSourceElement() {
     DEBUGIN(" parseSourceElement()", false);
     string val;
     if (lookahead->type == TknType::Keyword) {
@@ -6352,7 +6443,7 @@ Node* parseSourceElement() {
 }
 
 //throw_ 
-vector< Node* > parseSourceElements() {
+vector< Node* > ParseTools::parseSourceElements() {
     DEBUGIN(" parseSourceElementS() ", false);
     Node *sourceElement;
     vector< Node* > sourceElements;
@@ -6407,14 +6498,14 @@ vector< Node* > parseSourceElements() {
 }
 
 //throw_ 
-Node* parseProgram() {
+Node* ParseTools::parseProgram() {
     DEBUGIN(" parseProgram()", false);
     Node *node;
     vector< Node* > body;
 
     skipComment(); //ev
     peek();
-    node = new Node(true, true);
+    node = new Node(true, true, &heapNodes);
     strict = false;
     body = parseSourceElements();
     node->finishProgram(body);
@@ -6635,6 +6726,8 @@ void parseImpl(Document &outJson,
     glblAlloc = &alloc;
     Node *programNode;
 
+    ParseTools pt;
+
     initglobals();
 
     sourceraw = code.data();
@@ -6670,9 +6763,9 @@ void parseImpl(Document &outJson,
     }
 
 #ifndef THROWABLE
-    ErrWrapNodePtr tmp = parseProgram();
+    ErrWrapNodePtr tmp = pt.parseProgram();
     if (tmp.err) {
-        clearHeap();
+        //pt.clearHeap();
         //json_object_put(programJson);
         if (errorType == 0) {
             retError.toJson(outJson, &alloc);
@@ -6685,9 +6778,9 @@ void parseImpl(Document &outJson,
 #endif
 #ifdef THROWABLE
     try {
-        programNode = parseProgram();
+        programNode = pt.parseProgram();
     } catch(ExError& e) {        
-        clearHeap();
+        //pt.clearHeap();
         if (retErrorsAsJson) {
             //json_object_put(programJson);
             e.toJson(outJson, &alloc);
@@ -6724,7 +6817,7 @@ void parseImpl(Document &outJson,
 
 
    extra = ExtraStruct();
-   delNode(programNode);
+//programNode->delNode(programNode);
    return;
 }
 void parseImpl(Document& d, const u16string code,
