@@ -383,6 +383,7 @@ reqinline
 bool hasSet(const string needle, const unordered_set<string>& haystack) {
     return (haystack.find(needle) != haystack.end());
 }
+
 reqinline 
 bool has(const u16string needle, const vector<u16string>& haystack) {
     return find(haystack.begin(), haystack.end(), needle) != haystack.end();
@@ -418,21 +419,24 @@ template<typename T> bool hasStringKey(const string needle, const map<string,T> 
 }
 
 
-reqinline 
+//#define slice(a, b, c) u16string( ((const char16_t *) a+b), c-b)
+reqinline
 u16string slice(const char16_t *arr, int start, int end) {
     //start inclusive, end exclusive, just like js
     const char16_t * startptr = arr + start;    
     return u16string(startptr, (end-start));
-}
+    }
 
+
+//#define appendChar(a, b) a.append(u16string({b}))
 reqinline
-void append(u16string &base, char16_t tail) { 
+void appendChar(u16string &base, char16_t tail) { 
     base.append(u16string({tail})); 
     //? switch to u16stringstream? but there's nothing like that
     // on SO someone said append only handles certain input types right,
     //not sure if that's true for u16string.
 
-}
+    }
 
 int parseInt(u16string in_u16, int radix) {  // !!!
     const int zero = 48;
@@ -785,8 +789,7 @@ TokenStruct::TokenStruct() {
 typedef shared_ptr<TokenStruct> ptrTkn;
 
 inline ptrTkn makeToken() {
-    TokenStruct *m = new TokenStruct();
-    shared_ptr<TokenStruct> tmp (m);
+    shared_ptr<TokenStruct> tmp (new TokenStruct());
     return tmp;
 }
 
@@ -1259,6 +1262,8 @@ void clearHeap() {
 }
 
 const char16_t * sourceraw;
+
+//#define source(a) (*(sourceraw + a))
 reqinline 
 char16_t source(int idx) { return *(sourceraw + idx); }
 
@@ -1628,6 +1633,7 @@ bool isLineTerminator(const char16_t& ch) {
 
  // 7.6 Identifier Names and Identifiers
 bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * arr) {
+    //DEBUGIN("   intervalarr_contains ", false);
     vector< unsigned int > *range_starts = &(arr->at(0)),
         *range_ends = &(arr->at(1));
     unsigned int pos = lower_bound(range_starts->begin(), 
@@ -1715,7 +1721,7 @@ const vector<string> KEYWORDSET =
      "instanceof"};
  
 // 7.6.1.1 Keywords
-reqinline
+reqinline     
 bool isKeyword(const string id) {
      DEBUGIN("   isKeyword(const u16string id)", false);
      if (strict && isStrictModeReservedWord(id)) { 
@@ -2134,7 +2140,7 @@ string getEscapedIdentifier() {
             break;
         }
         ++idx;
-        append(id, ch);
+        appendChar(id, ch);
 
         // '\u' (U+005C, U+0075) denotes an escaped character.
         if (ch == 0x5C) {
@@ -2149,7 +2155,7 @@ string getEscapedIdentifier() {
                 throwError(NULLPTRTKN, 
                            Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
             }
-            append(id, ch);
+            appendChar(id, ch);
         }
     }
 
@@ -2378,7 +2384,7 @@ ptrTkn scanHexLiteral(const int start) {
         if (!isHexDigit(source(idx))) {
             break;
         }
-        append(number, source(idx++));
+        appendChar(number, source(idx++));
     }
 
     if (number.length() == 0) {
@@ -2406,13 +2412,13 @@ ptrTkn scanOctalLiteral(const int start) {
     u16string number = u"0";
 
     ptrTkn t = makeToken();
-    append(number, source(idx++));
+    appendChar(number, source(idx++));
 
     while (idx < length) {
         if (!isOctalDigit(source(idx))) {
             break;
         }
-        append(number, source(idx++));
+        appendChar(number, source(idx++));
     }
 
     if (isIdentifierStart(source(idx)) || isDecimalDigit(source(idx))) {
@@ -2447,7 +2453,7 @@ ptrTkn scanNumericLiteral() {
     start = idx;
     number = u"";
     if (ch != u'.') {
-        append(number, source(idx++));
+        appendChar(number, source(idx++));
         ch = source(idx);
 
         // Hex number starts with '0x'.
@@ -2468,7 +2474,7 @@ ptrTkn scanNumericLiteral() {
         }
 
         while (isDecimalDigit(source(idx))) {
-            append(number, source(idx++));
+            appendChar(number, source(idx++));
         }
         ch = source(idx);
     }
@@ -2476,25 +2482,25 @@ ptrTkn scanNumericLiteral() {
     if (ch == u'.') {
         //#JSON can't parse decimal numbers without
         //#a number preceding the decimal.
-        if (start == idx) { append(number, u'0'); }
+        if (start == idx) { appendChar(number, u'0'); }
 
-        append(number, source(idx++));
+        appendChar(number, source(idx++));
         while (isDecimalDigit(source(idx))) {
             //if (source(idx) != u'0') { hasDot = true; } //# js auto-casts dbls of negligible epsilon-to-int to int
-            append(number, source(idx++));
+            appendChar(number, source(idx++));
         }
         ch = source(idx);
     }
 
     if (ch == u'e' || ch == u'E') {
-        append(number, source(idx++));
+        appendChar(number, source(idx++));
         ch = source(idx);
         if (ch == u'+' || ch == u'-') {
-            append(number, source(idx++));
+            appendChar(number, source(idx++));
         }
         if (isDecimalDigit(source(idx))) {
             while (isDecimalDigit(source(idx))) {
-                append(number, source(idx++));
+                appendChar(number, source(idx++));
             }
         } else {
             throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
@@ -2563,24 +2569,24 @@ ptrTkn scanStringLiteral() {
                         restore = idx;
                         unescaped = scanHexEscape(ch);
                         if (unescaped != NULL_CHAR16) {
-                            append(str, unescaped);
+                            appendChar(str, unescaped);
                         } else {
                             idx = restore;
-                            append(str, ch);
+                            appendChar(str, ch);
                         }
                     }    
                 } else if (ch == u'n') {
-                    append(str, u'\n');
+                    appendChar(str, u'\n');
                 } else if (ch == u'r') {
-                    append(str, u'\r');
+                    appendChar(str, u'\r');
                 } else if (ch == u't') {
-                    append(str, u'\t');
+                    appendChar(str, u'\t');
                 } else if (ch == u'b') {
-                    append(str, u'\b');
+                    appendChar(str, u'\b');
                 } else if (ch == u'f') {
-                    append(str, u'\f');
+                    appendChar(str, u'\f');
                 } else if (ch == u'v') {
-                    append(str, u'\x0B');
+                    appendChar(str, u'\x0B');
                 } else {
                     if (isOctalDigit(ch)) {
                         code = u16string({u"01234567"}).find_first_of(ch);
@@ -2606,7 +2612,7 @@ ptrTkn scanStringLiteral() {
                                     .find_first_of(source(idx++));
                             }
                         }
-                        append(str, code);
+                        appendChar(str, (char16_t) code);
                     } else {
                         str += ch;
                     }
@@ -2621,7 +2627,7 @@ ptrTkn scanStringLiteral() {
         } else if (isLineTerminator(ch)) {
             break;
         } else {
-            append(str, ch);
+            appendChar(str, ch);
         }
     }
 
@@ -2654,20 +2660,20 @@ RegexHalf scanRegExpBody() {
     ch = source(idx);
     softAssert(ch == u'/',
                "Regular expression literal must start with a slash");
-    append(str, source(idx++)); 
+    appendChar(str, source(idx++)); 
 
     classMarker = false;
     terminated = false;
     while (idx < length) {
         ch = source(idx++);
-        append(str, ch);
+        appendChar(str, ch);
         if (ch == u'\\') {
             ch = source(idx++);
             // ECMA-262 7.8.5
             if (isLineTerminator(ch)) {
                 throwError(NULLPTRTKN, Messages[Mssg::UnterminatedRegExp], {});
             }
-            append(str, ch);
+            appendChar(str, ch);
         } else if (isLineTerminator(ch)) {
             throwError(NULLPTRTKN, Messages[Mssg::UnterminatedRegExp], {});
         } else if (classMarker) {
@@ -2720,14 +2726,14 @@ RegexHalf scanRegExpFlags() {
                 restore = idx;
                 ch = scanHexEscape(u'u');
                 if (ch) {
-                    append(flags, ch);
+                    appendChar(flags, ch);
                     for (str.append(u16string({u'\\', u'u'})); 
                          restore < idx; ++restore) {                         
-                        append(str, source(restore));
+                        appendChar(str, source(restore));
                     }
                 } else {
                     idx = restore;
-                    append(flags, u'u');
+                    appendChar(flags, u'u');
                     str.append(u"\\u");
                 }
 
@@ -2735,14 +2741,14 @@ RegexHalf scanRegExpFlags() {
                                    Messages[Mssg::UnexpectedToken], 
                                    {"ILLEGAL"});
             } else {
-                append(str, u'\\');
+                appendChar(str, u'\\');
                 throwErrorTolerant(NULLPTRTKN, 
                                    Messages[Mssg::UnexpectedToken],
                                    {"ILLEGAL"});
             }
         } else {
-            append(flags, ch);
-            append(str, ch);
+            appendChar(flags, ch);
+            appendChar(str, ch);
         }
     }
 
@@ -4116,21 +4122,22 @@ void expectKeyword(const string keyword) {
 
 // Return true if the next token matches the specified punctuator.
 
+//#define match(A) (lookahead->type == TknType::Punctuator && lookahead->strvalue == A)
 reqinline
 bool match(const string value) { 
     return lookahead->type == TknType::Punctuator 
         && lookahead->strvalue == value;
-}
+        }
 
 // Return true if the next token matches the specified keyword
-
+//#define matchKeyword(A) (lookahead->type == TknType::Keyword && lookahead->strvalue == A)
 reqinline
 bool matchKeyword(const string keyword) {
     // DEBUGIN(" matchKeyword(const u16string keyword)", false);
     //  DEBUGOUT("matchKey", false); 
     return lookahead->type == TknType::Keyword 
         && lookahead->strvalue == keyword;
-}
+        }
 
     // Return true if the next token is an assignment operator
 
