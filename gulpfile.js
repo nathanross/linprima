@@ -146,14 +146,14 @@ gulp.task('ffi', function() { //gdb and valgrind debugging
     //asm requires code to be built before completing wrapper
     //as code is substituted into wrapper.
 gulp.task('asmccall', function(callback) {
-    var cb = function(a,b,c) { toShell(a,b,c); callback(); };
-    exec("emcc -std=c++11 -O2 -s NO_EXIT_RUNTIME=1 -s RELOOPER_BUFFER_SIZE=419430400 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS', '_someTest']\" tmp/src.cpp -o tmp/linprima.asm.0.js", 
+    exec("emcc -std=c++11 -O3     -s ALIASING_FUNCTION_POINTERS=0 " +
+         ((argv.dbg !== undefined)? " -D DO_DEBUG " : "") +
+         " -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js", 
         makeExecCallback(callback));
 });
 
 gulp.task('asmpcall', function(callback) {
-//    var cb = function(a,b,c) { toShell(a,b,c); callback(); };    
-    exec("emcc -Oz -std=c++11 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js",
+    exec("/opt/emscripten/emcc -Oz -std=c++11 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js",
         makeExecCallback(callback));
 });
 gulp.task('asmtcall', function(callback) {
@@ -189,7 +189,7 @@ gulp.task('asm', function(callback) {
                 'throw52',
                 'prepareSource',
                 (argv.p !== undefined) ? 'asmpcall' : 
-                (argv.prof !== undefined) ? 'asmtcall' :'asmccall)', 
+                (argv.prof !== undefined) ? 'asmtcall' :'asmccall', 
                 'umdFixes', 
                 'sync',
                 'asmWrapper',  

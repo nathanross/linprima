@@ -1,1 +1,1 @@
-{'tolerant':true}
+{"range": true, "loc": true, "tokens": true}

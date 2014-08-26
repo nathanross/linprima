@@ -20,6 +20,7 @@
     //=ASM= if ('console' in root) { console = root.console; }
 
     //=FFI= //%FFIsnippet.js%
+    
     /*
     //=FFI= //%nodedebug.js%
     */
@@ -59,7 +60,8 @@
         var optStr = "{}";
         if (options !== undefined) { 
             if (typeof options == 'string' 
-                || (options instanceof String)) {
+                || (options instanceof String)
+                || 'slice' in options) {
                 optStr = options;
             } else if ('readObject' in options) {
                 optStr = String(options);
@@ -94,11 +96,12 @@
         var optStr = "{}";
         if (options !== undefined) { 
             if (typeof options == 'string' 
-                || (options instanceof String)) {
+                || (options instanceof String)
+                || 'slice' in options) {
                 optStr = options;
             } else if ('readObject' in options) {
                 optStr = String(options);
-            } else { 
+            } else {
                 optStr = JSON.stringify(options); 
             }
         }
@@ -161,6 +164,7 @@
         if (out.comments != undefined) { programOut.comments = out["comments"]; }
         if (out.errors != undefined) { programOut.errors = out["errors"]; }
         if (out.tokens != undefined) { programOut.tokens = out["tokens"]; }
+ //       if (out.debug != undefined) { programOut.debug = out.errors; }   
         return programOut;
     }
 
