@@ -798,7 +798,7 @@ struct TokenRecord {
     Loc loc;
     int range[2];
     string valuestring;
-    string typestring;
+    TknType type;
     TokenRecord();
     void toJson(Value& out, AllocatorType* alloc);
 };
@@ -1267,9 +1267,21 @@ const char16_t * sourceraw;
 reqinline 
 char16_t source(int idx) { return *(sourceraw + idx); }
 
+map<TknType, string> TokenName = {
+    {TknType::BooleanLiteral, "Boolean"},
+    {TknType::EOFF, "<end>"},
+    {TknType::Identifier, "Identifier"},
+    {TknType::Keyword, "Keyword"},
+    {TknType::NullLiteral, "Null"},
+    {TknType::NumericLiteral, "Numeric"},
+    {TknType::Punctuator, "Punctuator"},
+    {TknType::StringLiteral, "String"},
+    {TknType::RegularExpression, "RegularExpression"}
+};
+
 void TokenRecord::toJson(Value& out, AllocatorType* alloc) {
     DEBUGIN(" TokenRecord::toJson", false);    
-    jsonAddString(out, alloc, "type", this->typestring);
+    jsonAddString(out, alloc, "type", TokenName[this->type]);
     jsonAddString(out, alloc, "value", this->valuestring);
     if (extra.range) {
         Value rangearr(kArrayType);
@@ -1313,26 +1325,6 @@ map<string, int> LiteralType = {
     {"Bool", 5},
     {"Null", 6}
 };
-
-//#todo: investigate turning this into an enum'd class
-//#to avoid adding unsightly static casts everywhere used,
-//#will have to change member .type in TokenStruct, and likely
-//#skim over all instances and ways that type is used,
-//#example check if it's ever passed to a lh variable that is
-//#not the .type member of TokenStruct
-
-map<TknType, string> TokenName = {
-    {TknType::BooleanLiteral, "Boolean"},
-    {TknType::EOFF, "<end>"},
-    {TknType::Identifier, "Identifier"},
-    {TknType::Keyword, "Keyword"},
-    {TknType::NullLiteral, "Null"},
-    {TknType::NumericLiteral, "Numeric"},
-    {TknType::Punctuator, "Punctuator"},
-    {TknType::StringLiteral, "String"},
-    {TknType::RegularExpression, "RegularExpression"}
-};
-
 
 vector< string > FnExprTokens = {
     // A function following one of those tokens is an expression.
@@ -2834,7 +2826,7 @@ ptrTkn collectRegex() {
         if (extra.tokenRecords.size() > 0) {
             token = extra.tokenRecords[extra.tokenRecords.size() - 1];
             if (token.range[0] == pos 
-                && token.typestring == "Punctuator") {
+                && token.type == TknType::Punctuator) {
                 
                 tokval = token.valuestring; 
                 if (tokval == "/" || tokval == "/=") {
@@ -2843,7 +2835,7 @@ ptrTkn collectRegex() {
             }
         }
 
-        tr.typestring = "RegularExpression";
+        tr.type = TknType::RegularExpression;
         tr.valuestring = regex->literal;
         tr.range[0] = pos;
         tr.range[1] = idx;
@@ -2878,7 +2870,7 @@ ptrTkn advanceSlash() {
     }    
     prevToken = extra.tokenRecords[extra.tokenRecords.size() - 1];
 
-    if (prevToken.typestring == "Punctuator") { 
+    if (prevToken.type == TknType::Punctuator) { 
         if (prevToken.valuestring == "]") { 
             return DBGRET("advSlash2", scanPunctuator());
         }
@@ -2892,7 +2884,7 @@ ptrTkn advanceSlash() {
             if (extra.openParenToken > 0
                 && extra.tokenRecords.size() > (extra.openParenToken - 1)) { 
                 checkToken = extra.tokenRecords[extra.openParenToken - 1];
-                if (checkToken.typestring == "Keyword" && 
+                if (checkToken.type == TknType::Keyword && 
                     has(checkToken.valuestring, 
                         {"if", "while", "for", "with"})) {
                     return DBGRET("advSlash3", collectRegex()); 
@@ -2905,8 +2897,8 @@ ptrTkn advanceSlash() {
             // but we have to check for that.
             if (extra.openCurlyToken >= 3 &&
                 extra.tokenRecords.size() > (extra.openCurlyToken -3) &&
-                extra.tokenRecords[extra.openCurlyToken - 3].typestring 
-                == "Keyword") { 
+                extra.tokenRecords[extra.openCurlyToken - 3].type 
+                == TknType::Keyword) { 
                 // Anonymous function.
 
                 if (extra.openCurlyToken > 3
@@ -2920,8 +2912,8 @@ ptrTkn advanceSlash() {
             } else if (extra.openCurlyToken >= 4 
                        && extra.tokenRecords.size()
                        > (extra.openCurlyToken -4) 
-                       && extra.tokenRecords[extra.openCurlyToken - 4].typestring
-                       == "Keyword") {
+                       && extra.tokenRecords[extra.openCurlyToken - 4].type
+                       == TknType::Keyword) {
                 // again previously had checked type against string in this cond.
                 // Named function.
                 if (extra.openCurlyToken > 4
@@ -2945,7 +2937,7 @@ ptrTkn advanceSlash() {
         }
         return DBGRET("advSlash10", collectRegex());
     }
-    if (prevToken.typestring == "Keyword") { 
+    if (prevToken.type == TknType::Keyword) { 
         return DBGRET("advSlash11", collectRegex()); 
     }
     return DBGRET("advSlash12", scanPunctuator());
@@ -3024,7 +3016,7 @@ ptrTkn collectToken() {
         //this didn't check against string. is fine.
         TokenRecord tr;
         tr.valuestring = toU8(slice(sourceraw, token->start, token->end));
-        tr.typestring = TokenName[token->type];
+        tr.type = token->type;
         tr.range[0] = token->start;
         tr.range[1] = token->end;
         tr.loc = loc;
@@ -6447,7 +6439,7 @@ void filterTokenLocation() {
 
     for (unsigned i = 0; i < extra.tokenRecords.size(); ++i) {
         entry = extra.tokenRecords[i];
-        token.typestring = entry.typestring;
+        token.type = entry.type;
         token.valuestring = entry.valuestring;
         if (extra.range) { 
             token.range[0] = entry.range[0];
