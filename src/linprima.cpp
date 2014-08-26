@@ -349,10 +349,6 @@ u16string toU16string(const string input){
 }
 #endif
 
-Value& jsonKey(string in, AllocatorType* alloc) {
-    return Value(in.data(), in.length(), *alloc).Move();
-}
-
 template <typename T>
 void vec2jsonCallback(Value& root,
                         AllocatorType* alloc,
@@ -368,8 +364,12 @@ void vec2jsonCallback(Value& root,
         f(in[i], el, alloc);
         arr.PushBack(el, *alloc);
     }
-    root.AddMember(jsonKey(path, alloc), 
-                   arr, *alloc);
+    Value pathval(path.data(),
+                  path.length(), 
+                  *alloc);
+    root.AddMember(pathval.Move(), 
+                   arr,
+                   *alloc);
     //DEBUGOUT("", false);     
 }
 
@@ -6723,6 +6723,10 @@ void parseImpl(Document &outJson,
                                      extra.tokenRecords,
                                      &TokenRecord::toJson);
    }
+   //   string s = "debug";
+   //Value dbgval((int) extra.tokenRecords.size());
+   //outJson.AddMember(Value(s.data(), s.length(), alloc).Move(),
+   //                  dbgval, alloc);
 
    if (extra.errorTolerant) {
        vec2jsonCallback<ExError>(outJson, &alloc, "errors",
@@ -6819,7 +6823,7 @@ extern "C" {
     // characters as represented in javascript strings (ucs)
     char* tokenizeASMJS(const char *code, int codelen,
                         const char* options) {
-        //printf("received string: =%s=\n", code);
+
 
             return strToChar(tokenizeRetString(
               toU16string(string(code)).substr(0,codelen), 
@@ -6827,8 +6831,8 @@ extern "C" {
 
     }
     char* parseASMJS(const char *code, int codelen, 
-                      const char* options) {
-        
+                      const char* options) {        
+        //printf("received options: =%s=\n", options); 
         return strToChar(parseRetString(
                     toU16string(string(code)).substr(0, codelen), 
                                        OptionsStruct(options)));
