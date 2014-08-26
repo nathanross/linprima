@@ -349,10 +349,6 @@ u16string toU16string(const string input){
 }
 #endif
 
-Value& jsonKey(string in, AllocatorType* alloc) {
-    return Value(in.data(), in.length(), *alloc).Move();
-}
-
 template <typename T>
 void vec2jsonCallback(Value& root,
                         AllocatorType* alloc,
@@ -368,8 +364,12 @@ void vec2jsonCallback(Value& root,
         f(in[i], el, alloc);
         arr.PushBack(el, *alloc);
     }
-    root.AddMember(jsonKey(path, alloc), 
-                   arr, *alloc);
+    Value pathval(path.data(),
+                  path.length(), 
+                  *alloc);
+    root.AddMember(pathval.Move(), 
+                   arr,
+                   *alloc);
     //DEBUGOUT("", false);     
 }
 
@@ -383,6 +383,7 @@ reqinline
 bool hasSet(const string needle, const unordered_set<string>& haystack) {
     return (haystack.find(needle) != haystack.end());
 }
+
 reqinline 
 bool has(const u16string needle, const vector<u16string>& haystack) {
     return find(haystack.begin(), haystack.end(), needle) != haystack.end();
@@ -418,21 +419,24 @@ template<typename T> bool hasStringKey(const string needle, const map<string,T> 
 }
 
 
-reqinline 
+//#define slice(a, b, c) u16string( ((const char16_t *) a+b), c-b)
+reqinline
 u16string slice(const char16_t *arr, int start, int end) {
     //start inclusive, end exclusive, just like js
     const char16_t * startptr = arr + start;    
     return u16string(startptr, (end-start));
-}
+    }
 
+
+//#define appendChar(a, b) a.append(u16string({b}))
 reqinline
-void append(u16string &base, char16_t tail) { 
+void appendChar(u16string &base, char16_t tail) { 
     base.append(u16string({tail})); 
     //? switch to u16stringstream? but there's nothing like that
     // on SO someone said append only handles certain input types right,
     //not sure if that's true for u16string.
 
-}
+    }
 
 int parseInt(u16string in_u16, int radix) {  // !!!
     const int zero = 48;
@@ -785,8 +789,7 @@ TokenStruct::TokenStruct() {
 typedef shared_ptr<TokenStruct> ptrTkn;
 
 inline ptrTkn makeToken() {
-    TokenStruct *m = new TokenStruct();
-    shared_ptr<TokenStruct> tmp (m);
+    shared_ptr<TokenStruct> tmp (new TokenStruct());
     return tmp;
 }
 
@@ -795,7 +798,7 @@ struct TokenRecord {
     Loc loc;
     int range[2];
     string valuestring;
-    string typestring;
+    TknType type;
     TokenRecord();
     void toJson(Value& out, AllocatorType* alloc);
 };
@@ -1230,12 +1233,26 @@ ptrTkn lookahead;
 AllocatorType * glblAlloc;
 
 const char16_t * sourceraw;
+
+//#define source(a) (*(sourceraw + a))
 reqinline 
 char16_t source(int idx) { return *(sourceraw + idx); }
 
+map<TknType, string> TokenName = {
+    {TknType::BooleanLiteral, "Boolean"},
+    {TknType::EOFF, "<end>"},
+    {TknType::Identifier, "Identifier"},
+    {TknType::Keyword, "Keyword"},
+    {TknType::NullLiteral, "Null"},
+    {TknType::NumericLiteral, "Numeric"},
+    {TknType::Punctuator, "Punctuator"},
+    {TknType::StringLiteral, "String"},
+    {TknType::RegularExpression, "RegularExpression"}
+};
+
 void TokenRecord::toJson(Value& out, AllocatorType* alloc) {
     DEBUGIN(" TokenRecord::toJson", false);    
-    jsonAddString(out, alloc, "type", this->typestring);
+    jsonAddString(out, alloc, "type", TokenName[this->type]);
     jsonAddString(out, alloc, "value", this->valuestring);
     if (extra.range) {
         Value rangearr(kArrayType);
@@ -1279,26 +1296,6 @@ map<string, int> LiteralType = {
     {"Bool", 5},
     {"Null", 6}
 };
-
-//#todo: investigate turning this into an enum'd class
-//#to avoid adding unsightly static casts everywhere used,
-//#will have to change member .type in TokenStruct, and likely
-//#skim over all instances and ways that type is used,
-//#example check if it's ever passed to a lh variable that is
-//#not the .type member of TokenStruct
-
-map<TknType, string> TokenName = {
-    {TknType::BooleanLiteral, "Boolean"},
-    {TknType::EOFF, "<end>"},
-    {TknType::Identifier, "Identifier"},
-    {TknType::Keyword, "Keyword"},
-    {TknType::NullLiteral, "Null"},
-    {TknType::NumericLiteral, "Numeric"},
-    {TknType::Punctuator, "Punctuator"},
-    {TknType::StringLiteral, "String"},
-    {TknType::RegularExpression, "RegularExpression"}
-};
-
 
 vector< string > FnExprTokens = {
     // A function following one of those tokens is an expression.
@@ -1599,6 +1596,7 @@ bool isLineTerminator(const char16_t& ch) {
 
  // 7.6 Identifier Names and Identifiers
 bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * arr) {
+    //DEBUGIN("   intervalarr_contains ", false);
     vector< unsigned int > *range_starts = &(arr->at(0)),
         *range_ends = &(arr->at(1));
     unsigned int pos = lower_bound(range_starts->begin(), 
@@ -2109,7 +2107,7 @@ string getEscapedIdentifier() {
             break;
         }
         ++idx;
-        append(id, ch);
+        appendChar(id, ch);
 
         // '\u' (U+005C, U+0075) denotes an escaped character.
         if (ch == 0x5C) {
@@ -2124,7 +2122,7 @@ string getEscapedIdentifier() {
                 throwError(NULLPTRTKN, 
                            Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
             }
-            append(id, ch);
+            appendChar(id, ch);
         }
     }
 
@@ -2146,7 +2144,16 @@ string getIdentifier() {
             idx = start;
             return DBGRET("", getEscapedIdentifier());
         }
-        if (isIdentifierPart(ch)) {
+        // this is a hotpath (e.g. about 10th-15th in # calls)
+        // force-inlining isIdentifierPart here and 
+        // removing the 2x jumps per loop
+        // saves about 95% of its cost.
+        if ((ch == 0x24) || (ch == 0x5F) ||  // $ (dollar) and _ (underscore)
+         (ch >= 0x41 && ch <= 0x5A) ||         // A..Z
+         (ch >= 0x61 && ch <= 0x7A) ||         // a..z
+         (ch >= 0x30 && ch <= 0x39) ||         // 0..9
+         ((ch >= 0x80) && intervalarr_contains((unsigned int) ch, 
+                                               &nonasciiIdentifierpart))) {
             ++idx;
         } else {
             break;
@@ -2353,7 +2360,7 @@ ptrTkn scanHexLiteral(const int start) {
         if (!isHexDigit(source(idx))) {
             break;
         }
-        append(number, source(idx++));
+        appendChar(number, source(idx++));
     }
 
     if (number.length() == 0) {
@@ -2381,13 +2388,13 @@ ptrTkn scanOctalLiteral(const int start) {
     u16string number = u"0";
 
     ptrTkn t = makeToken();
-    append(number, source(idx++));
+    appendChar(number, source(idx++));
 
     while (idx < length) {
         if (!isOctalDigit(source(idx))) {
             break;
         }
-        append(number, source(idx++));
+        appendChar(number, source(idx++));
     }
 
     if (isIdentifierStart(source(idx)) || isDecimalDigit(source(idx))) {
@@ -2422,7 +2429,7 @@ ptrTkn scanNumericLiteral() {
     start = idx;
     number = u"";
     if (ch != u'.') {
-        append(number, source(idx++));
+        appendChar(number, source(idx++));
         ch = source(idx);
 
         // Hex number starts with '0x'.
@@ -2443,7 +2450,7 @@ ptrTkn scanNumericLiteral() {
         }
 
         while (isDecimalDigit(source(idx))) {
-            append(number, source(idx++));
+            appendChar(number, source(idx++));
         }
         ch = source(idx);
     }
@@ -2451,25 +2458,25 @@ ptrTkn scanNumericLiteral() {
     if (ch == u'.') {
         //#JSON can't parse decimal numbers without
         //#a number preceding the decimal.
-        if (start == idx) { append(number, u'0'); }
+        if (start == idx) { appendChar(number, u'0'); }
 
-        append(number, source(idx++));
+        appendChar(number, source(idx++));
         while (isDecimalDigit(source(idx))) {
             //if (source(idx) != u'0') { hasDot = true; } //# js auto-casts dbls of negligible epsilon-to-int to int
-            append(number, source(idx++));
+            appendChar(number, source(idx++));
         }
         ch = source(idx);
     }
 
     if (ch == u'e' || ch == u'E') {
-        append(number, source(idx++));
+        appendChar(number, source(idx++));
         ch = source(idx);
         if (ch == u'+' || ch == u'-') {
-            append(number, source(idx++));
+            appendChar(number, source(idx++));
         }
         if (isDecimalDigit(source(idx))) {
             while (isDecimalDigit(source(idx))) {
-                append(number, source(idx++));
+                appendChar(number, source(idx++));
             }
         } else {
             throwError(NULLPTRTKN, Messages[Mssg::UnexpectedToken], {"ILLEGAL"});
@@ -2538,24 +2545,24 @@ ptrTkn scanStringLiteral() {
                         restore = idx;
                         unescaped = scanHexEscape(ch);
                         if (unescaped != NULL_CHAR16) {
-                            append(str, unescaped);
+                            appendChar(str, unescaped);
                         } else {
                             idx = restore;
-                            append(str, ch);
+                            appendChar(str, ch);
                         }
                     }    
                 } else if (ch == u'n') {
-                    append(str, u'\n');
+                    appendChar(str, u'\n');
                 } else if (ch == u'r') {
-                    append(str, u'\r');
+                    appendChar(str, u'\r');
                 } else if (ch == u't') {
-                    append(str, u'\t');
+                    appendChar(str, u'\t');
                 } else if (ch == u'b') {
-                    append(str, u'\b');
+                    appendChar(str, u'\b');
                 } else if (ch == u'f') {
-                    append(str, u'\f');
+                    appendChar(str, u'\f');
                 } else if (ch == u'v') {
-                    append(str, u'\x0B');
+                    appendChar(str, u'\x0B');
                 } else {
                     if (isOctalDigit(ch)) {
                         code = u16string({u"01234567"}).find_first_of(ch);
@@ -2581,7 +2588,7 @@ ptrTkn scanStringLiteral() {
                                     .find_first_of(source(idx++));
                             }
                         }
-                        append(str, code);
+                        appendChar(str, (char16_t) code);
                     } else {
                         str += ch;
                     }
@@ -2596,7 +2603,7 @@ ptrTkn scanStringLiteral() {
         } else if (isLineTerminator(ch)) {
             break;
         } else {
-            append(str, ch);
+            appendChar(str, ch);
         }
     }
 
@@ -2629,20 +2636,20 @@ RegexHalf scanRegExpBody() {
     ch = source(idx);
     softAssert(ch == u'/',
                "Regular expression literal must start with a slash");
-    append(str, source(idx++)); 
+    appendChar(str, source(idx++)); 
 
     classMarker = false;
     terminated = false;
     while (idx < length) {
         ch = source(idx++);
-        append(str, ch);
+        appendChar(str, ch);
         if (ch == u'\\') {
             ch = source(idx++);
             // ECMA-262 7.8.5
             if (isLineTerminator(ch)) {
                 throwError(NULLPTRTKN, Messages[Mssg::UnterminatedRegExp], {});
             }
-            append(str, ch);
+            appendChar(str, ch);
         } else if (isLineTerminator(ch)) {
             throwError(NULLPTRTKN, Messages[Mssg::UnterminatedRegExp], {});
         } else if (classMarker) {
@@ -2695,14 +2702,14 @@ RegexHalf scanRegExpFlags() {
                 restore = idx;
                 ch = scanHexEscape(u'u');
                 if (ch) {
-                    append(flags, ch);
+                    appendChar(flags, ch);
                     for (str.append(u16string({u'\\', u'u'})); 
                          restore < idx; ++restore) {                         
-                        append(str, source(restore));
+                        appendChar(str, source(restore));
                     }
                 } else {
                     idx = restore;
-                    append(flags, u'u');
+                    appendChar(flags, u'u');
                     str.append(u"\\u");
                 }
 
@@ -2710,14 +2717,14 @@ RegexHalf scanRegExpFlags() {
                                    Messages[Mssg::UnexpectedToken], 
                                    {"ILLEGAL"});
             } else {
-                append(str, u'\\');
+                appendChar(str, u'\\');
                 throwErrorTolerant(NULLPTRTKN, 
                                    Messages[Mssg::UnexpectedToken],
                                    {"ILLEGAL"});
             }
         } else {
-            append(flags, ch);
-            append(str, ch);
+            appendChar(flags, ch);
+            appendChar(str, ch);
         }
     }
 
@@ -2794,7 +2801,7 @@ ptrTkn collectRegex() {
         if (extra.tokenRecords.size() > 0) {
             token = extra.tokenRecords[extra.tokenRecords.size() - 1];
             if (token.range[0] == pos 
-                && token.typestring == "Punctuator") {
+                && token.type == TknType::Punctuator) {
                 
                 tokval = token.valuestring; 
                 if (tokval == "/" || tokval == "/=") {
@@ -2803,7 +2810,7 @@ ptrTkn collectRegex() {
             }
         }
 
-        tr.typestring = "RegularExpression";
+        tr.type = TknType::RegularExpression;
         tr.valuestring = regex->literal;
         tr.range[0] = pos;
         tr.range[1] = idx;
@@ -2838,7 +2845,7 @@ ptrTkn advanceSlash() {
     }    
     prevToken = extra.tokenRecords[extra.tokenRecords.size() - 1];
 
-    if (prevToken.typestring == "Punctuator") { 
+    if (prevToken.type == TknType::Punctuator) { 
         if (prevToken.valuestring == "]") { 
             return DBGRET("advSlash2", scanPunctuator());
         }
@@ -2852,7 +2859,7 @@ ptrTkn advanceSlash() {
             if (extra.openParenToken > 0
                 && extra.tokenRecords.size() > (extra.openParenToken - 1)) { 
                 checkToken = extra.tokenRecords[extra.openParenToken - 1];
-                if (checkToken.typestring == "Keyword" && 
+                if (checkToken.type == TknType::Keyword && 
                     has(checkToken.valuestring, 
                         {"if", "while", "for", "with"})) {
                     return DBGRET("advSlash3", collectRegex()); 
@@ -2865,8 +2872,8 @@ ptrTkn advanceSlash() {
             // but we have to check for that.
             if (extra.openCurlyToken >= 3 &&
                 extra.tokenRecords.size() > (extra.openCurlyToken -3) &&
-                extra.tokenRecords[extra.openCurlyToken - 3].typestring 
-                == "Keyword") { 
+                extra.tokenRecords[extra.openCurlyToken - 3].type 
+                == TknType::Keyword) { 
                 // Anonymous function.
 
                 if (extra.openCurlyToken > 3
@@ -2880,8 +2887,8 @@ ptrTkn advanceSlash() {
             } else if (extra.openCurlyToken >= 4 
                        && extra.tokenRecords.size()
                        > (extra.openCurlyToken -4) 
-                       && extra.tokenRecords[extra.openCurlyToken - 4].typestring
-                       == "Keyword") {
+                       && extra.tokenRecords[extra.openCurlyToken - 4].type
+                       == TknType::Keyword) {
                 // again previously had checked type against string in this cond.
                 // Named function.
                 if (extra.openCurlyToken > 4
@@ -2905,7 +2912,7 @@ ptrTkn advanceSlash() {
         }
         return DBGRET("advSlash10", collectRegex());
     }
-    if (prevToken.typestring == "Keyword") { 
+    if (prevToken.type == TknType::Keyword) { 
         return DBGRET("advSlash11", collectRegex()); 
     }
     return DBGRET("advSlash12", scanPunctuator());
@@ -2984,7 +2991,7 @@ ptrTkn collectToken() {
         //this didn't check against string. is fine.
         TokenRecord tr;
         tr.valuestring = toU8(slice(sourceraw, token->start, token->end));
-        tr.typestring = TokenName[token->type];
+        tr.type = token->type;
         tr.range[0] = token->start;
         tr.range[1] = token->end;
         tr.loc = loc;
@@ -3242,7 +3249,7 @@ void Node::nodeVec(const string path, const vector< Node* > & nodes) {
                  arr, *glblAlloc);
     //DEBUGOUT("node::nodeVec", false);
 }
-reqinline
+inline
 void Node::addType(const Synt in) { 
     //DEBUGIN("addType", false);
     type = Syntax[in];
@@ -4237,6 +4244,7 @@ bool ParseTools::matchKeyword(const string keyword) {
     return lookahead->type == TknType::Keyword 
         && lookahead->strvalue == keyword;
 }
+
     // Return true if the next token is an assignment operator
 
 bool ParseTools::matchAssign() { 
@@ -4747,6 +4755,7 @@ Node* ParseTools::parseLeftHandSideExpressionAllowCall() {
     } else {
         expr = parsePrimaryExpression();
     }
+
     for (;;) {
         if (match(".")) {
             property = parseNonComputedMember();
@@ -6522,7 +6531,7 @@ void filterTokenLocation() {
 
     for (unsigned i = 0; i < extra.tokenRecords.size(); ++i) {
         entry = extra.tokenRecords[i];
-        token.typestring = entry.typestring;
+        token.type = entry.type;
         token.valuestring = entry.valuestring;
         if (extra.range) { 
             token.range[0] = entry.range[0];
@@ -6808,6 +6817,10 @@ void parseImpl(Document &outJson,
                                      extra.tokenRecords,
                                      &TokenRecord::toJson);
    }
+   //   string s = "debug";
+   //Value dbgval((int) extra.tokenRecords.size());
+   //outJson.AddMember(Value(s.data(), s.length(), alloc).Move(),
+   //                  dbgval, alloc);
 
    if (extra.errorTolerant) {
        vec2jsonCallback<ExError>(outJson, &alloc, "errors",

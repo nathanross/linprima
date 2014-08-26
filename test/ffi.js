@@ -1,6 +1,5 @@
 var lin = require("linprima.js");
 
-
 var fs = require("fs");
 var testcode = fs.readFileSync(__dirname + "/codetotest.js");
 var testopt = fs.readFileSync(__dirname + "/opttotest");

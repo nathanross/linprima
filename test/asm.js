@@ -1,9 +1,10 @@
 var lin = require("linprimasm");
-var b = lin.parse("var x = 4;",{});
-//var b = lin.parse("var o = {one: function() {} two:2};new   ᠎             　﻿a", { 'range':true, 'loc': true, 'tolerant': true });
-/*var b = lin.parse("var o = {one: function() {} two:2};", {"tolerant": true});
-b = lin.parse("var o = {one: function() {} two:2};", {"tolerant": true, "loc": true});
-b = lin.parse("var o = {one: function() {} two:2};", {"comment":false,"range":true,"loc":true,"tokens":true,"raw":true,"tolerant":true});
-b = lin.parse("var o = {one: function() {} two:2};", {"comment":false,"range":true,"loc":true,"tokens":true,"raw":true,"tolerant":true});*/
+
+var fs = require("fs");
+var testcode = fs.readFileSync(__dirname + "/codetotest.js");
+var testopt = fs.readFileSync(__dirname + "/opttotest");
+
+//var b = lin.parse(testcode, testopt);
+var b = lin.parse(testcode, testopt);
 
 console.log(JSON.stringify(b, undefined, 4));

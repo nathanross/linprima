@@ -1,4 +1,4 @@
-var lin = require("esprimaorig.js");
+var lin = require("esprima.js");
 
 var fs = require("fs");
 var testcode = fs.readFileSync(__dirname + "/codetotest.js");
