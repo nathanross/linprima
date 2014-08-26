@@ -1,5 +1,5 @@
 define(function (require) {
-var Benchmark = require('lib/benchmark/benchmark');
+//var Benchmark = require('lib/benchmark/benchmark');
 var esprima = require('build/esprima.js');
 //var promise = require('lib/promise/promise');
 
@@ -292,7 +292,7 @@ var runCmpBench = function(runInit) {
     cmpr.addSource(linprimaSrc, false);
     cmpr.useRole(full);
     cmpr.useRole(sparse);
-    cmpr.runInit('cases/active', []);
+    cmpr.runInit('cases/active', ['blocks.js']);
 }
 
 var setLinprima = function(callback) {

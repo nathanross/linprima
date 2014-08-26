@@ -53,12 +53,12 @@ gulp.task('throw52', function(callback) { //gperftools
 });
 
 gulp.task('prepareSource', function() {
-    return gulp.src(['lib/libjson*','tmp/linprima.cpp'])
+    return gulp.src(['lib/rapidjson*','tmp/linprima.cpp'])
     .pipe(concat('src.cpp'))
     .pipe(gulp.dest('tmp'));
 });
 gulp.task('prepareSourceProfiny', function() {
-    return gulp.src(['lib/libjson*','tmp/linprima.cpp'])
+    return gulp.src(['lib/rapidjson*','tmp/linprima.cpp'])
     .pipe(concat('src.cpp'))
     .pipe(replace('DEBUGIN("', '\n PROFINY_SCOPE \n DEBUGIN("'))
     .pipe(gulp.dest('tmp'));
@@ -147,13 +147,17 @@ gulp.task('ffi', function() { //gdb and valgrind debugging
     //as code is substituted into wrapper.
 gulp.task('asmccall', function(callback) {
     var cb = function(a,b,c) { toShell(a,b,c); callback(); };
-    exec("emcc -std=c++11 -O2 -s RELOOPER_BUFFER_SIZE=419430400 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS', '_someTest']\" tmp/src.cpp -o tmp/linprima.asm.0.js", 
+    exec("emcc -std=c++11 -O2 -s NO_EXIT_RUNTIME=1 -s RELOOPER_BUFFER_SIZE=419430400 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS', '_someTest']\" tmp/src.cpp -o tmp/linprima.asm.0.js", 
         makeExecCallback(callback));
 });
 
 gulp.task('asmpcall', function(callback) {
 //    var cb = function(a,b,c) { toShell(a,b,c); callback(); };    
-    exec("emcc -Oz -std=c++11 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js",
+    exec("emcc -Oz -std=c++11 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js",
+        makeExecCallback(callback));
+});
+gulp.task('asmtcall', function(callback) {
+    exec("emcc -profiling -std=c++11 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js",
         makeExecCallback(callback));
 });
 
@@ -184,7 +188,8 @@ gulp.task('asm', function(callback) {
     runSequence('cleanASM', 
                 'throw52',
                 'prepareSource',
-                (argv.p !== undefined) ? 'asmpcall' : 'asmccall', 
+                (argv.p !== undefined) ? 'asmpcall' : 
+                (argv.prof !== undefined) ? 'asmtcall' :'asmccall)', 
                 'umdFixes', 
                 'sync',
                 'asmWrapper',  

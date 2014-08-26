@@ -28,7 +28,6 @@ var runNode = function(path) {
     } catch(e) {
     }
     //});
-    console.log("hi");
     var filelist =this.fs.readdirSync(path);
     var getFileCallback = function (fname) {            
         return fs.readFileSync(path + '/' + fname, "utf8");
