@@ -224,7 +224,7 @@ class Throw52Task:
         f_map = {}
         void_funcs = [ x for x in f_map if f_map[x] == 'void' ]
         asign_funcs = [ x for x in f_map if f_map[x] != 'void' ]
-        ident = "[a-zA-Z_](?:[a-zA-Z_0-9]*|[a-zA-Z_0-9]*\.[a-zA-Z_][a-zA-Z_0-9]*)?"
+        ident = "[a-zA-Z_](?:[a-zA-Z_0-9]*\.[a-zA-Z_][a-zA-Z_0-9]*|[a-zA-Z_0-9]*)?"
         typestr = "[a-zA-Z_](?:[a-zA-Z_0-9\*]*|[a-zA-Z_0-9]*<[a-zA-Z_0-9\*\s]+>\*?)?"
         #'a', 'ab', and 'a.b' are all valid. 'a.' is not,
         #ident = "[a-zA-Z_]"  #'a', 'ab', and 'a.b' are all valid. 'a.' is not,
@@ -232,7 +232,7 @@ class Throw52Task:
         re_header_beginblock = re.compile("\s*//\s?" + self._params['throws_indicator'] + "begin")
         re_header_endblock = re.compile("\s*//\s?" + self._params['throws_indicator'] + "end")
         re_signature = re.compile("^\s?(?P<rettype>"+typestr+")\s[a-zA-Z_][a-zA-Z0-9_:]*\(.*?")
-        re_func_name = re.compile("(" + ident + ")\s*\(")
+        re_func_name = re.compile("(([a-zA-Z]*\.)*)(?P<funcname>" + ident + ")\s*\(")
         void_call = re.compile("^\s*(" +ident +")\s*\([^;]*;?")
         assign_call = re.compile("^\s*(?P<normalvar>(?:" + ident + "[\*\s]+" + ident + "|" + ident + "))\s*=\s*(" +ident +")\s*\([^;]*;?")
         ERROR_CLASS=self._params['error_class']
@@ -386,10 +386,10 @@ class Throw52Task:
             m = re.search(re_func_name, line)
             if not m:
                 continue
-            funcname = m.group(1)
+            funcname = m.group("funcname")
             if not (funcname in f_map):
                 _logger.log(_Logger.DEBUG, 
-                            "".join([str(i),
+                            "".join([str(i+1),
                                      " func found, but not in f_map: '",
                                      funcname, "'"]) )                    
                 if not (funcname == "DEBUGRET"):
@@ -397,7 +397,7 @@ class Throw52Task:
                                            " is not the first function call.")
                 continue
             _logger.log(_Logger.VALUES, 
-                        "".join([str(i),
+                        "".join([str(i+1),
                                  " throwable func found: '",
                                  funcname,
                                  "'"]))                    
@@ -406,7 +406,7 @@ class Throw52Task:
             is_void = f_map[funcname]['void']
             if line.find("=") != -1 and is_void:
                 _logger.log(_Logger.WARN, 
-                            "".join([str(i), 
+                            "".join([str(i+1), 
                                      ": error-throwing function ",
                                      funcname,
                                      ASSIGN_OF_VOID]) )
@@ -427,9 +427,9 @@ class Throw52Task:
             
             if m:
                 _logger.log(_Logger.DEBUG, 
-                            "".join([str(i),
+                            "".join([str(i+1),
                                      DBG_NOT_ASSIGNED]))
-                pos = line.find(funcname)
+                pos = line.find(m.group(0))
                 text[i] = "".join([text[i][:pos],
                                    callret_type, " ",
                                    newvar, " = ",
