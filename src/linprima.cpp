@@ -1037,6 +1037,8 @@ ExtraStruct::ExtraStruct() {
     errors.clear();
     leadingComments.clear();
     trailingComments.clear();
+    //openParenToken = -1;
+    //openCurlyToken = -1;
 }
 
 struct StateStruct {
@@ -1225,12 +1227,6 @@ void throwErrorTolerant(ptrTkn token, const string messageFormat,
                         vector< string > args);
 //throw_
 void throwUnexpected(ptrTkn token);
-
-OptionsStruct options;
-ExtraStruct extra;
-StateStruct state;
-ptrTkn lookahead;
-AllocatorType * glblAlloc;
 
 const char16_t * sourceraw;
 
@@ -1700,12 +1696,44 @@ bool isKeyword(const string id) {
 
 }
 
+//information that both Tokenizer and ParseTools use,
+//and is shared between them.
+
+struct LinprimaTask {
+    const char16_t *sourceRaw;
+    const int length;
+
+    ExtraStruct extra;
+    State state;
+    int idx;
+    int lineNumber;
+    int lineStart;
+    int length;
+    ptrTkn lookahead;
+    TokenizeTask(TokenizeTask *task);
+
+    char16_t source(const int pos) {
+        return *(sourceraw + pos);
+    }
+
+};
+
+TokenizeTaskInt::TokenizeTaskInt(TokenizeTask &task):
+    extra(&(task->extra)), state(&(task->state)), 
+    sourceRaw(task->sourceRaw), length(task->length), 
+    idx(0), lineStart(0), 
+    lookahead(shared_ptr<TokenStruct>()) {
+
+    lineNumber = (sourceLen > 0) ? 1:0;
+    lookahead.isNull = true;
+}
 
  // 7.4 Comments
 
 class Tokenizer {
 public:
-    Tokenizer();
+   
+    Tokenizer(TokenizeTask *state);
     static bool isIdentifierName(const TknType type);
     //#throw_begin
     void skipComment();
@@ -1713,8 +1741,11 @@ public:
     ptrTkn collectRegex();
     ptrTkn lex();
     void peek();
+    void readTokens(vector<TokenRecord> &tokens);
     //#throw_end
 private:
+
+    char16_t source();
 
     void addComment(const string& type, const string& value, 
                 const int start, const int end, const Loc& loc);
@@ -1741,7 +1772,15 @@ private:
     //#throw_end
 };
 
-Tokenizer::Tokenizer() {
+//Tokenizer::Tokenizer(shared_ptr<ExtraStruct> extraArg,
+//                     shared_ptr<State> stateArg) :
+//    extra(extraArg), state(stateArg), 
+
+Tokenizer::Tokenizer(const char16_t * code,
+                     ExtraStruct *extraArg,
+                     State *stateArg) :
+    sourceRaw(code), extra(extraArg), state(stateArg), 
+    lookahead(shared_ptr<TokenStruct>()) {
 }
 
 bool Tokenizer::isIdentifierName(const TknType tkntype) {
@@ -1751,6 +1790,17 @@ bool Tokenizer::isIdentifierName(const TknType tkntype) {
         tkntype == TknType::Keyword ||
         tkntype == TknType::BooleanLiteral ||
         tkntype == TknType::NullLiteral;
+}
+
+char16_t Tokenizer::source(long pos) { return *(sourceRaw + pos); }
+
+bool Tokenizer::atEOF() { return lookahead->type == TknType::EOFF; }
+
+//#throw_
+void Tokenizer::readTokens(Vector<TokenRecord> &out) {
+    while(lookahead->type != TknType::EOFF) {
+        lex();
+    }
 }
 
 //# only called if extra.commentTracking
@@ -4018,13 +4068,24 @@ void throwUnexpected(ptrTkn token) {
 
 class ParseTools {
 public:
-    Tokenizer scanner;
-    ParseTools(Tokenizer scanner);
+    ParseTools(AllocatorType *alloc,
+               const char16_t *code,
+               ExtraStruct *extra,
+               State *state);
     ~ParseTools();
     //#throw_begin
     Node* parseProgram();
     //#throw_end
-private:
+private:    
+    AllocatorType *alloc;
+
+    const char16_t *sourceRaw;
+    ExtraStruct *extra;
+    State *state;
+    char16_t source(long pos);
+
+    Tokenizer scanner;
+
     vector<Node*> heapNodes;
     void clearNodeHeap();
     //#throw_begin
@@ -4111,14 +4172,15 @@ private:
     //#throw_end
 };
 
-ParseTools::ParseTools(Tokenizer scannerArg) : scanner(scannerArg) {
+ParseTools::ParseTools(AllocatorType *allocArg,
+                       const char16_t *codeArg,
+                       ExtraStruct *extraArg,
+                       State *stateArg) :
+    alloc(allocArg), sourceRaw(codeArg), extra(extraArg),
+    state(stateArg), scanner(sourceArg, extraArg, stateArg) {
 }
 
 ParseTools::~ParseTools() {
-
-    extra = ExtraStruct();
-    state = StateStruct();
-    options = OptionsStruct();
     clearNodeHeap();
 }
 
@@ -4142,6 +4204,8 @@ void ParseTools::clearNodeHeap() {
         delete (tmp);
     }
 }
+
+char16_t ParseTools::source(long pos) { return *(sourceRaw + pos); }
 
 //throw_
 bool ParseTools::peekLineTerminator() {
@@ -6537,50 +6601,55 @@ void filterTokenLocation() {
 //# -1. json hierarchy in esprima the tokenlist is the noderoot
 //# -2. no js regex validation unless passed through a js environment 
 //#    afterwards for validation with a tool like linprima-wrapfuncs.js
- 
-void tokenizeImpl(Document &outJson,
+
+Tokenizer::Tokenizer(const u16string code,
+                     OptionsStruct options) :
+    task(shared_ptr<LinprimaTask>(code.length(), 
+                                  code.data(), 
+                                  options),
+    length(task->length),
+    idx(task.idx),
+    lineNumber(task.lineNumber),
+    lineStart(task.lineStart),
+    extra(task.extra),
+    state(task.state),
+    lookahead(task.lookahead) {
+}
+
+Tokenizer::Tokenizer(shared_ptr<LinprimaTask> taskArg) :
+    task(task) {
+    
+}
+
+OptionsStruct& Tokenizer::readOptions(OptionsStruct & in) {
+    in.tokens = true;
+    //range, loc, comment->CommentTracking and tolerant->errorTolerant
+    //are the relevant/used options.
+}
+
+tokenizeImpl(Document &outJson,
                   const u16string code, 
                   OptionsStruct options,
                   const bool retErrorsAsJson) { 
     outJson.SetObject();
     AllocatorType& alloc = outJson.GetAllocator();
-    glblAlloc = &alloc;
-    vector<TokenRecord> tokens;
-    Tokenizer scanner;
-   
-    initglobals();
-    sourceraw = code.data();
-    idx = 0;
-    lineNumber = (code.size() > 0) ? 1 : 0;
-    lineStart = 0;
-    length = code.length();
-    lookahead = makeToken();
-    lookahead->isNull = true;
+    options.tokens = true;
 
-    state = StateStruct();
+    Tokenizer tknr(code, options);
+    vector<TokenRecord> tokens;
+
+    initglobals();
     //? parenthesisCount for state not provided here normally as in parse. 
     //? That going to be a problem for us later?
 
     // Of course we collect tokens here.
-    options.tokens = true;
 
-    extra = ExtraStruct();
-    extra.tokenTracking = true; 
-    extra.tokenize = true;
     // The following two fields are necessary to compute the Regex tokens.
-    extra.openParenToken = -1;
-    extra.openCurlyToken = -1;
-
-    extra.range = options.range; 
-    extra.loc = options.loc;
-    extra.commentTracking = options.comment;
-    extra.errorTolerant = options.tolerant;
-
 
 #ifndef THROWABLE
     ErrWrapint tmp = scanner.peek();
     if (tmp.err) {
-        if (!extra.errorTolerant) {
+        if (!options->errorTolerant) {
             //json_object_put(outJson);
             if (errorType == 0) {
                 retError.toJson(outJson, &alloc);
@@ -6595,7 +6664,7 @@ void tokenizeImpl(Document &outJson,
     scanner.peek();
 #endif
 
-    if (lookahead->type == TknType::EOFF) {
+    if (tknr.atEOF()) {
          vec2jsonCallback<TokenRecord>(outJson, &alloc, "tokenlist",
                                                extra.tokenRecords, 
                                                &TokenRecord::toJson);
@@ -6603,12 +6672,12 @@ void tokenizeImpl(Document &outJson,
     }
 
     scanner.lex();
-    while (lookahead->type != TknType::EOFF) {
+    while (!(tknr.atEOF())) {
 #ifndef THROWABLE
         ErrWrapptrTkn out = scanner.lex();
         if (out.err) { 
-            if (extra.errorTolerant) {
-                extra.errors.push_back(retError); 
+            if (extra->errorTolerant) {
+                extra->errors.push_back(retError); 
                 break;
             } else {
                 if (errorType == 0) {
@@ -6624,8 +6693,8 @@ void tokenizeImpl(Document &outJson,
         try {
             scanner.lex();
         } catch (ExError& e) { 
-            if (extra.errorTolerant) {
-                extra.errors.push_back(e); 
+            if (extra->errorTolerant) {
+                extra->errors.push_back(e); 
                 break;
             } else {
                 if (retErrorsAsJson) {
@@ -6641,16 +6710,16 @@ void tokenizeImpl(Document &outJson,
 
     filterTokenLocation();
     vec2jsonCallback<TokenRecord>(outJson, &alloc, "tokenlist",
-                                  extra.tokenRecords, 
+                                  extra->tokenRecords, 
                                   &TokenRecord::toJson); 
-    if (extra.commentTracking) {
+    if (options->commentTracking) {
         vec2jsonCallback<Comment>(outJson, &alloc, "comments",
-                                  extra.comments,
+                                  extra->comments,
                                   &Comment::toJson);
     }
-    if (extra.errorTolerant) {
+    if (options->errorTolerant) {
         vec2jsonCallback<ExError>(outJson, &alloc, "errors",
-                                  extra.errors,
+                                  extra->errors,
                                   &ExError::toJsonTolerant);
     }
 
