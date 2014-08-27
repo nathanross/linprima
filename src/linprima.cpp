@@ -1700,10 +1700,61 @@ bool isKeyword(const string id) {
 
 }
 
+
  // 7.4 Comments
 
+class Tokenizer {
+public:
+    Tokenizer();
+    static bool isIdentifierName(const TknType type);
+    //#throw_begin
+    void skipComment();
+    ptrTkn scanRegExp();
+    ptrTkn collectRegex();
+    ptrTkn lex();
+    void peek();
+    //#throw_end
+private:
+
+    void addComment(const string& type, const string& value, 
+                const int start, const int end, const Loc& loc);
+    int skipSingleLineComment(int idxtmp, const int offset);
+    //#throw_begin
+    int skipMultiLineComment(int idxtmp);
+    //#throw_end
+    char16_t scanHexEscape(const char16_t prefix);
+    //#throw_begin
+    u16string scanUnicodeCodePointEscape();
+    string getEscapedIdentifier();
+    string getIdentifier();
+    ptrTkn scanIdentifier();
+    ptrTkn scanPunctuator();
+    ptrTkn scanHexLiteral(const int start);
+    ptrTkn scanOctalLiteral(const int start);
+    ptrTkn scanNumericLiteral();
+    ptrTkn scanStringLiteral();
+    RegexHalf scanRegExpBody();
+    RegexHalf scanRegExpFlags();
+    ptrTkn advanceSlash();
+    ptrTkn advance();
+    ptrTkn collectToken();
+    //#throw_end
+};
+
+Tokenizer::Tokenizer() {
+}
+
+bool Tokenizer::isIdentifierName(const TknType tkntype) {
+    DEBUGIN("   isIdentifierName(TokenStruct token)", false);
+    DEBUGOUT("", false); 
+    return tkntype == TknType::Identifier ||
+        tkntype == TknType::Keyword ||
+        tkntype == TknType::BooleanLiteral ||
+        tkntype == TknType::NullLiteral;
+}
+
 //# only called if extra.commentTracking
-void addComment(const string& type, const string& value, 
+void Tokenizer::addComment(const string& type, const string& value, 
                  const int start, const int end, const Loc& loc) {
     DEBUGIN(" addComment(u16string type, u16string value, int start, int end, Loc loc)", false);
      Comment comment;
@@ -1737,9 +1788,7 @@ void addComment(const string& type, const string& value,
      DEBUGOUT("", false);
 }
 
-
-
-int skipSingleLineComment(int idxtmp, const int offset) {
+int Tokenizer::skipSingleLineComment(int idxtmp, const int offset) {
     DEBUGIN(" skipSingleLineComment(const int offset)", false);
     int start;
     Loc loc; 
@@ -1787,8 +1836,8 @@ int skipSingleLineComment(int idxtmp, const int offset) {
 }
 
 inline //only called once.
-//throw_
-int skipMultiLineComment(int idxtmp) {
+//#throw_
+int Tokenizer::skipMultiLineComment(int idxtmp) {
     DEBUGIN(" skipMultiLineComment()", false);
     int start;
     Loc loc;
@@ -1850,7 +1899,7 @@ int skipMultiLineComment(int idxtmp) {
 }
 
 //throw_
-void skipComment() {
+void Tokenizer::skipComment() {
     DEBUGIN(" skipComment()", false);
     char16_t ch;
     bool start;
@@ -1954,69 +2003,7 @@ void skipComment() {
     DEBUGOUT("", false);
     return; //throw52; 
 }
-/*
-//throw_
-void skipComment() {
-    DEBUGIN(" skipComment()", false);
-    char16_t ch;
-    bool start;
-    start = (idx == 0);
-    while (idx < length) {
-        ch = source(idx);
-
-        if (isWhiteSpace(ch)) {
-            ++idx;
-        } else if (isLineTerminator(ch)) {
-            ++idx;
-            if (ch == 0x0D && source(idx) == 0x0A) {
-                ++idx;
-            }
-            ++lineNumber;
-            lineStart = idx;
-            start = true;
-        } else if (ch == 0x2F) { // U+002F is '/'
-            ch = source(idx + 1);
-            if (ch == 0x2F) {
-                ++idx;
-                ++idx;
-                skipSingleLineComment(2);
-                start = true;
-            } else if (ch == 0x2A) {  // U+002A is '*'
-                ++idx;
-                ++idx;
-                skipMultiLineComment(); 
-            } else {
-                break;
-            }
-        } else if (start && ch == 0x2D) { // U+002D is '-'
-            // U+003E is '>'
-            if ((source(idx + 1) == 0x2D) && (source(idx + 2) == 0x3E)) {
-                // '-->' is a single-line comment
-                idx += 3;
-                skipSingleLineComment(3);
-            } else {
-                break;
-            }
-        } else if (ch == 0x3C) { // U+003C is '<'
-            if (slice(sourceraw, idx + 1, idx + 4) == u"!--") {
-                ++idx; // `<`
-                ++idx; // `!`
-                ++idx; // `-`
-                ++idx; // `-`
-                skipSingleLineComment(4);
-            } else {
-                break;
-            }
-        } else {
-            break;
-        }
-    }
-    DEBUGOUT("", false);
-    return; //throw52; 
-}
-*/
- 
-char16_t scanHexEscape(const char16_t prefix) {
+char16_t Tokenizer::scanHexEscape(const char16_t prefix) {
     DEBUGIN("scanHexEscape(const char16_t prefix) {", false);
     int i, len;
     char16_t ch;
@@ -2038,7 +2025,7 @@ char16_t scanHexEscape(const char16_t prefix) {
 }
 
 //throw_
-u16string scanUnicodeCodePointEscape() {
+u16string Tokenizer::scanUnicodeCodePointEscape() {
     DEBUGIN("scanUnicodeCodePointEscape", false);
     char16_t ch;
     int code;
@@ -2078,7 +2065,7 @@ u16string scanUnicodeCodePointEscape() {
 }
 
 //throw_
-string getEscapedIdentifier() {
+string Tokenizer::getEscapedIdentifier() {
     DEBUGIN("getEscapedIdentifier", false);
     char16_t ch;
     u16string id;
@@ -2131,7 +2118,7 @@ string getEscapedIdentifier() {
 }
 
 //throw_
-string getIdentifier() {
+string Tokenizer::getIdentifier() {
     DEBUGIN("getIdentifier()", false);
     int start;
     char16_t ch;
@@ -2164,7 +2151,7 @@ string getIdentifier() {
 }
 
 //throw_
-ptrTkn scanIdentifier() {
+ptrTkn Tokenizer::scanIdentifier() {
     DEBUGIN(" scanIdentifier()", false);
     ptrTkn t = makeToken();
     int start;
@@ -2211,7 +2198,7 @@ u16string emccu16str;
 
  // 7.7 Punctuators
  //throw_
-ptrTkn scanPunctuator() {
+ptrTkn Tokenizer::scanPunctuator() {
     DEBUGIN(" scanPunctuator()", false);
 
     ptrTkn t = makeToken();
@@ -2351,7 +2338,7 @@ ptrTkn scanPunctuator() {
 }
      // 7.8.3 Numeric Literals
 //throw_
-ptrTkn scanHexLiteral(const int start) {
+ptrTkn Tokenizer::scanHexLiteral(const int start) {
     DEBUGIN(" scanHexLiteral(const int start)", false);
     u16string number;
     ptrTkn t = makeToken();
@@ -2383,7 +2370,7 @@ ptrTkn scanHexLiteral(const int start) {
 }
 
 //throw_
-ptrTkn scanOctalLiteral(const int start) {
+ptrTkn Tokenizer::scanOctalLiteral(const int start) {
     DEBUGIN(" scanOctalLiteral(const int start)", false);
     u16string number = u"0";
 
@@ -2414,7 +2401,7 @@ ptrTkn scanOctalLiteral(const int start) {
 }
 
 //#throw_
-ptrTkn scanNumericLiteral() {
+ptrTkn Tokenizer::scanNumericLiteral() {
     DEBUGIN(" scanNumericLiteral()", false);
     int start;
     char16_t ch;
@@ -2505,7 +2492,7 @@ ptrTkn scanNumericLiteral() {
 
 // 7.8.4 String Literals
 //throw_
-ptrTkn scanStringLiteral() {
+ptrTkn Tokenizer::scanStringLiteral() {
     DEBUGIN(" scanStringLiteral()", false);
 
     ptrTkn t = makeToken();
@@ -2626,7 +2613,7 @@ ptrTkn scanStringLiteral() {
 }
 
 //throw_
-RegexHalf scanRegExpBody() {
+RegexHalf Tokenizer::scanRegExpBody() {
     DEBUGIN("scanRegExpBody()", false);
     char16_t ch;
     u16string str = u"", body;
@@ -2679,7 +2666,7 @@ RegexHalf scanRegExpBody() {
 }
 
 //throw_
-RegexHalf scanRegExpFlags() {
+RegexHalf Tokenizer::scanRegExpFlags() {
     DEBUGIN("scanRegExpFlags()", false);
     char16_t ch;
     u16string str, flags;
@@ -2735,7 +2722,7 @@ RegexHalf scanRegExpFlags() {
 }
 
 //throw_
-ptrTkn scanRegExp() {
+ptrTkn Tokenizer::scanRegExp() {
     DEBUGIN(" scanRegExp()", false);
     int start;
     RegexHalf body; 
@@ -2778,7 +2765,7 @@ ptrTkn scanRegExp() {
 }
 
 //throw_
-ptrTkn collectRegex() {
+ptrTkn Tokenizer::collectRegex() {
     DEBUGIN(" collectRegex()", false);
     int pos;
     Loc loc;
@@ -2822,17 +2809,8 @@ ptrTkn collectRegex() {
     return regex;
 }
 
-bool isIdentifierName(const TknType tkntype) {
-    DEBUGIN("   isIdentifierName(TokenStruct token)", false);
-    DEBUGOUT("", false); 
-    return tkntype == TknType::Identifier ||
-        tkntype == TknType::Keyword ||
-        tkntype == TknType::BooleanLiteral ||
-        tkntype == TknType::NullLiteral;
-}
-
 //throw_
-ptrTkn advanceSlash() {
+ptrTkn Tokenizer::advanceSlash() {
     DEBUGIN(" advanceSlash()", false);
     //# only gets called if extra.tokenize == true
 
@@ -2919,7 +2897,7 @@ ptrTkn advanceSlash() {
 }
 
 //throw_
-ptrTkn advance() {
+ptrTkn Tokenizer::advance() {
     DEBUGIN(" advance()", false);
     char16_t ch;
 
@@ -2973,7 +2951,7 @@ ptrTkn advance() {
 }
 
 //throw_
-ptrTkn collectToken() {
+ptrTkn Tokenizer::collectToken() {
     DEBUGIN(" collectToken()", false);
     Loc loc;
     ptrTkn token;
@@ -3003,7 +2981,7 @@ ptrTkn collectToken() {
 }
 
 //throw_
-ptrTkn lex() {
+ptrTkn Tokenizer::lex() {
     DEBUGIN(" lex()", false);
     ptrTkn token;
 
@@ -3028,7 +3006,7 @@ ptrTkn lex() {
 }
 
 //throw_
-void peek() {
+void Tokenizer::peek() {
     DEBUGIN(" peek()", false);
     int pos, line, start;
     pos = idx;
@@ -3924,22 +3902,6 @@ Loc WrappingNode::WrappingSourceLocation(ptrTkn startToken) {
 
 // Return true if there is a line terminator before the next token.
 
-//throw_
-bool peekLineTerminator() {
-    DEBUGIN(" peekLineTerminator()", false);
-    int pos = idx,
-        line = lineNumber,
-        start = lineStart;
-    bool found;
-    skipComment();
-    found = (lineNumber != line);
-    idx = pos;
-    lineNumber = line;
-    lineStart = start;
-    DEBUGOUT("", false);
-    return found;
-}
-
 #ifndef THROWABLE
 //throw_
 int throwToJS(ExError err) {
@@ -4056,7 +4018,8 @@ void throwUnexpected(ptrTkn token) {
 
 class ParseTools {
 public:
-    ParseTools();
+    Tokenizer scanner;
+    ParseTools(Tokenizer scanner);
     ~ParseTools();
     //#throw_begin
     Node* parseProgram();
@@ -4065,6 +4028,7 @@ private:
     vector<Node*> heapNodes;
     void clearNodeHeap();
     //#throw_begin
+    bool peekLineTerminator();
     void expect(const string value);
     void expectTolerant(const string value);
     void expectKeyword(const string keyword);
@@ -4147,7 +4111,7 @@ private:
     //#throw_end
 };
 
-ParseTools::ParseTools() {
+ParseTools::ParseTools(Tokenizer scannerArg) : scanner(scannerArg) {
 }
 
 ParseTools::~ParseTools() {
@@ -4179,11 +4143,27 @@ void ParseTools::clearNodeHeap() {
     }
 }
 
+//throw_
+bool ParseTools::peekLineTerminator() {
+    DEBUGIN(" peekLineTerminator()", false);
+    int pos = idx,
+        line = lineNumber,
+        start = lineStart;
+    bool found;
+    scanner.skipComment();
+    found = (lineNumber != line);
+    idx = pos;
+    lineNumber = line;
+    lineStart = start;
+    DEBUGOUT("", false);
+    return found;
+}
+
 reqinline
 //throw_
 void ParseTools::expect(const string value) { 
     //DEBUGIN(" expect(u16string value)", false);
-    ptrTkn token = lex();
+    ptrTkn token = scanner.lex();
 
     if (token->type != TknType::Punctuator || 
           token->strvalue != value) {
@@ -4207,7 +4187,7 @@ void ParseTools::expectTolerant(const string value) {
             throwErrorTolerant(token, Messages[Mssg::UnexpectedToken], 
                                {token->strvalue});
         } else {
-            lex();
+            scanner.lex();
         }
     } else {
         expect(value);
@@ -4222,7 +4202,7 @@ reqinline
 //throw_
 void ParseTools::expectKeyword(const string keyword) { 
     //DEBUGIN("expectKeyword", false);
-    ptrTkn token = lex();
+    ptrTkn token = scanner.lex();
     if (token->type != TknType::Keyword || 
         token->strvalue != keyword) {
         throwUnexpected(token);
@@ -4280,13 +4260,13 @@ void ParseTools::consumeSemicolon() {
 
     // Catch the very common case first: immediately a semicolon (U+003B).
     if (source(idx) == 0x3B || match(";")) { 
-        lex();
+        scanner.lex();
         DEBUGOUT("", false); 
         return;
     }
 
     line = lineNumber;
-    skipComment(); 
+    scanner.skipComment(); 
     if (lineNumber != line) {
         DEBUGOUT("", false); 
         return;
@@ -4322,7 +4302,7 @@ Node* ParseTools::parseArrayInitialiser() {
     while (!match("]")) {
 
         if (match(",")) {
-            lex();
+            scanner.lex();
             elements.push_back(NULLNODE);
         } else {
 #ifndef THROWABLE
@@ -4338,7 +4318,7 @@ Node* ParseTools::parseArrayInitialiser() {
         }
     }
 
-    lex();
+    scanner.lex();
 
     node->finishArrayExpression(elements);
     DEBUGOUT("parseArrInit", false);
@@ -4373,7 +4353,7 @@ Node* ParseTools::parseObjectPropertyKey() {
     ptrTkn token;
     Node *node = new Node(true, true, &heapNodes);
 
-    token = lex();
+    token = scanner.lex();
 
     // Note: This function is called only from parseObjectProperty(), where
     // EOF and Punctuator tokens are already filtered out.
@@ -4562,7 +4542,7 @@ Node* ParseTools::parseGroupExpression() {
     Node *expr;
     expect("(");
     if (match(")")) {
-        lex();
+        scanner.lex();
         DEBUGOUT("", false);
         Node *tmpnode = new Node(false, true, &heapNodes);
         tmpnode->type = PlaceHolders["ArrowParameterPlaceHolder"]->type;
@@ -4608,7 +4588,7 @@ Node* ParseTools::parsePrimaryExpression() {
     expr = node;
 
     if (type == TknType::Identifier) {
-        ptrTkn tmp = lex();
+        ptrTkn tmp = scanner.lex();
         expr->finishIdentifier(tmp->strvalue);
     } else if (type == TknType::StringLiteral || 
                type == TknType::NumericLiteral) {
@@ -4617,7 +4597,7 @@ Node* ParseTools::parsePrimaryExpression() {
             throwErrorTolerant(lookahead, 
                                Messages[Mssg::StrictOctalLiteral], {});
         }
-        ptrTkn tmp = lex();
+        ptrTkn tmp = scanner.lex();
         expr->finishLiteral(tmp);
     } else if (type == TknType::Keyword) {
         if (matchKeyword("function")) {
@@ -4626,34 +4606,34 @@ Node* ParseTools::parsePrimaryExpression() {
             return DBGRET("", parseFunctionExpression());
         }
         if (matchKeyword("this")) {
-            lex();
+            scanner.lex();
             expr->finishThisExpression();
         } else {
-            ptrTkn tmp = lex();
+            ptrTkn tmp = scanner.lex();
             throwUnexpected(tmp);
         }
     } else if (type == TknType::BooleanLiteral) {
-        token = lex();
+        token = scanner.lex();
         token->bvalue = (token->strvalue == "true");
         token->literaltype = LiteralType["Bool"];
         expr->finishLiteral(token);
     } else if (type == TknType::NullLiteral) {
-        token = lex();
+        token = scanner.lex();
         token->isNull = true;
         token->literaltype = LiteralType["Null"];
         expr->finishLiteral(token);
     } else if (match("/") || match("/=")) {
         ptrTkn tmp;
         if (extra.tokenTracking) {
-            tmp = collectRegex();
+            tmp = scanner.collectRegex();
             expr->finishLiteral(tmp);
         } else {
-            tmp = scanRegExp();
+            tmp = scanner.scanRegExp();
             expr->finishLiteral(tmp);
         }
-        peek();
+        scanner.peek();
     } else {
-        ptrTkn tmp = lex();
+        ptrTkn tmp = scanner.lex();
         throwUnexpected(tmp);
     }
 
@@ -4693,9 +4673,9 @@ Node* ParseTools::parseNonComputedProperty() {
     ptrTkn token;
     Node *node = new Node(true, true, &heapNodes);
 
-    token = lex();
+    token = scanner.lex();
 
-    if (!isIdentifierName(token->type)) {
+    if (!Tokenizer::isIdentifierName(token->type)) {
         throwUnexpected(token);
     }
 
@@ -4760,8 +4740,6 @@ Node* ParseTools::parseLeftHandSideExpressionAllowCall() {
         if (match(".")) {
             property = parseNonComputedMember();
             tmpnode = new WrappingNode(startToken, &heapNodes);
-            printf("nodes heapNodes: %li \n", (long) tmpnode->heapNodes);
-            printf("our heapNodes: %li \n", (long) &heapNodes);
 
             tmpnode->finishMemberExpression(u'.', expr, property);
             expr = tmpnode;
@@ -4847,7 +4825,7 @@ Node* ParseTools::parsePostfixExpression() {
                                        {});
                 }
 
-                token = lex();
+                token = scanner.lex();
                 tmpnode = new WrappingNode(startToken, &heapNodes);
                 tmpnode->finishPostfixExpression(token->strvalue, expr);
                 DEBUGOUT("parsePostfix", false); 
@@ -4873,7 +4851,7 @@ Node* ParseTools::parseUnaryExpression() {
         expr = parsePostfixExpression();
     } else if (match("++") || match("--")) {
         startToken = lookahead;
-        token = lex();
+        token = scanner.lex();
         expr = parseUnaryExpression();
         // 11.4.4, 11.4.5
         if (strict && expr->type == Syntax[Synt::Identifier] 
@@ -4892,7 +4870,7 @@ Node* ParseTools::parseUnaryExpression() {
         return tmpnode;
     } else if (match("+") || match("-") || match("~") || match("!")) {
         startToken = lookahead;
-        token = lex();
+        token = scanner.lex();
         expr = parseUnaryExpression();
         tmpnode = new WrappingNode(startToken, &heapNodes);
         tmpnode->finishUnaryExpression(token->strvalue, expr);
@@ -4902,7 +4880,7 @@ Node* ParseTools::parseUnaryExpression() {
                || matchKeyword("void") 
                || matchKeyword("typeof")) {
         startToken = lookahead;
-        token = lex();
+        token = scanner.lex();
         expr = parseUnaryExpression();
         tmpnode = new WrappingNode(startToken, &heapNodes);
         tmpnode->finishUnaryExpression(token->strvalue, expr);
@@ -4999,7 +4977,7 @@ Node* ParseTools::parseBinaryExpression() {
         return left;
     }
     token->prec = prec;
-    lex();
+    scanner.lex();
 
     markers.push_back(marker);
     markers.push_back(lookahead);
@@ -5040,7 +5018,7 @@ Node* ParseTools::parseBinaryExpression() {
         }
 
         // Shift.
-        token = lex();
+        token = scanner.lex();
         token->prec = prec;
         nodestack.push_back(NULLNODE);
         tokstack.push_back(token);
@@ -5089,7 +5067,7 @@ Node* ParseTools::parseConditionalExpression() {
         return expr;
     }
     if (match("?")) {
-        lex();
+        scanner.lex();
         previousAllowIn = state.allowIn;
         state.allowIn = true;
         consequent = parseAssignmentExpression();
@@ -5299,7 +5277,7 @@ Node* ParseTools::parseAssignmentExpression() {
                                Messages[Mssg::StrictLHSAssignment], {});
         }
 
-        token = lex();
+        token = scanner.lex();
         right = parseAssignmentExpression();
         tmpnode = new WrappingNode(startToken, &heapNodes);
 
@@ -5328,7 +5306,7 @@ Node* ParseTools::parseExpression() {
             if (!match(",")) {
                 break;
             }
-            lex();
+            scanner.lex();
 #ifndef THROWABLE
             Node *tmp = parseAssignmentExpression();
             expressions.push_back(tmp);
@@ -5392,7 +5370,7 @@ Node* ParseTools::parseVariableIdentifier() {
     ptrTkn token;
     Node *node = new Node(true, true, &heapNodes);
 
-    token = lex();
+    token = scanner.lex();
 
     if (token->type != TknType::Identifier) {
         throwUnexpected(token);
@@ -5421,7 +5399,7 @@ Node* ParseTools::parseVariableDeclaration(const string kind) {
         expect("=");
         init = parseAssignmentExpression();
     } else if (match("=")) {
-        lex();
+        scanner.lex();
         init = parseAssignmentExpression();
     }
 
@@ -5446,7 +5424,7 @@ vector< Node* > ParseTools::parseVariableDeclarationList(const string kind) {
         if (!match(",")) {
             break;
         }
-        lex();
+        scanner.lex();
     } while (idx < length);
 
     DEBUGOUT("parseVariableDeclarationList", false); 
@@ -5521,7 +5499,7 @@ Node* ParseTools::parseIfStatement(Node *node) {
     expect(")");
     consequent = parseStatement();
     if (matchKeyword("else")) {
-        lex();
+        scanner.lex();
         alternate = parseStatement();
     } else {
         alternate = NULLNODE;
@@ -5549,7 +5527,7 @@ Node* ParseTools::parseDoWhileStatement(Node *node) {
     test = parseExpression();
     expect(")");
     if (match(";")) {
-        lex();
+        scanner.lex();
     }
     node->finishDoWhileStatement(body, test);
     DEBUGOUT("parseDoWhileStatement", false);
@@ -5581,7 +5559,7 @@ Node* ParseTools::parseForVariableDeclaration() {
     vector< Node* > declarations;
     Node *node = new Node(true, true, &heapNodes);
 
-    token = lex();
+    token = scanner.lex();
     declarations = parseVariableDeclarationList("");
     node->finishVariableDeclaration(declarations, token->strvalue);
     DEBUGOUT("parseForVariableDeclaration", false); 
@@ -5603,7 +5581,7 @@ Node* ParseTools::parseForStatement(Node* node) {
     expect("(");
 
     if (match(";")) {
-        lex();
+        scanner.lex();
     } else {
         if (matchKeyword("var") || matchKeyword("let")) {
             state.allowIn = false;
@@ -5613,7 +5591,7 @@ Node* ParseTools::parseForStatement(Node* node) {
             if (init->jv["declarations"].Size() == 1 
                 && matchKeyword("in")) { 
 
-                lex();
+                scanner.lex();
                 left = init;
                 right = parseExpression();
                 init = NULLNODE;
@@ -5631,7 +5609,7 @@ Node* ParseTools::parseForStatement(Node* node) {
                                        {});
                 }
 
-                lex();
+                scanner.lex();
                 left = init;
                 right = parseExpression();
                 init = NULLNODE;
@@ -5686,7 +5664,7 @@ Node* ParseTools::parseContinueStatement(Node* node) {
 
     // Optimize the most common form: 'continue;'.
     if (source(idx) == 0x3B) {
-        lex();
+        scanner.lex();
 
         if (!(state.inIteration)) {
             throwError(NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
@@ -5744,7 +5722,7 @@ Node* ParseTools::parseBreakStatement(Node* node) {
 
     // Catch the very common case first: immediately a semicolon (U+003B).
     if (source(idx) == 0x3B) {
-        lex();
+        scanner.lex();
 
         if (!(state.inIteration || state.inSwitch)) {
             throwError(NULLPTRTKN, Messages[Mssg::IllegalBreak],{});
@@ -5842,7 +5820,7 @@ Node* ParseTools::parseWithStatement(Node* node) {
 
     if (strict) {
         // TODO(ikarienator): Should we update the test cases instead?
-        skipComment(); //ev
+        scanner.skipComment(); //ev
         throwErrorTolerant(NULLPTRTKN, 
                            Messages[Mssg::StrictModeWith], {});
     }
@@ -5866,7 +5844,7 @@ Node* ParseTools::parseSwitchCase() {
     vector< Node* > consequent;
 
     if (matchKeyword("default")) {
-        lex();
+        scanner.lex();
         test = NULLNODE;
     } else {
         expectKeyword("case");
@@ -5902,7 +5880,7 @@ Node* ParseTools::parseSwitchStatement(Node *node) {
     expect(")");
     expect("{");
     if (match("}")) {
-        lex();
+        scanner.lex();
         node->finishSwitchStatement(discriminant, cases);
         DEBUGOUT("parseSwitchStatement", false); 
         return node;
@@ -6005,7 +5983,7 @@ Node* ParseTools::parseTryStatement(Node* node) {
     }
 
     if (matchKeyword("finally")) {
-        lex();
+        scanner.lex();
         finalizer = parseBlock();
     }
 
@@ -6098,7 +6076,7 @@ Node* ParseTools::parseStatement() {
 
     // 12.12 Labelled Statements
     if ((expr->type == Syntax[Synt::Identifier]) && match(":")) {
-        lex();
+        scanner.lex();
 
         key = "$";
         key.append(expr->name);
@@ -6253,7 +6231,7 @@ bool ParseTools::parseParam(ParseParamsOptions& options) {
     validateParam(options, token, token->strvalue);
 
     if (match("=")) {
-        lex();
+        scanner.lex();
         def = parseAssignmentExpression();
         ++(options.defaultCount);
         options.defaults.push_back(def);
@@ -6512,8 +6490,8 @@ Node* ParseTools::parseProgram() {
     Node *node;
     vector< Node* > body;
 
-    skipComment(); //ev
-    peek();
+    scanner.skipComment(); //ev
+    scanner.peek();
     node = new Node(true, true, &heapNodes);
     strict = false;
     body = parseSourceElements();
@@ -6568,6 +6546,7 @@ void tokenizeImpl(Document &outJson,
     AllocatorType& alloc = outJson.GetAllocator();
     glblAlloc = &alloc;
     vector<TokenRecord> tokens;
+    Tokenizer scanner;
    
     initglobals();
     sourceraw = code.data();
@@ -6599,7 +6578,7 @@ void tokenizeImpl(Document &outJson,
 
 
 #ifndef THROWABLE
-    ErrWrapint tmp = peek();
+    ErrWrapint tmp = scanner.peek();
     if (tmp.err) {
         if (!extra.errorTolerant) {
             //json_object_put(outJson);
@@ -6613,7 +6592,7 @@ void tokenizeImpl(Document &outJson,
     }
 #endif
 #ifdef THROWABLE
-    peek();
+    scanner.peek();
 #endif
 
     if (lookahead->type == TknType::EOFF) {
@@ -6623,10 +6602,10 @@ void tokenizeImpl(Document &outJson,
          return;
     }
 
-    lex();
+    scanner.lex();
     while (lookahead->type != TknType::EOFF) {
 #ifndef THROWABLE
-        ErrWrapptrTkn out = lex();
+        ErrWrapptrTkn out = scanner.lex();
         if (out.err) { 
             if (extra.errorTolerant) {
                 extra.errors.push_back(retError); 
@@ -6643,7 +6622,7 @@ void tokenizeImpl(Document &outJson,
 #endif
 #ifdef THROWABLE
         try {
-            lex();
+            scanner.lex();
         } catch (ExError& e) { 
             if (extra.errorTolerant) {
                 extra.errors.push_back(e); 
@@ -6734,8 +6713,8 @@ void parseImpl(Document &outJson,
     AllocatorType& alloc = outJson.GetAllocator();    
     glblAlloc = &alloc;
     Node *programNode;
-
-    ParseTools pt;
+    Tokenizer scanner;
+    ParseTools pt(scanner);
 
     initglobals();
 
