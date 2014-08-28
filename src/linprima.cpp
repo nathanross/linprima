@@ -353,7 +353,7 @@ u16string toU16string(const string input){
 struct ExtraStruct; 
 
 template <typename T>
-void vec2jsonCallback(Value& root,
+void vec2jsonCallback(Document& root,
                       AllocatorType* alloc,
                       const ExtraStruct *extra,
                       string path,
@@ -378,6 +378,34 @@ void vec2jsonCallback(Value& root,
                    *alloc);
     //DEBUGOUT("", false);     
 }
+
+template <typename T>
+void vec2jsonCallbackVal(Value& root,
+                      AllocatorType* alloc,
+                      const ExtraStruct *extra,
+                      string path,
+                      vector<T> in,
+                      function<void (T&, 
+                                     const ExtraStruct*extra,
+                                     Value& el, 
+                                     AllocatorType* alloc)> const& f) {
+    //DEBUGIN("vec2JsonCallback", false);
+    Value arr(kArrayType);
+    Value el;
+    for (int i=0; i<in.size(); i++) {
+        el.SetObject();        
+        f(in[i], extra, el, alloc);
+        arr.PushBack(el, *alloc);
+    }
+    Value pathval(path.data(),
+                  path.length(), 
+                  *alloc);
+    root.AddMember(pathval.Move(), 
+                   arr,
+                   *alloc);
+    //DEBUGOUT("", false);     
+}
+
 
 //non-parallel functions
 // example: has<int>(3, {1,2,3,4,5}) // would return true
@@ -670,7 +698,7 @@ void NodesComments::commentsIntoJson(const ExtraStruct *extra,
         //switch to RemoveMember if this function becomes timesink.
     }
     if (commentVec->size() > 0) {
-        vec2jsonCallback<Comment>(*nodesJv,
+        vec2jsonCallbackVal<Comment>(*nodesJv,
                                   nodesAlloc,
                                   extra,
                                   key.data(),
@@ -2089,7 +2117,7 @@ inline //only called once.
 //#throw_
 int Tokenizer::skipMultiLineComment(int idxtmp) {
     DEBUGIN(" skipMultiLineComment()", false);
-    int start;
+    int start=0; //satisfy g++ warning about potential unitialized use
     Loc loc(lineNumber, idxtmp, lineStart);
     char16_t ch;
     string comment;
@@ -5766,7 +5794,7 @@ Node* ParseTools::parseForStatement(Node* node) {
 
     bool oldInIteration, previousAllowIn = state.allowIn;
 
-    Node *body, *left, *right, 
+    Node *body, *left, *right =0x0, 
         *update, *test, *init;
     left=NULLNODE;
     update=NULLNODE; test=NULLNODE; init=NULLNODE;
@@ -7112,8 +7140,9 @@ int main() {
     //allopt = "{ 'tolerant':true }";
     allopt = "{ \"loc\":true, \"range\":true, \"tokens\":true }";
     //    ProfilerStart("/tmp/profile2");
+
     //system_clock::time_point begin = system_clock::now();
-    int reps = 1;
+    int reps = 10;
     for (int j = 0; j<reps; j++) {
         for (unsigned int i=0; i<codeSamples.size(); i++){ 
            //result = string(tokenizeRetString(
@@ -7132,6 +7161,7 @@ int main() {
     //printf("milliseconds: %i\n", (int) ((double) millis / (double) reps));
     //    ProfilerStop();
     printf("total length %u\n", resultlength);
-//printf("last result %s\n", result.data());
+
+    //printf("last result %s\n", result.data());
 }
 #endif
