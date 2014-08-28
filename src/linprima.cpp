@@ -6443,7 +6443,8 @@ ParseParamsOut ParseTools::parseParams(ptrTkn firstRestricted) {
     ParseParamsOut out;
     options.defaultCount = 0;
     options.firstRestricted = firstRestricted;
-    options.stricted->isNull = true;
+    if (options.stricted != 0x0)
+        { options.stricted->isNull = true; }
 
     expect("(");
 
@@ -7096,8 +7097,8 @@ int main() {
     unsigned int resultlength = 0;
     
     string finput;
-    //    ifstream ifs("/home/n/coding/esp3/bench/cases/active/Chart.js");
-    ifstream ifs("/home/n/coding/esp7/test/codetotest.js");
+    ifstream ifs("/home/n/coding/esp3/bench/cases/active/Chart.js");
+    //ifstream ifs("/home/n/coding/esp7/test/codetotest.js");
 
     finput.assign( (std::istreambuf_iterator<char>(ifs) ),
                     (std::istreambuf_iterator<char>()    ) );    
@@ -7112,7 +7113,7 @@ int main() {
     allopt = "{ \"loc\":true, \"range\":true, \"tokens\":true }";
     //    ProfilerStart("/tmp/profile2");
     //system_clock::time_point begin = system_clock::now();
-    int reps = 10;
+    int reps = 1;
     for (int j = 0; j<reps; j++) {
         for (unsigned int i=0; i<codeSamples.size(); i++){ 
            //result = string(tokenizeRetString(
@@ -7131,6 +7132,6 @@ int main() {
     //printf("milliseconds: %i\n", (int) ((double) millis / (double) reps));
     //    ProfilerStop();
     printf("total length %u\n", resultlength);
-    printf("last result %s\n", result.data());
+//printf("last result %s\n", result.data());
 }
 #endif
