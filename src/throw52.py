@@ -224,7 +224,7 @@ class Throw52Task:
         f_map = {}
         void_funcs = [ x for x in f_map if f_map[x] == 'void' ]
         asign_funcs = [ x for x in f_map if f_map[x] != 'void' ]
-        ident = "[a-zA-Z_](?:[a-zA-Z_0-9]*\.[a-zA-Z_][a-zA-Z_0-9]*|[a-zA-Z_0-9]*)?"
+        ident = "[a-zA-Z_](?:[a-zA-Z_0-9]*(\.|->)[a-zA-Z_][a-zA-Z_0-9]*|[a-zA-Z_0-9]*)?"
         typestr = "[a-zA-Z_](?:[a-zA-Z_0-9\*]*|[a-zA-Z_0-9]*<[a-zA-Z_0-9\*\s]+>\*?)?"
         #'a', 'ab', and 'a.b' are all valid. 'a.' is not,
         #ident = "[a-zA-Z_]"  #'a', 'ab', and 'a.b' are all valid. 'a.' is not,
@@ -232,7 +232,7 @@ class Throw52Task:
         re_header_beginblock = re.compile("\s*//\s?" + self._params['throws_indicator'] + "begin")
         re_header_endblock = re.compile("\s*//\s?" + self._params['throws_indicator'] + "end")
         re_signature = re.compile("^\s?(?P<rettype>"+typestr+")\s[a-zA-Z_][a-zA-Z0-9_:]*\(.*?")
-        re_func_name = re.compile("(([a-zA-Z]*\.)*)(?P<funcname>" + ident + ")\s*\(")
+        re_func_name = re.compile("(([a-zA-Z]*(\.|->))*)(?P<funcname>" + ident + ")\s*\(")
         void_call = re.compile("^\s*(" +ident +")\s*\([^;]*;?")
         assign_call = re.compile("^\s*(?P<normalvar>(?:" + ident + "[\*\s]+" + ident + "|" + ident + "))\s*=\s*(" +ident +")\s*\([^;]*;?")
         ERROR_CLASS=self._params['error_class']

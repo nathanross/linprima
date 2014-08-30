@@ -20,7 +20,6 @@
     //=ASM= if ('console' in root) { console = root.console; }
 
     //=FFI= //%FFIsnippet.js%
-    
     /*
     //=FFI= //%nodedebug.js%
     */
@@ -61,7 +60,8 @@
         if (options !== undefined) { 
             if (typeof options == 'string' 
                 || (options instanceof String)
-                || 'slice' in options) {
+        //=ASM= || 'slice' in options
+               ) {
                 optStr = options;
             } else if ('readObject' in options) {
                 optStr = String(options);
@@ -81,9 +81,8 @@
             && 'errors' in out) {
             genErrorObjectList(out['errors']);
         }
-        var nodeRoot = out.tokenlist;
+        var nodeRoot = out.tokens;
         if ("comments" in out) { nodeRoot.comments = out.comments; }
-        if ("tokens" in out) { nodeRoot.tokens = out.tokens; }
         if ("errors" in out) { nodeRoot.errors = out.errors; }   
         return nodeRoot;
     };
@@ -96,8 +95,9 @@
         var optStr = "{}";
         if (options !== undefined) { 
             if (typeof options == 'string' 
-                || (options instanceof String)
-                || 'slice' in options) {
+                || (options instanceof String) 
+        //=ASM= || 'slice' in options
+               ) {
                 optStr = options;
             } else if ('readObject' in options) {
                 optStr = String(options);
@@ -111,15 +111,6 @@
         var strout = _linprimaMod.parseExtern(code, 
                                             //=ASM=   code.length, 
                                                       optStr);
-
-        /*if (code == "var o = {one: function() {} two:2};") {
-            if (options !== undefined) {
-                console.log("code =" + code + "="); 
-                console.log("code.length =" + String(code.length) + "="); 
-                console.log("options =" + JSON.stringify(options) + "="); 
-                console.log("strout =" + strout + "="); 
-            }    
-        }*/
         var out = JSON.parse(strout);
 
         //var out = JSON.parse(_linprimaMod.parseExtern(code, 
@@ -133,37 +124,43 @@
             var e = new Error(out.description);
             return e;
         }
-        if (options !== undefined &&
-            'tolerant' in options && options['tolerant'] && 'errors' in out) {
+        if (options !== undefined 
+            && 'tolerant' in options 
+            && options['tolerant'] 
+            && 'errors' in out) {
             genErrorObjectList(out['errors']);
         }
-        var path,i, j,cursor, regex;
+        var path,i, j,cursor, regex, container;
         for (i=0; i<out["regexp"].length; i++) {
             path=out["regexp"][i]; 
             cursor = out["program"];
             for (j=0; j<path.length; j++) {
                 cursor = cursor[path[j]];
             }
+            container = cursor["value"];
             try {
-                regex = new RegExp(cursor["value"][0], 
-                                   cursor["value"][1]);
+                regex = new RegExp(container["regexpValue"], 
+                                   container["regexpFlags"]);
                 cursor["value"] = regex;
 //                delete cursor["flags"];
             } catch (e) {
                 throw genErrorObject({
                     'description':'Invalid regular expression',
-                    'lineNumber': parseInt(cursor["value"][2]),
-                    'index': parseInt(cursor["value"][3]),
-                    'column': parseInt(cursor["value"][4])
+                    'lineNumber': parseInt(container[2]),
+                    'index': parseInt(container[3]),
+                    'column': parseInt(container[4])
                     });
             }
         }
         delete out["regexp"];
 
         var programOut = out.program;
-        if (out.comments != undefined) { programOut.comments = out["comments"]; }
-        if (out.errors != undefined) { programOut.errors = out["errors"]; }
-        if (out.tokens != undefined) { programOut.tokens = out["tokens"]; }
+        if (out.comments != undefined) 
+        { programOut.comments = out["comments"]; }
+        if (out.errors != undefined) 
+        { programOut.errors = out["errors"]; }
+        if (out.tokens != undefined) 
+        { programOut.tokens = out["tokens"]; }
  //       if (out.debug != undefined) { programOut.debug = out.errors; }   
         return programOut;
     }
