@@ -63,5 +63,5 @@ trailingComments
 type
 update
 value
-regexpValue
+regexpBody
 regexpFlags

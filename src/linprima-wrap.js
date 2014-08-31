@@ -33,6 +33,50 @@
     //=ASM= Module.cwrap('tokenizeASMJS', 'string', ['string', 'number', 'string']),
     //=ASM= };
 
+    var Syntax = {
+        AssignmentExpression: 'AssignmentExpression',
+        ArrayExpression: 'ArrayExpression',
+        ArrowFunctionExpression: 'ArrowFunctionExpression',
+        BlockStatement: 'BlockStatement',
+        BinaryExpression: 'BinaryExpression',
+        BreakStatement: 'BreakStatement',
+        CallExpression: 'CallExpression',
+        CatchClause: 'CatchClause',
+        ConditionalExpression: 'ConditionalExpression',
+        ContinueStatement: 'ContinueStatement',
+        DoWhileStatement: 'DoWhileStatement',
+        DebuggerStatement: 'DebuggerStatement',
+        EmptyStatement: 'EmptyStatement',
+        ExpressionStatement: 'ExpressionStatement',
+        ForStatement: 'ForStatement',
+        ForInStatement: 'ForInStatement',
+        FunctionDeclaration: 'FunctionDeclaration',
+        FunctionExpression: 'FunctionExpression',
+        Identifier: 'Identifier',
+        IfStatement: 'IfStatement',
+        Literal: 'Literal',
+        LabeledStatement: 'LabeledStatement',
+        LogicalExpression: 'LogicalExpression',
+        MemberExpression: 'MemberExpression',
+        NewExpression: 'NewExpression',
+        ObjectExpression: 'ObjectExpression',
+        Program: 'Program',
+        Property: 'Property',
+        ReturnStatement: 'ReturnStatement',
+        SequenceExpression: 'SequenceExpression',
+        SwitchStatement: 'SwitchStatement',
+        SwitchCase: 'SwitchCase',
+        ThisExpression: 'ThisExpression',
+        ThrowStatement: 'ThrowStatement',
+        TryStatement: 'TryStatement',
+        UnaryExpression: 'UnaryExpression',
+        UpdateExpression: 'UpdateExpression',
+        VariableDeclaration: 'VariableDeclaration',
+        VariableDeclarator: 'VariableDeclarator',
+        WhileStatement: 'WhileStatement',
+        WithStatement: 'WithStatement'
+    };
+
     var genErrorObject = function(errJson) {
         var e = new Error('Line ' + errJson['lineNumber'] +
                           ': ' + errJson['description']);
@@ -139,16 +183,16 @@
             }
             container = cursor["value"];
             try {
-                regex = new RegExp(container["regexpValue"], 
+                regex = new RegExp(container["regexpBody"], 
                                    container["regexpFlags"]);
                 cursor["value"] = regex;
 //                delete cursor["flags"];
             } catch (e) {
                 throw genErrorObject({
                     'description':'Invalid regular expression',
-                    'lineNumber': parseInt(container[2]),
-                    'index': parseInt(container[3]),
-                    'column': parseInt(container[4])
+                    'lineNumber': container["lineNumber"],
+                    'index': container["index"],
+                    'column': container["column"]
                     });
             }
         }
@@ -173,7 +217,25 @@
 
     exports.parse = parse;
 
+    exports.Syntax = (function () {
+        var name, types = {};
 
+        if (typeof Object.create === 'function') {
+            types = Object.create(null);
+        }
+
+        for (name in Syntax) {
+            if (Syntax.hasOwnProperty(name)) {
+                types[name] = Syntax[name];
+            }
+        }
+
+        if (typeof Object.freeze === 'function') {
+            Object.freeze(types);
+        }
+
+        return types;
+    }());
 }));
 
 //delete window._linprimaMod;
