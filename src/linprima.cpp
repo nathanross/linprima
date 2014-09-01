@@ -41,6 +41,26 @@ static inline std::string &ltrim(std::string &s) {
     return s;
 }
 
+string encodeObjId(size_t in) {
+    string out;
+    size_t intmp = in;
+    char next;
+    while (intmp > 0) {
+        next = intmp % 62;
+        if (next < 10) { next = '0' + next; }
+        else if(next <36) { next = 'A' + next - 10; }
+        else { next = 'a' + next - 36; }
+        out.insert(out.begin(), next); //not most efficient,
+                             //but most encodes won't be 
+                             //more than 4 chars or so.
+        intmp = intmp / 62;
+    }
+    //marker could be any arbitrary sequence. just chose this one.
+    string outwithmarker = string("#`@$");
+    outwithmarker.append(out);
+    return outwithmarker;
+}
+
 //for debugging 
 //shows you which entry is unitialized when one of the 
 //items in the json is uninitialized (leading to a segfault)
@@ -645,78 +665,7 @@ Comment::Comment(int lineNumber, int idx, int lineStart) :
     this->range[1] = -1;
     //DEBUGOUT("Comment()", false);
 }
-
-//# good to have these separated from individual nodes,
-//# because unless we start storing nodes in heap,
-//# what happens is we create a node, goes on stack,
-//# reference it from extrastruct (storing it is a
-//# prohibitive expense due to some expandable members)
-//# exits stack, gone, ref. invalid.
-
-//# better to only keep in memory the data necessary.
-//# these are the only data members that will be necessary
-//# once the node has left the stack (barring Assignment
-//# Expressions which which put a nodecopy on the heap)
-class NodesComments {
-public:
-    vector<Comment> leadingComments;
-    vector<Comment> trailingComments;
-    Value * nodesJv;
-    AllocatorType * nodesAlloc;
-    int range[2];
-    bool isNull;
-    NodesComments(AllocatorType* alloc);
-    NodesComments(Value& jv,AllocatorType* alloc);
-    void commentsIntoJson(const ExtraStruct *extra,
-                          const bool leading);
-};
-
-NodesComments::NodesComments(AllocatorType* alloc): 
-    nodesAlloc(alloc) {
-    nodesJv = 0x0;
-    isNull = false;
-    range[0] = -1;
-    range[1] = -1;
-    leadingComments.clear();
-    trailingComments.clear();
-}
-NodesComments::NodesComments(Value& jv, AllocatorType* alloc) : 
-    nodesAlloc(alloc) {
-    this->nodesJv = &jv;
-    isNull = false;
-    range[0] = -1;
-    range[1] = -1;
-    leadingComments.clear();
-    trailingComments.clear();
-}
-
-void NodesComments::commentsIntoJson(const ExtraStruct *extra,
-                                     const bool leading) { 
-    //DEBUGIN(" NodesComments::commentsIntoJson(const bool leading)", false);
-    const StrRef * key;
-    vector<Comment> * commentVec;
-    if (leading) {
-        key = (&(text::_leadingComments));
-        commentVec = &leadingComments;
-    } else {
-        key = (&(text::_trailingComments));
-        commentVec = &trailingComments;
-    }
-    Value::ConstMemberIterator itr = nodesJv->FindMember(key->s);
-    if (itr != nodesJv->MemberEnd())  {
-        nodesJv->EraseMember(itr);
-        //switch to RemoveMember if this function becomes timesink.
-    }
-    if (commentVec->size() > 0) {
-        vec2jsonCallbackVal<Comment>(*nodesJv,
-                                  nodesAlloc,
-                                  extra,
-                                  *key,
-                                  *commentVec,
-                                  &Comment::toJson);
-    }
-    //DEBUGOUT("commentsIntoJSon", false);
-}
+class NodesComments;
 
 //# called ExError to prevent forseeable 
 //# exception-handling namespace conflict.
@@ -901,7 +850,7 @@ public:
     const StrRef *type;
 
     bool hasJv;
-    Value jv;
+    Document jv;
     Loc loc;
 #ifndef THROWABLE
     bool err;
@@ -909,17 +858,24 @@ public:
     bool hasLoc;
     bool hasRange;
     int range[2];
-    vector< vector<RegexLeg> > regexPaths; //lin only. obv.
+    vector< vector<RegexLeg> > regexPaths; 
 
     shared_ptr<NodesComments> thisnc;
 
+    //todo consolidate these rather than wastefully store each of them
+    //for each node
     string name;//for identifiers
     vector< Node* > expressions; //for sequence expressions.
     Node* leftAssign; //for assignment+reinterpretAsCover...
     Node* rightAssign; //same
 
+    //for finishExpressionStatement's child node's type
+    //used in parseFunctionSourceElements and parseSourceElements
+    const StrRef *spareStrref; 
+
     AllocatorType* alloc;
     vector<Node*>* heapNodes;
+    size_t completedPos; //for late resolves
 
     string s(const u16string in);
     Node(bool lookaheadAvail, bool storeStats, 
@@ -935,7 +891,11 @@ public:
     void jvput(const StrRef path, const bool b);
     void jvput_dbl(const StrRef path, const double b);
     void jvput_null(const StrRef path); 
-
+#ifdef LIMITJSON
+    size_t addUnresolvedDocument(const StrRef &path);
+    size_t pushUnresolvedDocument(Value &root);
+    void lateResolve();
+#endif
     void regNoadd(const vector<RegexLeg> paths, 
                   Node * child);
     void reg(const StrRef& path, 
@@ -943,7 +903,8 @@ public:
     void nodeVec(const StrRef& path, 
                  const vector<Node*>& nodes);
     void addType(const Synt in);
-    void regexPaths2json(Value& out);
+    void regexPaths2json(Value& out,
+                         AllocatorType * alloc);
     //void commentsIntoJson(const bool leading);
     void processComment();
     void finish();
@@ -1036,6 +997,129 @@ private:
 
 }; 
 
+
+
+//# good to have these separated from individual nodes,
+//# because unless we start storing nodes in heap,
+//# what happens is we create a node, goes on stack,
+//# reference it from extrastruct (storing it is a
+//# prohibitive expense due to some expandable members)
+//# exits stack, gone, ref. invalid.
+
+//# better, even in highmem, to only keep in memory the data necessary.
+//# these are the only data members that will be necessary
+//# once the node has left the stack (barring Assignment
+//# Expressions which which put a nodecopy on the heap)
+class NodesComments {
+public:
+    vector<Comment> leadingComments;
+    vector<Comment> trailingComments;
+#ifdef LIMITJSON
+    Document * nodesJv;
+#endif
+#ifndef LIMITJSON
+    Value * nodesJv;
+#endif
+    AllocatorType * nodesAlloc;
+    int range[2];
+    bool isNull;
+    bool resolved;
+    NodesComments(AllocatorType* alloc);
+    NodesComments(Document& jv,AllocatorType* alloc);
+    void commentsIntoJson(const ExtraStruct *extra,
+                          const bool leading);
+    void resolve();
+#ifdef LIMITJSON
+    void setNodeDetached(Node *detachedNodeAddr);
+private:
+    bool nodeIsDetached;
+    Node * detachedNode;
+#endif
+};
+
+NodesComments::NodesComments(AllocatorType* alloc): 
+    nodesAlloc(alloc),
+    resolved(true)
+#ifdef LIMITJSON
+    , nodeIsDetached(false) 
+#endif
+{
+    nodesJv = 0x0;
+    isNull = false;
+    range[0] = -1;
+    range[1] = -1;
+    leadingComments.clear();
+    trailingComments.clear();
+}
+NodesComments::NodesComments(Document& jv, AllocatorType* alloc) : 
+    nodesAlloc(alloc),
+    resolved(true)
+#ifdef LIMITJSON
+    , nodeIsDetached(false) 
+#endif
+{
+    this->nodesJv = &jv;
+    isNull = false;
+    range[0] = -1;
+    range[1] = -1;
+    leadingComments.clear();
+    trailingComments.clear();
+}
+
+void NodesComments::commentsIntoJson(const ExtraStruct *extra,
+                                     const bool leading) { 
+    //DEBUGIN(" NodesComments::commentsIntoJson(const bool leading)", false);
+    const StrRef * key;
+    vector<Comment> * commentVec;
+    if (leading) {
+        key = (&(text::_leadingComments));
+        commentVec = &leadingComments;
+    } else {
+        key = (&(text::_trailingComments));
+        commentVec = &trailingComments;
+    }
+    Value::ConstMemberIterator itr = nodesJv->FindMember(key->s);
+    if (itr != nodesJv->MemberEnd())  {
+        nodesJv->EraseMember(itr);
+        //switch to RemoveMember if this function becomes timesink.
+    }
+    if (commentVec->size() > 0) {
+#ifdef LIMITJSON
+        vec2jsonCallback<Comment>(*nodesJv,
+#endif
+#ifndef LIMITJSON
+        vec2jsonCallbackVal<Comment>(*nodesJv,
+#endif
+                                  nodesAlloc,
+                                  extra,
+                                  *key,
+                                  *commentVec,
+                                  &Comment::toJson);
+    }
+    //DEBUGOUT("commentsIntoJSon", false);
+}
+#ifdef LIMITJSON
+void NodesComments::setNodeDetached(Node *detachedNode) {
+    //call this if the only reason the node is still alive
+    //is because of the comment. in highmem, you can delete
+    //the node and still have access to its rapidjson object
+    //but in lowmem mode, the lifetime of the document is tied
+    //as a resource of the node (all node jv's children are allocated using
+    //the jv's own allocator, instead of the allocator of the entire
+    //task's root document) so the node is be kept alive
+    //until any json changes for its contents are resolved.
+    nodeIsDetached = true;
+    this->detachedNode = detachedNode;
+}
+#endif
+void NodesComments::resolve() {
+#ifdef LIMITJSON
+    if (nodeIsDetached) {
+        detachedNode->lateResolve();
+    }
+#endif
+    resolved = true;
+} 
     
 #ifndef THROWABLE
 
@@ -1802,6 +1886,12 @@ struct LinprimaTask {
     const char16_t *sourceRaw;
     const int length;
 
+#ifdef LIMITJSON
+    StringBuffer buffer;
+    Writer<StringBuffer> writer;
+    vector<string> * completeObjects;
+#endif
+
     ExtraStruct extra;
     StateStruct state;
     int idx;
@@ -1846,6 +1936,9 @@ LinprimaTask::LinprimaTask(const u16string sourceStrArg,
                            const OptionsStruct optArg):
     sourceStr(sourceStrArg),
     sourceRaw(sourceStr.data()), length(sourceStr.length()),
+#ifdef LIMITJSON
+    writer(buffer),
+#endif
     extra(optArg), state(),
     idx(0), lineNumber(0), lineStart(0),
     lookahead(make_shared<TokenStruct>(0,0,0)) {
@@ -1980,7 +2073,11 @@ public:
     void peek();
     void readTokens(vector<TokenRecord> &tokens);
     //#throw_end
-    void tokenize(Document& out, const bool retErrAsJson);
+    void tokenize(Document& out, 
+#ifdef LIMITJSON
+                  vector<string> &completedObjectsOut,
+#endif
+                  const bool retErrAsJson);
     void filterTokenLocation();
     ptrTkn makeToken();
 private:
@@ -3360,7 +3457,14 @@ Node::Node(bool lookaheadAvail,
            vector<Node*>* heapNodes,
            AllocatorType* allocArg,
            LinprimaTask * taskArg):
-    loc(-1,-1,-1), alloc(allocArg), task(taskArg) {
+    loc(-1,-1,-1), 
+#ifdef LIMITJSON
+    alloc(&(jv.GetAllocator())), 
+#endif
+#ifndef LIMITJSON
+    alloc(allocArg), 
+#endif
+    task(taskArg) {
  
     DEBUGIN("Node::Node(bool, bool)", true);
 #ifndef THROWABLE
@@ -3493,6 +3597,68 @@ void Node::regNoadd(const vector<RegexLeg> paths, Node * child) {
     }
     //DEBUGOUT("Node::regNoAdd", false);
 }
+#ifdef LIMITJSON
+void AddDocument(LinprimaTask* task,
+            const StrRef &path, Document &root, Document &branch) {
+    Writer<StringBuffer> writer(task->buffer);
+    branch.Accept(writer);
+    task->completeObjects->push_back(task->buffer.GetString());
+    task->buffer.Clear();
+    string objectAddr = encodeObjId(task->completeObjects->size()-1);
+    root.AddMember(path,
+                       Value(objectAddr.data(),
+                                 objectAddr.length(),
+                                 root.GetAllocator()).Move(), 
+                    root.GetAllocator());
+}
+void PushDocument(LinprimaTask* task, AllocatorType &alloc,
+                Value &root, Document &branch) {
+    Writer<StringBuffer> writer(task->buffer);
+    branch.Accept(writer);
+    task->completeObjects->push_back(task->buffer.GetString());
+    task->buffer.Clear();
+    string objectAddr = encodeObjId(task->completeObjects->size()-1);
+    root.PushBack(Value(objectAddr.data(),
+                        objectAddr.length(),
+                        alloc).Move(), 
+                  alloc);
+}
+#endif
+#ifdef LIMITJSON
+
+size_t Node::addUnresolvedDocument(const StrRef &path) {
+     size_t pos = task->completeObjects->size();
+     task->completeObjects->push_back("{}");  
+     string objectAddr = encodeObjId(pos);
+     jv.AddMember(path, 
+                  Value(objectAddr.data(),
+                        objectAddr.length(),
+                        *alloc).Move(),
+                  *alloc);
+     return pos;
+}
+size_t Node::pushUnresolvedDocument(Value &root) {
+     size_t pos = task->completeObjects->size();
+     task->completeObjects->push_back("{}");  
+     string objectAddr = encodeObjId(pos);
+     root.PushBack(Value(objectAddr.data(),
+                         objectAddr.length(),
+                         *alloc).Move(),
+                    *alloc);
+     return pos;
+}
+
+void Node::lateResolve() {
+    Writer<StringBuffer> writer(task->buffer);
+    jv.Accept(writer);
+    string result = task->buffer.GetString(); 
+    //printf(" late resolve %s \n", result.data());
+    (*(task->completeObjects))[completedPos] = result;
+    task->buffer.Clear();
+    delNode(this);       
+}
+
+#endif
 
 void Node::reg(const StrRef &path, Node * child) { 
     //DEBUGIN("reg(string path, Node &child)", false);
@@ -3513,20 +3679,35 @@ void Node::reg(const StrRef &path, Node * child) {
         vector<RegexLeg> pathlist;
         pathlist.emplace_back((&(path)));
         regNoadd(pathlist, child);
-    
+#ifndef LIMITJSON
         jv.AddMember(path, 
-                      child->jv.Move(), 
+                     child->jv.Move(), 
                      *alloc);
-    
-        if (child->thisnc) {
+
+        if (child->thisnc
+            && !(child->thisnc->resolved)) {
             child->thisnc->nodesJv = &(jv[path]);
         }
         delNode (child); 
+#endif
+#ifdef LIMITJSON
+        if (task->extra.attachComment 
+            && child->thisnc 
+            && !(child->thisnc->resolved)) {
+            child->completedPos = addUnresolvedDocument(path);
+          
+            child->thisnc->setNodeDetached(child);
+        } else {
+            AddDocument(task, path, jv, child->jv);
+            delNode (child); 
+        }
+#endif
     } else {
         Value tmp;
         jv.AddMember(path,
                       tmp, *alloc);
     }
+
     //DEBUGOUT("node::reg", false);
 }
 
@@ -3540,16 +3721,35 @@ void Node::nodeVec(const StrRef &path, const vector< Node* > & nodes) {
             } else if (nodes[i]->type == Syntax[Synt::AssignmentExpression]) {
                 nodes[i]->reg(text::_left, nodes[i]->leftAssign);
                 nodes[i]->reg(text::_right, nodes[i]->rightAssign);
+            } else if (nodes[i]->type == Syntax[Synt::Property]) {
+                nodes[i]->reg(text::_key, nodes[i]->leftAssign);
+                nodes[i]->reg(text::_value, nodes[i]->rightAssign);
+                nodes[i]->jvput(text::_kind, *(nodes[i]->spareStrref));
             }
             vector<RegexLeg> pathlist;
             pathlist.emplace_back((&(path)));
             pathlist.emplace_back(i);
             regNoadd(pathlist, nodes[i]);
+#ifndef LIMITJSON
             arr.PushBack(nodes[i]->jv.Move(), *alloc);
-            if (nodes[i]->thisnc) {
+            if (nodes[i]->thisnc
+                && !(nodes[i]->thisnc->resolved)) {
                 nodes[i]->thisnc->nodesJv = &(arr[i]);
             }
             delNode (nodes[i]);
+#endif
+#ifdef LIMITJSON
+            if (task->extra.attachComment 
+                && nodes[i]->thisnc 
+                && !(nodes[i]->thisnc->resolved)) {
+
+                nodes[i]->completedPos = pushUnresolvedDocument(arr);                
+                nodes[i]->thisnc->setNodeDetached(nodes[i]);
+            } else {
+                PushDocument(task, jv.GetAllocator(), arr, nodes[i]->jv);
+                delNode (nodes[i]);
+            }
+#endif
         } else {
             Value tmp;
             arr.PushBack(tmp, *alloc);
@@ -3565,7 +3765,7 @@ void Node::addType(const Synt in) {
     
     jv.AddMember(text::_type, *type, *alloc);
 }
-void Node::regexPaths2json(Value& out) { 
+void Node::regexPaths2json(Value& out, AllocatorType *alloc) { 
     //DEBUGIN("Node::regexPaths2json()", false);
     out.SetArray();    
     Value path;
@@ -3610,6 +3810,7 @@ void Node::processComment() {
     if (type == Syntax[Synt::Program]) {  
         if (jv[text::_body].Size() > 0) {
             DEBUGOUT("", false); 
+            thisnc->resolved = true;
             return;
         }
     }
@@ -3638,17 +3839,37 @@ void Node::processComment() {
         }
     }
 
+    int iternum = 0;
+    bool unattachedLast = false;
     // Eating the stack.
     if (last) {
         while ((last) && last->range[0] >= thisnc->range[0]) {
+            if (iternum == 2){
+                //after the first iteration lastChild and last are equal
+                //because last is assigned above via a back() without
+                //an accompanying pop_back. Only on the second iteration
+                //
+                //the first last is not actually removed from the stack.
+                //only when last has been assigned to lastChild twice
+                //does lastChild necesarily point to something that's
+                //about to have 0 references. (be deallocated for good.)
+                lastChild->resolve();
+                ++iternum;
+            }
+            unattachedLast = false;
             lastChild = last;
             if (bottomRight->size() > 0) { 
+                unattachedLast = true;
                 last = bottomRight->back(); 
                 bottomRight->pop_back();
             } else { 
                 last.reset();
             }
+            if (iternum < 2){ ++iternum; }
         }
+    }
+    if (iternum > 0 && unattachedLast) {
+        last->resolve();
     }
 
     if (lastChild) {
@@ -3660,6 +3881,7 @@ void Node::processComment() {
             lastChild->commentsIntoJson(&(task->extra), LEADING);
             thisnc->commentsIntoJson(&(task->extra), LEADING);
         }
+        lastChild->resolve();
     } else if (extra.leadingComments.size() > 0 && 
                extra.leadingComments[extra.leadingComments.size() - 1]
                .range[1] <= thisnc->range[0]) {
@@ -3673,6 +3895,7 @@ void Node::processComment() {
         thisnc->commentsIntoJson(&(task->extra), TRAILING);
     }
 
+    thisnc->resolved = false;
     bottomRight->push_back(thisnc);
     DEBUGOUT("", false);
 }
@@ -3846,6 +4069,7 @@ void Node::finishEmptyStatement() {
 void Node::finishExpressionStatement(Node * expression) {
     DEBUGIN("finishExpressionStatement", false);
     addType(Synt::ExpressionStatement);
+    spareStrref = expression->type;
     reg(text::_expression, expression);
     this->finish();  DEBUGOUT("", false);
 }
@@ -4040,6 +4264,9 @@ void Node::finishProgram(const vector< Node* >& body) {
     DEBUGIN("finishProgram", false);
     addType(Synt::Program);
     nodeVec(text::_body, body);
+    for (int i=0; i<task->extra.bottomRightStack.size(); i++) {
+        task->extra.bottomRightStack[i]->resolve();
+    }
     this->finish();
     //no parent node to call reg so add these atts. here.
     if (task->extra.range) {
@@ -4062,9 +4289,9 @@ void Node::finishProperty(const StrRef &kind,
                           Node * value) {
     DEBUGIN("finishProperty", false);
     addType(Synt::Property);
-    reg(text::_key, key);
-    reg(text::_value, value);
-    jvput(text::_kind, kind);
+    leftAssign = key;
+    rightAssign = value;
+    spareStrref = &kind;
     this->finish();
     DEBUGOUT("", false);
 }
@@ -4264,7 +4491,11 @@ public:
     //#throw_begin
     Node* parseProgram();
     //#throw_end
-    void parse(Document& out, const bool retErrAsJson);
+    void parse(Document& out, 
+#ifdef LIMITJSON
+               vector<string> & completedObjectsOut,
+#endif
+               const bool retErrAsJson);
 private:    
     AllocatorType *alloc;
 
@@ -4372,7 +4603,8 @@ private:
     //#throw_end
 };
 
-ParseTools::ParseTools(const u16string code, OptionsStruct options) :    
+ParseTools::ParseTools(const u16string code, 
+                       OptionsStruct options) :    
     task(make_shared<LinprimaTask>(code,
                                         //code.data(), 
                                         //code.length(), 
@@ -4747,7 +4979,8 @@ Node* ParseTools::parseObjectInitialiser() {
     Node *property, 
         *node = makeNode(true, true);
     
-    string keytype, key, name, kindname;
+    string keytype, key, name;
+    const StrRef *kindname;
     int kind;
     map<string, int> kmap;
 
@@ -4756,23 +4989,22 @@ Node* ParseTools::parseObjectInitialiser() {
     while (!match("}")) {
         property = parseObjectProperty();
         
+        Node * keyobj = property->leftAssign; //property->jv['key']
 
-        const Value& keyobj = property->jv[text::_key];
-
-        keytype = GetStringCorrect(keyobj[text::_type]);
+        keytype = GetStringCorrect(keyobj->jv[text::_type]);
 
         if (keytype == Syntax[Synt::Identifier]->s) {
-            name = GetStringCorrect(keyobj[text::_name]);            
+            name = GetStringCorrect(keyobj->jv[text::_name]);            
         } else {
-            if (keyobj[text::_value].IsString()) {
-                name = GetStringCorrect(keyobj[text::_value]);
+            if (keyobj->jv[text::_value].IsString()) {
+                name = GetStringCorrect(keyobj->jv[text::_value]);
             } else {
-                name = to_string(keyobj[text::_value].GetDouble());
+                name = to_string(keyobj->jv[text::_value].GetDouble());
             }
         }
-        kindname = GetStringCorrect(property->jv[text::_kind]);
-        kind = (kindname == text::_init.s) ? PropertyKind["Data"] : 
-            (kindname == text::_get.s) ? PropertyKind["Get"] : PropertyKind["Set"];
+        kindname = property->spareStrref; //property->jv['kind']
+        kind = (kindname == &(text::_init)) ? PropertyKind["Data"] : 
+            (kindname == &(text::_get)) ? PropertyKind["Get"] : PropertyKind["Set"];
 
         key = "$";
         key.append(name);
@@ -6400,8 +6632,7 @@ Node* ParseTools::parseFunctionSourceElements() {
         //# returns in turn the value of parseStatement for stringLiteral 
         //# so returns a string literal expression node wrapped in an expressionStatement node.
         sourceElements.push_back(sourceElement); 
-        if (GetStringCorrect(sourceElement->jv[text::_expression][text::_type]) !=
-            Syntax[Synt::Literal]->s) {
+        if (sourceElement->spareStrref != Syntax[Synt::Literal]) {
             //? this one I doubt there's more an efficient way to do this
             //? then json-c accesses. Storing node hierarchies just to fix this call seems to 
             //? be likely less performant.
@@ -6732,8 +6963,7 @@ vector< Node* > ParseTools::parseSourceElements() {
         //#todo make a function that accepts vector of nested finds
         //#so we can make tests like this more legible.
 
-        if (GetStringCorrect(sourceElement->jv[text::_expression][text::_type]) != 
-            (Syntax[Synt::Literal]->s)) {
+        if (sourceElement->spareStrref != Syntax[Synt::Literal]) {
             // this is not directive
             break;
         }
@@ -6863,7 +7093,11 @@ public:
     typedef char Ch;
 
 
-    JsonDecompressor(long len);
+    JsonDecompressor(
+#ifdef LIMITJSON
+                     vector<string> * completeObjs, 
+#endif
+                     long len);
     void Put(Ch c);
     void Flush() { };
     void decompress(char *&out, long &lenOut);
@@ -6878,16 +7112,41 @@ private:
     const long MAX_BLOCK_SIZE = 200000;
     long len;
     long blockSize;
-    long i;
 
+    long i;
     vector<char*> blocks;
     char * current;
+
+#ifdef LIMITJSON
+    int objExpandSeq=0;
+    vector<string> * completeObjects;
+
+    const int OBJ_NONE = 0;
+    const char OBJ_MARKER_BEGIN=1;
+    const char OBJ_MARKER_END=5;
+    const int OBJ_GET_ADDR =7;
+    const char *MARKER = "\"#`@$";
+
+    //use vector to avoid another include.
+    vector<const char*> putStack;
+    vector<int> putStackLen;
+    vector<int> putStackPos;
+    int addr;
     //    OStreamWrapper(const OStreamWrapper&);
     //OStreamWrapper& operator=(const OStreamWrapper&);    
+#endif
 };
 
 
-JsonDecompressor::JsonDecompressor(long lenArg) {
+JsonDecompressor::JsonDecompressor(
+#ifdef LIMITJSON
+                                   vector<string> * completeObjs,
+#endif
+                                   long lenArg)
+#ifdef LIMITJSON
+    : completeObjects(completeObjs) 
+#endif
+{
     len = lenArg+50;//+50 for a basic floor.
     //ideally, we want most calls to fit within one block.
     //because there's way more allocated mem
@@ -6902,15 +7161,121 @@ JsonDecompressor::JsonDecompressor(long lenArg) {
     current = 0x0;
     i = blockSize;    
 }
-void JsonDecompressor::Put(char c) {
-    //printf("%c",c);
+void JsonDecompressor::Put(char in) {
+#ifndef LIMITJSON
     if (i == blockSize) {
         current = (char *) malloc(blockSize);
         blocks.push_back(current);
         i = 0;
     }
-    current[i] = c;
-    i++;
+    current[i] = in;
+    ++i;    
+#endif
+#ifdef LIMITJSON
+    //printf("\n%c|",in);
+    putStack.push_back(&in);
+    putStackLen.push_back(1);
+    putStackPos.push_back(0);
+    char c = in;
+
+    //review:
+    //current: current block
+    //i: current position in block
+    //c: current character in source document or expanded string
+    //    expanded string is read right after quotation following
+    //    addr is read.
+    //putStack: stack of expanded strings.
+    int inpos=0;
+    while (! putStack.empty()) {
+        if (i == blockSize) {
+            current = (char *) malloc(blockSize);
+            blocks.push_back(current);
+            i = 0;
+        }
+        if (inpos == putStackLen.back()) {
+            putStack.pop_back();
+            putStackLen.pop_back();
+            putStackPos.pop_back();
+            if (putStack.empty()) {
+                return;
+            }
+            inpos = putStackPos.back();
+            //printf(" stackframe complete adding end bracket }\n");
+            //current[i] = '}';
+            //++i;
+            continue;
+        }
+        //printf("\ndepth %i pos %i out of len %i \n", (int) putStackPos.size(), (int) inpos, (int) putStackLen.back());
+        c = putStack.back()[inpos];
+        //printf(" -%c-",c);
+
+        //printf("seq %i ", (int) objExpandSeq);
+        if (objExpandSeq == OBJ_NONE && 
+            c != '[' &&
+            c != ',' &&
+            c != ':') {
+
+            current[i] = c;
+            ++i;
+            ++inpos;
+            continue;
+        } else if (objExpandSeq == OBJ_NONE) {
+            //printf(" found init  ");
+            objExpandSeq = OBJ_MARKER_BEGIN;
+        } else if (objExpandSeq >= OBJ_MARKER_BEGIN &&
+                   objExpandSeq <= OBJ_MARKER_END) {
+            if (c == MARKER[objExpandSeq-OBJ_MARKER_BEGIN]) {
+                //printf(" found marker part ");
+                ++objExpandSeq;
+                if (objExpandSeq > OBJ_MARKER_END) {
+                    addr = 0;
+                    objExpandSeq = OBJ_GET_ADDR;
+                }
+                ++(inpos);
+                continue;
+            } else {  
+                //                printf(" sequence unfinished ");
+                for (int m=0;m<objExpandSeq-OBJ_MARKER_BEGIN;m++){
+                    //printf("adding back %c", MARKER[m]);
+                    current[i] = MARKER[m];
+                    ++i;
+                    if (i == blockSize) {
+                        current = (char *) malloc(blockSize);
+                        blocks.push_back(current);
+                        i = 0;
+                    }
+                }
+                objExpandSeq = OBJ_NONE;
+                continue;
+            } 
+        } else if (objExpandSeq == OBJ_GET_ADDR) {
+            if (c != '"') {
+                addr *= 62;
+                addr += getDecodeIdx(c);
+                //printf(" getting addr... ");
+                ++(inpos);
+                continue;
+            } else {
+                ++(inpos);
+                putStackPos.pop_back();
+                putStackPos.push_back(inpos);
+                //printf(" seeking addr %i ", (int) addr);
+                //printf("at completeObjs of size %i \n", 
+                       //       (int) completeObjects->size());
+                putStack.push_back(completeObjects->at(addr).data());
+                putStackLen.push_back(completeObjects->at(addr).length());
+                putStackPos.push_back(0);
+                inpos = 0;
+                objExpandSeq = OBJ_NONE;
+                continue;
+            }
+        }
+
+        current[i] = c;
+        ++i;    
+        ++(inpos);
+    }
+#endif
 }
 
 void JsonDecompressor::decompress(char *&decoded, long &lenOut) {
@@ -6964,6 +7329,7 @@ void JsonDecompressor::decompress(char *&decoded, long &lenOut) {
     const int FOUND_INIT = 1;
     const int FOUND_QUOTE = 2;
     const int FIRST_CHAR_ATE = 3;
+
     int firstDecodeIdx;
     int decodeIdx = -1;
     const char * decodedPtr;
@@ -7041,7 +7407,6 @@ void JsonDecompressor::decompress(char *&decoded, long &lenOut) {
                     sequenceStep = NONE;
                     continue; //check for a new init here.
                 }
-
             } else if (sequenceStep == FOUND_QUOTE) {
                 //"eating first char";               
                 firstDecodeIdx = getDecodeIdx(block[b]);
@@ -7156,7 +7521,13 @@ void JsonDecompressor::decompress(char *&decoded, long &lenOut) {
 
 
 void Tokenizer::tokenize(Document &outJson, 
-                    const bool retErrorsAsJson) {
+#ifdef LIMITJSON
+                         vector<string> &completeObjectsOut,
+#endif
+                         const bool retErrorsAsJson) {
+#ifdef LIMITJSON
+    task->completeObjects = &completeObjectsOut;
+#endif
     outJson.SetObject();
     AllocatorType& alloc = outJson.GetAllocator();
     extra.tokenize = true;    
@@ -7249,6 +7620,8 @@ void Tokenizer::tokenize(Document &outJson,
     return;
 }
 
+#ifndef LIMITJSON
+
 void tokenizeImpl(Document &outJson,
                   const u16string code, 
                   OptionsStruct options,
@@ -7287,17 +7660,29 @@ void tokenizeImpl(Document &d, const u16string code) {
     OptionsStruct o;
     tokenizeImpl(d, code, o, false);
 }
+#endif
 
-string tokenizeRetString(const u16string code, const OptionsStruct options){
+string tokenizeRetString(const u16string code, OptionsStruct options){
     
     Document *out = new Document();
-    tokenizeImpl(*out, code, options, true);
 
 #ifdef LOWMEM
     if (asmRetVal != 0x0) {
         free (asmRetVal);
     }
+    options.tokens = true;
+    options.tokenize = true;
+    initglobals();
+    Tokenizer tknr(code, options);
+#ifdef LIMITJSON
+    vector<string> completeObjects;
+    tknr.tokenize(*out, completeObjects, true);
+    JsonDecompressor wrapper(&completeObjects, code.length());
+#endif
+#ifndef LIMITJSON
+    tknr.tokenize(*out, true);
     JsonDecompressor wrapper(code.length());
+#endif
     Writer<JsonDecompressor> writer(wrapper);
     out->Accept(writer); 
     delete out;
@@ -7306,6 +7691,7 @@ string tokenizeRetString(const u16string code, const OptionsStruct options){
     return string(asmRetVal, length);
 #endif
 #ifndef LOWMEM
+    tokenizeImpl(*out, code, options, true);
     StringBuffer buffer;
     Writer<StringBuffer> writer(buffer);
     out->Accept(writer);    
@@ -7334,9 +7720,14 @@ string tokenizeRetString(const string code, const OptionsStruct options) {
 //#    numeric literals are represented as strings, serialized to json string using a special
 //#    serializer that does not print quotes.
 
-
 void ParseTools::parse(Document& outJson, 
+#ifdef LIMITJSON
+                       vector<string> &completeObjectsOut,
+#endif
                        const bool retErrorsAsJson) {
+#ifdef LIMITJSON
+    task->completeObjects = &completeObjectsOut;
+#endif
     outJson.SetObject();
     AllocatorType& alloclocal = outJson.GetAllocator();    
     alloc = &alloclocal;
@@ -7373,14 +7764,18 @@ void ParseTools::parse(Document& outJson,
         throw e;
     }
 #endif
-
+#ifdef LIMITJSON
+    AddDocument(task.get(), text::_program, outJson, programNode->jv); 
+#endif
+#ifndef LIMITJSON
     outJson.AddMember(text::_program, programNode->jv.Move(), *alloc);
-    Value regexList(kArrayType);
+#endif
 
-    programNode->regexPaths2json(regexList);
+    Value regexList(kArrayType);
+    programNode->regexPaths2json(regexList, alloc);
 
     outJson.AddMember(text::_regexp, 
-                      regexList, 
+                        regexList, 
                       *alloc);
 
    if (extra.commentTracking) {
@@ -7408,9 +7803,11 @@ void ParseTools::parse(Document& outJson,
    }
 
    extra.clear();
-//programNode->delNode(programNode);
+   programNode->delNode(programNode);
    return;
 }
+
+#ifndef LIMITJSON
 void parseImpl(Document &outJson,
                const u16string code, 
                OptionsStruct options, //# nonconst 1:1
@@ -7440,19 +7837,31 @@ void parseImpl(Document& d, const u16string code) {
     OptionsStruct o;
     parseImpl(d, code, o, false);
 }
+#endif
 
 //# return json as string.
 string parseRetString(const u16string code, OptionsStruct options) {    
     Document *out = new Document();
     out->SetObject();
-    parseImpl(*out, code, options, true);
+
     //walkJson("root", out);
     //    StringBuffer buffer;
 #ifdef LOWMEM
     if (asmRetVal != 0x0) {
         free (asmRetVal);
     }
+    initglobals();
+    ParseTools pt(code, options);
+#ifdef LIMITJSON
+    vector<string> completeObjects;
+    pt.parse(*out, completeObjects,
+                       true);
+    JsonDecompressor wrapper(&completeObjects, code.length());
+#endif
+#ifndef LIMITJSON
+    pt.parse(*out, true);
     JsonDecompressor wrapper(code.length());
+#endif
     Writer<JsonDecompressor> writer(wrapper);
     out->Accept(writer); 
     delete out;
@@ -7461,6 +7870,7 @@ string parseRetString(const u16string code, OptionsStruct options) {
     return string(asmRetVal, length);
 #endif
 #ifndef LOWMEM
+    parseImpl(*out, code, options, true);
     StringBuffer buffer;
     Writer<StringBuffer> writer(buffer);
     out->Accept(writer);    
@@ -7487,8 +7897,6 @@ char* strToChar(string in) {
     strcpy(outchars, in.c_str());
     return outchars;
 }
-
-
 extern "C" {
     char* tokenizeExtern(const char *code, const char* options) {
       return strToChar(tokenizeRetString(string(code), 
@@ -7550,10 +7958,14 @@ int main() {
     unsigned int resultlength = 0;
     
     string finput;
-    //ifstream ifs("/home/n/coding/esp3/bench/cases/active/mootools.js");
-    ifstream ifs("/home/n/coding/esp7/test/codetotest.js");
+    string finputOpt;
+    ifstream ifs("/home/n/coding/esp3/bench/cases/active/mootools.js");
+    //ifstream ifs("/home/n/coding/esp7/test/codetotest.js");
+    ifstream optifs("/home/n/coding/esp7/test/opttotest");
 
     finput.assign( (std::istreambuf_iterator<char>(ifs) ),
+                    (std::istreambuf_iterator<char>()    ) );    
+    finputOpt.assign( (std::istreambuf_iterator<char>(optifs) ),
                     (std::istreambuf_iterator<char>()    ) );    
 
     vector<string> codeSamples = { finput };
@@ -7562,7 +7974,8 @@ int main() {
     //   "var x = { null: 42 }" 
             //};
    
-    allopt = "{ }";
+    //allopt = finputOpt;
+    allopt = "{ \"range\": true }";
     //allopt = "{ \"loc\":true, \"range\":true, \"tokens\":true }";
     //    ProfilerStart("/tmp/profile2");
 

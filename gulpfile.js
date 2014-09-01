@@ -52,13 +52,22 @@ gulp.task('throw52', function(callback) { //gperftools
         makeExecCallback(callback));
 });
 
+gulp.task('makeCompressors', function(callback) { //gperftools
+    exec("./tools/compression/./init.sh", 
+        makeExecCallback(callback));
+});
+
 gulp.task('prepareSource', function() {
-    return gulp.src(['lib/rapidjson*','tmp/linprima.cpp'])
+    return gulp.src(['lib/rapidjson*',
+                     'tools/compression/cmpR_out/jsoncompress.cpp',
+                     'tmp/linprima.cpp'])
     .pipe(concat('src.cpp'))
     .pipe(gulp.dest('tmp'));
 });
 gulp.task('prepareSourceProfiny', function() {
-    return gulp.src(['lib/rapidjson*','tmp/linprima.cpp'])
+    return gulp.src(['lib/rapidjson*',
+                     'tmp/jsoncompress.cpp',
+                     'tmp/linprima.cpp'])
     .pipe(concat('src.cpp'))
     .pipe(replace('DEBUGIN("', '\n PROFINY_SCOPE \n DEBUGIN("'))
     .pipe(gulp.dest('tmp'));
@@ -74,7 +83,6 @@ function completeWrapper(mixMode, mixSnippetPath, dest) {
 //node neads this for readFileSync to work on gulp dests, which are flushed to disk asynchronously.
 
 gulp.task('sync', function(callback) {
-//    var cb = function(a,b,c) { toShell(a,b,c); callback(); };    
     exec("sync",
         makeExecCallback(callback));
 });
@@ -88,24 +96,16 @@ gulp.task('ffitcall', function(callback) {
           " -std=c++11 -stdlib=libc++ " +
           " -lboost_timer -lboost_chrono -lboost_system" + 
           " -o \"profiny_test\" \"tmp/src.cpp\"", 
-//          " /usr/lib/x86_64-linux-gnu/libboost_timer.so " +
-//          " /usr/lib/x86_64-linux-gnu/libboost_chrono.so " + 
-//          " /usr/lib/x86_64-linux-gnu/libboost_system.so " ,  
-        makeExecCallback(callback));
-});
-
-//google pprofiler
-gulp.task('ffigcall', function(callback) { //gperftools
-    exec("clang++ -fno-builtin -O3 -Wall -D HASMAIN -D THROWABLE -stdlib=libc++ -std=c++0x " +
-         ((argv.m !== undefined )? " -ltcmalloc " : "") + 
-         " tmp/src.cpp -o test.out " + "",
-         ((argv.m === undefined )? " /usr/local/lib/libprofiler.so " : ""), 
         makeExecCallback(callback));
 });
 
 //valgrind/gdb
 gulp.task('ffidcall', function(callback) { //gdb, valgrind
-    exec("clang++ -g -O0 -Wall -D HASMAIN -D THROWABLE -std=c++11 -stdlib=libc++ tmp/src.cpp -o test.out", 
+    exec("clang++ -g -O0 -Wall -D HASMAIN -D THROWABLE " +
+         ((argv.lowmem)? " -D LOWMEM ": "") + 
+         ((argv.limj)? " -D LOWMEM -D LIMITJSON ": "") + 
+         ((argv.dbg)? " -D DO_DEBUG ": "") + 
+         " -std=c++11 -stdlib=libc++ tmp/src.cpp -o test.out", 
         makeExecCallback(callback));
 });
 
@@ -114,10 +114,10 @@ gulp.task('ffidcall', function(callback) { //gdb, valgrind
 //opt. use throw52 for easier/faster debugging than emcc
 // of any throw52 interactions causing problems.
 gulp.task('fficcall', function(callback) {
-     exec("clang++ -Wall " + 
+     exec("clang++ -Wall -D LOWMEM " + 
           ((argv.t52 !== undefined)? "":" -D THROWABLE ") + 
           ((argv.dbg !== undefined)? " -D DO_DEBUG ":"") + 
-          " -std=c++11 -stdlib=libc++ -shared -fPIC tmp/src.cpp -o build/ffi/linprima.x64.so", 
+          " -std=c++11 -stdlib=libc++ -shared -fPIC -o build/ffi/linprima.x64.so tmp/src.cpp", 
         makeExecCallback(callback));
 });
 
@@ -146,14 +146,14 @@ gulp.task('ffi', function() { //gdb and valgrind debugging
     //asm requires code to be built before completing wrapper
     //as code is substituted into wrapper.
 gulp.task('asmccall', function(callback) {
-    exec("emcc -std=c++11 -O3     -s ALIASING_FUNCTION_POINTERS=0 " +
+    exec("emcc -std=c++11 -O3    -s ALIASING_FUNCTION_POINTERS=0 " +
          ((argv.dbg !== undefined)? " -D DO_DEBUG " : "") +
          " -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js", 
         makeExecCallback(callback));
 });
 
 gulp.task('asmpcall', function(callback) {
-    exec("/opt/emscripten/emcc -Oz -std=c++11 -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js",
+    exec("/opt/emscripten/emcc -Oz -std=c++11 -D LOWMEM -D LIMITJSON -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js",
         makeExecCallback(callback));
 });
 gulp.task('asmtcall', function(callback) {
@@ -185,8 +185,8 @@ gulp.task('passToTest', function() {
 });
 
 gulp.task('asm', function(callback) {
-    runSequence('cleanASM', 
-                'throw52',
+    runSequence('cleanASM',
+                'throw52',                
                 'prepareSource',
                 (argv.p !== undefined) ? 'asmpcall' : 
                 (argv.prof !== undefined) ? 'asmtcall' :'asmccall', 
