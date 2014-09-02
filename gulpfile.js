@@ -48,7 +48,8 @@ gulp.task('noThrow52', function() {
   //  .pipe(gulp.dest('tmp'));
 });
 
-SRC_ORDER=['src/debug.cpp', 'src/stringutils.h', 'src/charutils.h', 'src/enums.h', 'src/podt.h','src/jsonutils.h','src/Node.h','src/constants.h', 'src/NodesComments.h', 'src/LinprimaTask.h', 'src/Tokenizer.h', 'src/LinprimaTask.cpp', 'src/Tokenizer.cpp', 'src/NodesComments.cpp', 'src/linprima.cpp']
+SRC_ORDER=['src/debug.cpp','src/stringutils.h', 'src/charutils.h', 'src/enums.h', 'src/linprima.cpp']
+//'src/stringutils.h', 'src/charutils.h', 'src/enums.h', 'src/podt.h','src/jsonutils.h','src/Node.h','src/constants.h', 'src/NodesComments.h', 'src/LinprimaTask.h', 'src/Tokenizer.h', 'src/LinprimaTask.cpp', 'src/Tokenizer.cpp', 'src/NodesComments.cpp', 'src/linprima.cpp']
 
 gulp.task('joinSrc', function() {
     return gulp.src(SRC_ORDER)
