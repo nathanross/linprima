@@ -43,12 +43,28 @@ gulp.task('cleanFFI', ['cleanTmp'], function() {
 gulp.task('cleanAll', ['cleanASM', 'cleanFFI']);
 
 gulp.task('noThrow52', function() {
-    return gulp.src('src/linprima.cpp')
+    return;
+// gulp.src('src/linprima.cpp')
+  //  .pipe(gulp.dest('tmp'));
+});
+
+SRC_ORDER=['src/debug.cpp', 'src/stringutils.h', 'src/charutils.h', 'src/enums.h', 'src/podt.h','src/jsonutils.h','src/Node.h','src/constants.h', 'src/NodesComments.h', 'src/LinprimaTask.h', 'src/Tokenizer.h', 'src/LinprimaTask.cpp', 'src/Tokenizer.cpp', 'src/NodesComments.cpp', 'src/linprima.cpp']
+
+gulp.task('joinSrc', function() {
+    return gulp.src(SRC_ORDER)
+    .pipe(concat('linprima.cpp'))
+    .pipe(gulp.dest('tmp'));
+});
+
+gulp.task('joinSrcProfiny', function() {
+    return gulp.src(SRC_ORDER)
+    .pipe(concat('linprima.cpp'))
+    .pipe(replace('DEBUGIN("', '\n PROFINY_SCOPE \n DEBUGIN("'))
     .pipe(gulp.dest('tmp'));
 });
 
 gulp.task('throw52', function(callback) { //gperftools
-    exec("python src/throw52.py -v 0 src/linprima.cpp tmp/linprima.cpp", 
+    exec("python src/throw52.py -v 0 tmp/linprima.cpp tmp/linprima2.cpp && mv tmp/linprima2.cpp tmp/linprima.cpp", 
         makeExecCallback(callback));
 });
 
@@ -57,19 +73,11 @@ gulp.task('makeCompressors', function(callback) { //gperftools
         makeExecCallback(callback));
 });
 
-gulp.task('prepareSource', function() {
+gulp.task('addLibs', function() {
     return gulp.src(['lib/rapidjson*',
                      'tools/compression/cmpR_out/jsoncompress.cpp',
                      'tmp/linprima.cpp'])
     .pipe(concat('src.cpp'))
-    .pipe(gulp.dest('tmp'));
-});
-gulp.task('prepareSourceProfiny', function() {
-    return gulp.src(['lib/rapidjson*',
-                     'tmp/jsoncompress.cpp',
-                     'tmp/linprima.cpp'])
-    .pipe(concat('src.cpp'))
-    .pipe(replace('DEBUGIN("', '\n PROFINY_SCOPE \n DEBUGIN("'))
     .pipe(gulp.dest('tmp'));
 });
 
@@ -101,7 +109,7 @@ gulp.task('ffitcall', function(callback) {
 
 //valgrind/gdb
 gulp.task('ffidcall', function(callback) { //gdb, valgrind
-    exec("clang++ -g -O0 -Wall -D HASMAIN -D THROWABLE " +
+    exec("clang++ -g -O3 -Wall -D HASMAIN -D THROWABLE " +
          ((argv.lowmem)? " -D LOWMEM ": "") + 
          ((argv.limj)? " -D LOWMEM -D LIMITJSON ": "") + 
          ((argv.dbg)? " -D DO_DEBUG ": "") + 
@@ -114,7 +122,7 @@ gulp.task('ffidcall', function(callback) { //gdb, valgrind
 //opt. use throw52 for easier/faster debugging than emcc
 // of any throw52 interactions causing problems.
 gulp.task('fficcall', function(callback) {
-     exec("clang++ -Wall -D LOWMEM " + 
+     exec("clang++ -Wall -D LOWMEM -D LIMITJSON " + 
           ((argv.t52 !== undefined)? "":" -D THROWABLE ") + 
           ((argv.dbg !== undefined)? " -D DO_DEBUG ":"") + 
           " -std=c++11 -stdlib=libc++ -shared -fPIC -o build/ffi/linprima.x64.so tmp/src.cpp", 
@@ -133,9 +141,10 @@ gulp.task('ffiWrapper', function() {
 });
 gulp.task('ffi', function() { //gdb and valgrind debugging
     runSequence('cleanFFI', 
-               (argv.t52 !== undefined)? 'throw52':'noThrow52',
                (argv.profiny !== undefined)? 
-                'prepareSourceProfiny' : 'prepareSource', 
+                'joinSrcProfiny' : 'joinSrc', 
+               (argv.t52 !== undefined)? 'throw52':'noThrow52',
+               'addLibs',
                (argv.p !== undefined)? 'ffipcall':
                ((argv.g !== undefined)? 'ffigcall': //call like this: gulp ffi --g
                ((argv.d !== undefined)? 'ffidcall': 
@@ -186,8 +195,9 @@ gulp.task('passToTest', function() {
 
 gulp.task('asm', function(callback) {
     runSequence('cleanASM',
+                'joinSrc',
                 'throw52',                
-                'prepareSource',
+                'addLibs',
                 (argv.p !== undefined) ? 'asmpcall' : 
                 (argv.prof !== undefined) ? 'asmtcall' :'asmccall', 
                 'umdFixes', 
