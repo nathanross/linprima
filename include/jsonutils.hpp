@@ -1,3 +1,5 @@
+#ifndef JSONUTILS_HPP
+#define JSONUTILS_HPP
 #line 1 "jsonutils.h"
 
 //convenience function for using l-value (stack/non-temporary) as
@@ -102,3 +104,4 @@ string encodeObjId(size_t in) {
     outwithmarker.append(out);
     return outwithmarker;
 }
+#endif

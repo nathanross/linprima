@@ -1,3 +1,5 @@
+#ifndef WRAPPING_NODE_HPP
+#define WRAPPING_NODE_HPP
 class WrappingNode : public Node {
 public:
     WrappingNode(ptrTkn startToken, 
@@ -43,3 +45,4 @@ Loc WrappingNode::WrappingSourceLocation(ptrTkn startToken) {
     DEBUGOUT("WrappingSrcLoc", true); 
     return result;
 }
+#endif

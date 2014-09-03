@@ -1,3 +1,5 @@
+#ifndef ENUMS_HPP
+#define ENUMS_HPP
 #line 2 "enums.h"
 //#include <map>
 //using namespace std;
@@ -208,3 +210,4 @@ map<Synt, const StrRef *> Syntax = {
     {Synt::WhileStatement, (&(text::_WhileStatement))},
     {Synt::WithStatement, (&(text::_WithStatement))}
     }; 
+#endif

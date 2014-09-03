@@ -1,3 +1,5 @@
+#ifndef PODT_HPP
+#define PODT_HPP
 #line 2 "podt.h"
 //#include <rapidjson/etc...
 
@@ -237,3 +239,4 @@ struct ExtraStruct {
     ExtraStruct(OptionsStruct opt);
     void clear();
 };
+#endif

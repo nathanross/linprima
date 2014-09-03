@@ -1,3 +1,5 @@
+#ifndef NODE_HPP
+#define NODE_HPP
 #line 2 "Node.h"
 
 //#include "NodesComments.h"
@@ -183,4 +185,5 @@ public:
         err = false;
     }
 };
+#endif
 #endif

@@ -1,3 +1,5 @@
+#ifndef CHARUTILS_HPP
+#define CHARUTILS_HPP
 reqinline
 bool isDecimalDigit(const char16_t& ch) {
     DEBUGIN("   isDecimalDigit(const char16_t ch)", false);
@@ -49,3 +51,4 @@ bool isLineTerminator(const char16_t& ch) {
     DEBUGOUT("", false); 
     return (ch == 0x0A) || (ch == 0x0D) || (ch == 0x2028) || (ch == 0x2029);
 }
+#endif

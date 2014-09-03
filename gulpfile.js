@@ -48,7 +48,7 @@ gulp.task('noThrow52', function() {
   //  .pipe(gulp.dest('tmp'));
 });
 
-SRC_ORDER=['src/debug.cpp','src/stringutils.h', 'src/charutils.h', 'src/enums.h', 'src/podt.h', 'src/jsonutils.h', 'src/JsonDecompressor.h', 'src/Node.h', 'src/constants.h', 'src/NodesComments.h', 'src/LinprimaTask.h','src/WrappingNode.h', 'src/Tokenizer.h', 'src/parsepod.h', 'src/ParseFuncs.h', 'src/podt.cpp', 'src/Node.cpp', 'src/NodesComments.cpp', 'src/LinprimaTask.cpp', 'src/Tokenizer.cpp', 'src/ParseFuncs.cpp', 'src/JsonDecompressor.cpp', 'src/linprima.cpp']
+SRC_ORDER=['include/debug.hpp','include/stringutils.h', 'include/charutils.h', 'include/enums.h', 'include/podt.h', 'include/jsonutils.h', 'include/JsonDecompressor.h', 'include/Node.h', 'include/constants.h', 'include/NodesComments.h', 'include/LinprimaTask.h','include/WrappingNode.h', 'include/Tokenizer.h', 'include/parsepod.h', 'include/ParseFuncs.h', 'src/podt.cpp', 'src/Node.cpp', 'src/NodesComments.cpp', 'src/LinprimaTask.cpp', 'src/Tokenizer.cpp', 'src/ParseFuncs.cpp', 'src/JsonDecompressor.cpp', 'src/linprima.cpp']
 //'src/podt.h','src/jsonutils.h','src/Node.h','src/constants.h', 'src/NodesComments.h', 'src/LinprimaTask.h', 'src/Tokenizer.h', 'src/LinprimaTask.cpp', 'src/Tokenizer.cpp', 'src/NodesComments.cpp', 'src/linprima.cpp']
 
 gulp.task('joinSrc', function() {

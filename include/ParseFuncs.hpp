@@ -1,3 +1,5 @@
+#ifndef PARSE_FUNCS_HPP
+#define PARSE_FUNCS_HPP
 #line 1  "ParseFuncs.h"
 class ParseTools {
 public:
@@ -118,3 +120,4 @@ private:
     vector< Node* > parseSourceElements();
     //#throw_end
 };
+#endif

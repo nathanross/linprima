@@ -1,3 +1,5 @@
+#ifndef CONSTANTS_HPP
+#define CONSTANTS_HPP
 
 TokenStruct NULLTOKEN(-1,-1,-1);
 ptrTkn NULLPTRTKN;
@@ -24,3 +26,4 @@ void initglobals() {
 
     DEBUGOUT("", true);
 }
+#endif

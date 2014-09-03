@@ -1,3 +1,5 @@
+#ifndef NODES_COMMENTS_HPP
+#define NODES_COMMENTS_HPP
 
 //# good to have these separated from individual nodes,
 //# because unless we start storing nodes in heap,
@@ -36,3 +38,4 @@ private:
     Node * detachedNode;
 #endif
 };
+#endif

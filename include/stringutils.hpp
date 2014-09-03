@@ -1,3 +1,5 @@
+#ifndef STRINGUTILS_HPP
+#define STRINGUTILS_HPP
 #line 2 "stringutils.cpp"
 //#include <vector>
 #include <map>
@@ -241,3 +243,4 @@ double sciNoteToDouble(string in) {
     DEBUGOUT("sciNoteToDouble", false);
     return stod(factor) * pow(10,stod(exp));
 }
+#endif

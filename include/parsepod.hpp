@@ -1,3 +1,5 @@
+#ifndef PARSEPOD_HPP
+#define PARSEPOD_HPP
 
 
 struct ParseParamsOptions {
@@ -78,3 +80,4 @@ ReinterpretOut::ReinterpretOut() {
     firstRestricted = NULLNODE;
     stricted = NULLNODE;
 }
+#endif

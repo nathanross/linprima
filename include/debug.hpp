@@ -1,4 +1,6 @@
-#line 2 "debug.cpp"
+#ifndef DEBUG_HPP
+#define DEBUG_HPP
+#line 2 "debug.hpp"
 #include <vector>
 #include <string>
 #include <stdio.h>
@@ -133,5 +135,8 @@ template<typename T> T DBG_RET(string a, T b) {
 #define DEBUGIN(A,B) 
 #define DEBUGOUT(A,B)
 #define DBGRET(A,B) B 
+
+#endif
+
 
 #endif

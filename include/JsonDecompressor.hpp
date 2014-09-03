@@ -1,3 +1,5 @@
+#ifndef JSON_DECOMPRESSOR_HPP
+#define JSON_DECOMPRESSOR_HPP
 
 /* 
 
@@ -81,4 +83,5 @@ private:
     static int getDecodeIdx(char in);
 };
 
+#endif
 #endif

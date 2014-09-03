@@ -1,3 +1,5 @@
+#ifndef LINPRIMA_TASK_HPP
+#define LINPRIMA_TASK_HPP
 #line 1 "LinprimaTask.h"
 
 
@@ -75,3 +77,4 @@ struct LinprimaTask {
 };
 
 
+#endif

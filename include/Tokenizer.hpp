@@ -1,3 +1,5 @@
+#ifndef TOKENIZER_HPP
+#define TOKENIZER_HPP
 #line 1 "Tokenizer.h"
 
 class Tokenizer {
@@ -68,3 +70,4 @@ private:
     ptrTkn collectToken();
     //#throw_end
 };
+#endif
