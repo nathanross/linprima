@@ -48,8 +48,8 @@ gulp.task('noThrow52', function() {
   //  .pipe(gulp.dest('tmp'));
 });
 
-SRC_ORDER=['src/debug.cpp','src/stringutils.h', 'src/charutils.h', 'src/enums.h', 'src/linprima.cpp']
-//'src/stringutils.h', 'src/charutils.h', 'src/enums.h', 'src/podt.h','src/jsonutils.h','src/Node.h','src/constants.h', 'src/NodesComments.h', 'src/LinprimaTask.h', 'src/Tokenizer.h', 'src/LinprimaTask.cpp', 'src/Tokenizer.cpp', 'src/NodesComments.cpp', 'src/linprima.cpp']
+SRC_ORDER=['src/debug.cpp','src/stringutils.h', 'src/charutils.h', 'src/enums.h', 'src/podt.h', 'src/jsonutils.h', 'src/JsonDecompressor.h', 'src/Node.h', 'src/constants.h', 'src/NodesComments.h', 'src/LinprimaTask.h','src/WrappingNode.h', 'src/Tokenizer.h', 'src/parsepod.h', 'src/ParseFuncs.h', 'src/podt.cpp', 'src/Node.cpp', 'src/NodesComments.cpp', 'src/LinprimaTask.cpp', 'src/Tokenizer.cpp', 'src/ParseFuncs.cpp', 'src/JsonDecompressor.cpp', 'src/linprima.cpp']
+//'src/podt.h','src/jsonutils.h','src/Node.h','src/constants.h', 'src/NodesComments.h', 'src/LinprimaTask.h', 'src/Tokenizer.h', 'src/LinprimaTask.cpp', 'src/Tokenizer.cpp', 'src/NodesComments.cpp', 'src/linprima.cpp']
 
 gulp.task('joinSrc', function() {
     return gulp.src(SRC_ORDER)
@@ -156,7 +156,7 @@ gulp.task('ffi', function() { //gdb and valgrind debugging
     //asm requires code to be built before completing wrapper
     //as code is substituted into wrapper.
 gulp.task('asmccall', function(callback) {
-    exec("emcc -std=c++11 -O3    -s ALIASING_FUNCTION_POINTERS=0 " +
+    exec("emcc -std=c++11 -O3 -D LOWMEM -D LIMITJSON   -s ALIASING_FUNCTION_POINTERS=0 " +
          ((argv.dbg !== undefined)? " -D DO_DEBUG " : "") +
          " -s NO_EXIT_RUNTIME=1 -s EXPORTED_FUNCTIONS=\"['_parseASMJS', '_tokenizeASMJS']\" tmp/src.cpp -o tmp/linprima.asm.0.js", 
         makeExecCallback(callback));
