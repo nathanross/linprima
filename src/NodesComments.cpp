@@ -1,4 +1,3 @@
-
 NodesComments::NodesComments(AllocatorType* alloc): 
     nodesAlloc(alloc),
     resolved(true)

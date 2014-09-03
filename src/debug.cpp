@@ -13,26 +13,6 @@ static inline std::string &ltrim(std::string &s) {
     return s;
 }
 
-string encodeObjId(size_t in) {
-    string out;
-    size_t intmp = in;
-    char next;
-    while (intmp > 0) {
-        next = intmp % 62;
-        if (next < 10) { next = '0' + next; }
-        else if(next <36) { next = 'A' + next - 10; }
-        else { next = 'a' + next - 36; }
-        out.insert(out.begin(), next); //not most efficient,
-                             //but most encodes won't be 
-                             //more than 4 chars or so.
-        intmp = intmp / 62;
-    }
-    //marker could be any arbitrary sequence. just chose this one.
-    string outwithmarker = string("#`@$");
-    outwithmarker.append(out);
-    return outwithmarker;
-}
-
 //shows you which entry is unitialized when one of the 
 //items in the json is uninitialized (leading to a segfault)
 //walks json, printing each path before trying to access/print

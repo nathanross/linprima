@@ -2,6 +2,8 @@
 TokenStruct NULLTOKEN(-1,-1,-1);
 ptrTkn NULLPTRTKN;
 Node * NULLNODE = 0x0;
+const char * emptystr = "";
+const StrRef EMPTY_STRREF = StringRef(emptystr, 0);
 
 map<string, unique_ptr<Node>> PlaceHolders { 
 };

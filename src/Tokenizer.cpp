@@ -1450,6 +1450,34 @@ void Tokenizer::peek() {
     return; //#throw52
 }
 
+
+
+void Tokenizer::filterTokenLocation() {
+    return;
+    /*    DEBUGIN(" filterTokenLocation()", false);
+    TokenRecord token(0,0,0),entry;
+    vector<TokenRecord> tokens;
+
+    for (unsigned i = 0; i < extra.tokenRecords.size(); ++i) {
+        entry = extra.tokenRecords[i];
+        token.type = entry.type;
+        token.valuestring = entry.valuestring;
+        if (extra.range) { 
+            token.range[0] = entry.range[0];
+            token.range[1] = entry.range[1];
+        }
+        if (extra.loc) { 
+            token.loc = entry.loc;
+        }
+        tokens.push_back(token);
+    }
+    extra.tokenRecords = tokens;
+
+    DEBUGOUT("filterToken", false);    
+    return; */
+}
+
+
 //# tokenize
 //# returns a map containing under
 //# (optional) 'comments' - list of comments as per esprima.
