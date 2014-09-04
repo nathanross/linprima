@@ -1,4 +1,11 @@
-
+#line 1 "Node.cpp"
+#include "Node.hpp"
+#include "NodesComments.hpp"
+#include "stringutils.hpp"
+#include "debug.hpp"
+using namespace std;
+using namespace rapidjson;
+#define reqinline inline
 //#this is the ONLY constructor in this code capable of 
 //#modifying state, it ALWAYS and ONLY changes state if lookaheadAvail
 //#is true. Important to keep in mind when making 
@@ -67,17 +74,25 @@ void Node::lookavailInit() {
      }
  }
 
- void Node::clear() {
-     regexPaths.clear();
-     expressions.clear();
 
-     hasLoc = false;
-     hasRange = false;
- }
+void Node::delNode(Node * toDel) {
+    if (toDel == nullptr) { return; }
+    auto iter = find(heapNodes->begin(), heapNodes->end(), toDel);
+    if (iter != heapNodes->end()) { heapNodes->erase(iter); }
+    delete (toDel);
+}
 
- void Node::unused() {
-     delNode(this);
- }
+void Node::clear() {
+    regexPaths.clear();
+    expressions.clear();
+    
+    hasLoc = false;
+    hasRange = false;
+}
+
+void Node::unused() {
+    delNode(this);
+}
 
 
 reqinline
@@ -113,7 +128,7 @@ void Node::regNoadd(const vector<RegexLeg> paths, Node * child) {
     //string debugmsg = " Node::regNoadd(vector<string> paths, Node &child) :::";
     //debugmsg.append(paths[0]);
     //DEBUGIN(debugmsg, false);
-    if (child == NULLNODE) { return; }
+    if (child == nullptr) { return; }
 
     if (child->hasRange) {
         Value rangearr(kArrayType);
@@ -219,7 +234,7 @@ void Node::reg(const StrRef &path, Node * child) {
     //to reinterpret them as children of a different node
     //and then cleanly delete sequenceexpression node
     //without having to extricate children objects from json, etc.
-    if (child != NULLNODE) {
+    if (child != nullptr) {
         if (child->type == Syntax[Synt::SequenceExpression]) {
             child->nodeVec(text::_expressions, child->expressions);
         } else if (child->type 
@@ -266,7 +281,7 @@ void Node::nodeVec(const StrRef &path, const vector< Node* > & nodes) {
     //DEBUGIN("nodeVec(string path, vector< Node > & nodes)", false);
     Value arr(kArrayType);
     for (unsigned int i=0; i<nodes.size(); i++) {
-        if (nodes[i] != NULLNODE) {
+        if (nodes[i] != nullptr) {
             if (nodes[i]->type == Syntax[Synt::SequenceExpression]) {
                 nodes[i]->nodeVec(text::_expressions, nodes[i]->expressions);
             } else if (nodes[i]->type == Syntax[Synt::AssignmentExpression]) {

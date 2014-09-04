@@ -1,5 +1,12 @@
 #ifndef CHARUTILS_HPP
 #define CHARUTILS_HPP
+
+#line 4 "charutils.hpp"
+#include "debug.hpp"
+#include "stringutils.hpp"
+
+#define reqinline inline //save tweaking this for last. Talking maybe 10ms system / 20 ms asm in one rep of Chart.js (huge file), so pretty low return on optimization.
+
 reqinline
 bool isDecimalDigit(const char16_t& ch) {
     DEBUGIN("   isDecimalDigit(const char16_t ch)", false);
@@ -11,7 +18,7 @@ reqinline
 bool isHexDigit(const char16_t& ch) {
     DEBUGIN("   isHexDigit(const char16_t ch)", false);
     DEBUGOUT("", false); 
-    return (u16string({u"0123456789abcdefABCDEF"}).find_first_of(ch) 
+    return (std::u16string({u"0123456789abcdefABCDEF"}).find_first_of(ch) 
            != std::string::npos);    
 }
 
@@ -19,13 +26,13 @@ reqinline
 bool isOctalDigit(const char16_t& ch) {
     DEBUGIN("   isOctalDigit(const char16_t ch)", false);
     DEBUGOUT("", false); 
-    return (u16string({u"01234567"}).find_first_of(ch) 
+    return (std::u16string({u"01234567"}).find_first_of(ch) 
             != std::string::npos);    
 }
 
 char16_t toLowercaseHex(const char16_t& ch) { //used in scanHexEscape
     //assumes isHexDigit(ch) evals to true
-    u16string hexletters = u"abcdefABCDEF";
+    std::u16string hexletters = u"abcdefABCDEF";
     int pos = hexletters.find_first_of(ch);
     char16_t out = ch;
     if (pos != std::string::npos && pos >= 6) {

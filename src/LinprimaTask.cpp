@@ -1,5 +1,10 @@
 #line 1 "LinprimaTask.cpp"
+#include "LinprimaTask.hpp"
+#include "debug.hpp"
+#include "Tokenizer.hpp"
 
+using namespace std;
+using namespace rapidjson;
 LinprimaTask::LinprimaTask(const u16string sourceStrArg,
                            //const char16_t *sourceRawArg,
                            //const long lengthArg,

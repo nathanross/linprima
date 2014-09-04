@@ -1,3 +1,33 @@
+#line 1 "ParseFuncs.cpp"
+#include "ParseFuncs.hpp"
+#include "stringutils.hpp"
+#include "strrefconsts.hpp"
+#include "jsonutils.hpp"
+#include "debug.hpp"
+using namespace std;
+using namespace rapidjson;
+#define reqinline inline
+
+
+const char * emptystr = "";
+const StrRef EMPTY_STRREF = StringRef(emptystr, 0);
+
+unique_ptr<Node> make_unique_node() {
+    unique_ptr<Node> a(new Node(false, false, 0x0, 0x0, 0x0));
+    return move(a);
+}
+
+
+map<string, unique_ptr<Node>> PlaceHolders { 
+};
+
+bool globalsAssigned = false;
+
+void initGlobals() {
+    PlaceHolders["ArrowParameterPlaceHolder"] = make_unique_node(); 
+    PlaceHolders["ArrowParameterPlaceHolder"]->type = (&(text::_ArrowParameterPlaceholder));
+    globalsAssigned = true;
+}
 
 ParseTools::ParseTools(const u16string code, 
                        OptionsStruct options) :    
@@ -14,19 +44,13 @@ ParseTools::ParseTools(const u16string code,
          state(task->state),
          lookahead(task->lookahead),
          scanner(task) {
+    if (!globalsAssigned) { initGlobals(); }
 }
 
 ParseTools::~ParseTools() {
     clearNodeHeap();
 }
 
-
-void Node::delNode(Node * toDel) {
-    if (toDel == NULLNODE) { return; }
-    auto iter = find(heapNodes->begin(), heapNodes->end(), toDel);
-    if (iter != heapNodes->end()) { heapNodes->erase(iter); }
-    delete (toDel);
-}
 void ParseTools::clearNodeHeap() {
     Node *tmp;
     while (heapNodes.size() > 0) {
@@ -208,7 +232,7 @@ Node* ParseTools::parseArrayInitialiser() {
 
         if (match(",")) {
             scanner.lex();
-            elements.push_back(NULLNODE);
+            elements.push_back(nullptr);
         } else {
 #ifndef THROWABLE
             Node *tmp = parseAssignmentExpression();
@@ -246,7 +270,7 @@ Node* ParseTools::parsePropertyFunction(vector<Node*>& param,
         task->throwErrorTolerant(first, Messages[Mssg::StrictParamName],{});
     }
     task->strict = previousStrict;
-    node->finishFunctionExpression(NULLNODE, param, 
+    node->finishFunctionExpression(nullptr, param, 
                                   EMPTY_NODE_LIST, body); 
     DEBUGOUT("parsePropFunction", false);
     return node;
@@ -352,7 +376,7 @@ Node* ParseTools::parseObjectProperty() {
         || token->type == TknType::Punctuator) {
         task->throwUnexpected(token);
         DEBUGOUT("parseObjProp", false); 
-        return NULLNODE; //#just to satisfy warnings.
+        return nullptr; //#just to satisfy warnings.
     } else {
         key = parseObjectPropertyKey();
         expect(":");
@@ -407,18 +431,18 @@ Node* ParseTools::parseObjectInitialiser() {
         if (hasStringKey<int>(key,kmap)) {
             if (kmap[key] == PropertyKind["Data"]) {
                 if (task->strict && kind == PropertyKind["Data"]) {
-                    task->throwErrorTolerant(NULLPTRTKN, 
+                    task->throwErrorTolerant(Tokenizer::NULLPTRTKN, 
                             Messages[Mssg::StrictDuplicateProperty],{});
                 } else if (kind != PropertyKind["Data"]) {
-                    task->throwErrorTolerant(NULLPTRTKN, 
+                    task->throwErrorTolerant(Tokenizer::NULLPTRTKN, 
                             Messages[Mssg::AccessorDataProperty],{});
                 }
             } else {
                 if (kind == PropertyKind["Data"]) {
-                    task->throwErrorTolerant(NULLPTRTKN, 
+                    task->throwErrorTolerant(Tokenizer::NULLPTRTKN, 
                             Messages[Mssg::AccessorDataProperty],{});
                 } else if (kmap[key] & kind) {
-                    task->throwErrorTolerant(NULLPTRTKN, 
+                    task->throwErrorTolerant(Tokenizer::NULLPTRTKN, 
                             Messages[Mssg::AccessorGetSet],{});
                 }
             }
@@ -720,12 +744,12 @@ Node* ParseTools::parsePostfixExpression() {
                 // 11.3.1, 11.3.2
                 if (task->strict && expr->type == Syntax[Synt::Identifier] && 
                     Tokenizer::isRestrictedWord(expr->name)) {
-                    task->throwErrorTolerant(NULLPTRTKN,
+                    task->throwErrorTolerant(Tokenizer::NULLPTRTKN,
                                        Messages[Mssg::StrictLHSPostfix],{});
                 }
 
                 if (!isLeftHandSide(expr)) {
-                    task->throwErrorTolerant(NULLPTRTKN,
+                    task->throwErrorTolerant(Tokenizer::NULLPTRTKN,
                                        Messages[Mssg::InvalidLHSInAssignment],
                                        {});
                 }
@@ -761,11 +785,11 @@ Node* ParseTools::parseUnaryExpression() {
         // 11.4.4, 11.4.5
         if (task->strict && expr->type == Syntax[Synt::Identifier] 
             && Tokenizer::isRestrictedWord(expr->name)) {
-            task->throwErrorTolerant(NULLPTRTKN, Messages[Mssg::StrictLHSPrefix],{});
+            task->throwErrorTolerant(Tokenizer::NULLPTRTKN, Messages[Mssg::StrictLHSPrefix],{});
         }
 
         if (!isLeftHandSide(expr)) {
-            task->throwErrorTolerant(NULLPTRTKN, 
+            task->throwErrorTolerant(Tokenizer::NULLPTRTKN, 
                                Messages[Mssg::InvalidLHSInAssignment], {});
         }
 
@@ -791,7 +815,7 @@ Node* ParseTools::parseUnaryExpression() {
         tmpnode->finishUnaryExpression(token->strvalue, expr);
         if (task->strict && token->strvalue == "delete" 
             && expr->type == Syntax[Synt::Identifier]) {
-            task->throwErrorTolerant(NULLPTRTKN, Messages[Mssg::StrictDelete], {});
+            task->throwErrorTolerant(Tokenizer::NULLPTRTKN, Messages[Mssg::StrictDelete], {});
         }
         DEBUGOUT("parseUnary", false); 
         return tmpnode;
@@ -895,7 +919,7 @@ Node* ParseTools::parseBinaryExpression() {
     //and access the right stack at the right time.
     nodestack.push_back(left);
     tokstack.push_back(nulltok);
-    nodestack.push_back(NULLNODE);
+    nodestack.push_back(nullptr);
     tokstack.push_back(token);
     nodestack.push_back(right);
     tokstack.push_back(nulltok);
@@ -924,7 +948,7 @@ Node* ParseTools::parseBinaryExpression() {
         // Shift.
         token = scanner.lex();
         token->prec = prec;
-        nodestack.push_back(NULLNODE);
+        nodestack.push_back(nullptr);
         tokstack.push_back(token);
         markers.push_back(lookahead);
         expr = parseUnaryExpression();
@@ -1013,7 +1037,7 @@ void ParseTools::validateParamNode(ReinterpretOptions& options,
             options.stricted = param;
             options.message = Messages[Mssg::StrictParamDupe];
         }
-    } else if (options.firstRestricted == NULLNODE) {
+    } else if (options.firstRestricted == nullptr) {
         if (Tokenizer::isRestrictedWord(name)) {
             options.firstRestricted = param;
             options.message = Messages[Mssg::StrictParamName];
@@ -1048,7 +1072,7 @@ ReinterpretOut ParseTools::reinterpretAsCoverFormalsList(
         param = expressions[i];
         if (param->type == Syntax[Synt::Identifier]) {
             params.push_back(param);
-            defaults.push_back(NULLNODE);
+            defaults.push_back(nullptr);
             //null defaults might be skipped instead of regged check this.
             validateParamNode(opts, param, param->name);
         } else if (param->type == Syntax[Synt::AssignmentExpression]) {
@@ -1069,7 +1093,7 @@ ReinterpretOut ParseTools::reinterpretAsCoverFormalsList(
     if (opts.message == Messages[Mssg::StrictParamDupe]) {
         task->throwError(
                    //strict ? opts.stricted : opts.firstRestricted, //? replicate?
-                   NULLPTRTKN,
+                   Tokenizer::NULLPTRTKN,
                    opts.message,
                    {}
                    );
@@ -1102,12 +1126,12 @@ Node* ParseTools::parseArrowFunctionExpression(
 
     body = parseConciseBody();
 
-    if (task->strict && options.firstRestricted != NULLNODE) { 
-        task->throwError(NULLPTRTKN, options.message, {});
+    if (task->strict && options.firstRestricted != nullptr) { 
+        task->throwError(Tokenizer::NULLPTRTKN, options.message, {});
         //        task->throwError(options.firstRestricted, options.message, {});
     }
-    if (task->strict && options.stricted != NULLNODE) {
-        task->throwError(NULLPTRTKN, options.message, {});
+    if (task->strict && options.stricted != nullptr) {
+        task->throwError(Tokenizer::NULLPTRTKN, options.message, {});
         //        task->throwErrorTolerant(options.stricted, options.message, {});
     }
 
@@ -1169,7 +1193,7 @@ Node* ParseTools::parseAssignmentExpression() {
     if (matchAssign()) {
         // LeftHandSideExpression
         if (!isLeftHandSide(expr)) {
-            task->throwErrorTolerant(NULLPTRTKN, 
+            task->throwErrorTolerant(Tokenizer::NULLPTRTKN, 
                                Messages[Mssg::InvalidLHSInAssignment], {});
         }
 
@@ -1240,7 +1264,7 @@ vector< Node* > ParseTools::parseStatementList() {
             break;
         }
         statement = parseSourceElement();
-        if (statement == NULLNODE) { 
+        if (statement == nullptr) { 
             break;
         }
         list.push_back(statement);
@@ -1289,13 +1313,13 @@ Node* ParseTools::parseVariableDeclaration(const StrRef &kind) {
     DEBUGIN(" parseVariableDeclaration(u16string kind)", false);
     Node *id, *init,
         *node = makeNode(true, true);
-    init = NULLNODE;
+    init = nullptr;
 
     id = parseVariableIdentifier();
 
     // 12.2.1
     if (task->strict && Tokenizer::isRestrictedWord(id->name)) {
-        task->throwErrorTolerant(NULLPTRTKN, Messages[Mssg::StrictVarName], {});
+        task->throwErrorTolerant(Tokenizer::NULLPTRTKN, Messages[Mssg::StrictVarName], {});
     }
     if (kind == text::_const) {
         expect("=");
@@ -1405,7 +1429,7 @@ Node* ParseTools::parseIfStatement(Node *node) {
         scanner.lex();
         alternate = parseStatement();
     } else {
-        alternate = NULLNODE;
+        alternate = nullptr;
     }
     node->finishIfStatement(test, consequent, alternate);
     DEBUGOUT("parseIfStatement", false); 
@@ -1477,8 +1501,8 @@ Node* ParseTools::parseForStatement(Node* node) {
 
     Node *body, *left, *right =0x0, 
         *update, *test, *init;
-    left=NULLNODE;
-    update=NULLNODE; test=NULLNODE; init=NULLNODE;
+    left=nullptr;
+    update=nullptr; test=nullptr; init=nullptr;
 
     expectKeyword("for");
     expect("(");
@@ -1497,7 +1521,7 @@ Node* ParseTools::parseForStatement(Node* node) {
                 scanner.lex();
                 left = init;
                 right = parseExpression();
-                init = NULLNODE;
+                init = nullptr;
             }
         } else {
             state.allowIn = false;
@@ -1507,7 +1531,7 @@ Node* ParseTools::parseForStatement(Node* node) {
             if (matchKeyword("in")) {
                 // LeftHandSideExpression
                 if (!isLeftHandSide(init)) {
-                    task->throwErrorTolerant(NULLPTRTKN, 
+                    task->throwErrorTolerant(Tokenizer::NULLPTRTKN, 
                                        Messages[Mssg::InvalidLHSInForIn],
                                        {});
                 }
@@ -1515,16 +1539,16 @@ Node* ParseTools::parseForStatement(Node* node) {
                 scanner.lex();
                 left = init;
                 right = parseExpression();
-                init = NULLNODE;
+                init = nullptr;
             }
         }
 
-        if (left == NULLNODE) {
+        if (left == nullptr) {
             expect(";");
         }
     }
 
-    if (left == NULLNODE) {
+    if (left == nullptr) {
 
         if (!match(";")) {
             test = parseExpression();
@@ -1545,7 +1569,7 @@ Node* ParseTools::parseForStatement(Node* node) {
 
     state.inIteration = oldInIteration;
 
-    if (left == NULLNODE) {
+    if (left == nullptr) {
         node->finishForStatement(init, test, update, body);
     } else {
         node->finishForInStatement(left, right, body);
@@ -1559,7 +1583,7 @@ Node* ParseTools::parseForStatement(Node* node) {
 Node* ParseTools::parseContinueStatement(Node* node) {
     DEBUGIN(" parseContinueStatement(Node node)", false);
     Node *label;
-    label = NULLNODE;
+    label = nullptr;
     string key;
     bool pltresult;
 
@@ -1570,10 +1594,10 @@ Node* ParseTools::parseContinueStatement(Node* node) {
         scanner.lex();
 
         if (!(state.inIteration)) {
-            task->throwError(NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
+            task->throwError(Tokenizer::NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
         }
 
-        node->finishContinueStatement(NULLNODE);
+        node->finishContinueStatement(nullptr);
         DEBUGOUT("parseContinueStatement", false); 
         return node;
     }
@@ -1581,10 +1605,10 @@ Node* ParseTools::parseContinueStatement(Node* node) {
     pltresult = peekLineTerminator();
     if (pltresult) {
         if (!state.inIteration) {
-            task->throwError(NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
+            task->throwError(Tokenizer::NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
         }
 
-        node->finishContinueStatement(NULLNODE);
+        node->finishContinueStatement(nullptr);
         DEBUGOUT("parseContinueStatement", false); 
         return node;
     }
@@ -1596,15 +1620,15 @@ Node* ParseTools::parseContinueStatement(Node* node) {
         key = "$";
         key.append(label->name);
         if (!(hasSet(key, state.labelSet))) {
-            task->throwError(NULLPTRTKN, 
+            task->throwError(Tokenizer::NULLPTRTKN, 
                        Messages[Mssg::UnknownLabel], {label->name});
         }
     }
 
     consumeSemicolon();
 
-    if (label == NULLNODE && !(state.inIteration)) {
-        task->throwError(NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
+    if (label == nullptr && !(state.inIteration)) {
+        task->throwError(Tokenizer::NULLPTRTKN, Messages[Mssg::IllegalContinue],{});
     }
 
     node->finishContinueStatement(label);
@@ -1619,7 +1643,7 @@ Node* ParseTools::parseBreakStatement(Node* node) {
     Node *label;
     string key;
     bool pltresult;
-    label = NULLNODE;
+    label = nullptr;
 
     expectKeyword("break");
 
@@ -1628,10 +1652,10 @@ Node* ParseTools::parseBreakStatement(Node* node) {
         scanner.lex();
 
         if (!(state.inIteration || state.inSwitch)) {
-            task->throwError(NULLPTRTKN, Messages[Mssg::IllegalBreak],{});
+            task->throwError(Tokenizer::NULLPTRTKN, Messages[Mssg::IllegalBreak],{});
         }
 
-        node->finishBreakStatement(NULLNODE);
+        node->finishBreakStatement(nullptr);
         DEBUGOUT("parseBreakStatement", false); 
         return node;
     }
@@ -1639,10 +1663,10 @@ Node* ParseTools::parseBreakStatement(Node* node) {
     pltresult = peekLineTerminator();
     if (pltresult) {
         if (!(state.inIteration || state.inSwitch)) {
-            task->throwError(NULLPTRTKN, Messages[Mssg::IllegalBreak],{});
+            task->throwError(Tokenizer::NULLPTRTKN, Messages[Mssg::IllegalBreak],{});
         }
 
-        node->finishBreakStatement(NULLNODE);
+        node->finishBreakStatement(nullptr);
         DEBUGOUT("parseBreakStatement", false); 
         return node;
     }
@@ -1654,15 +1678,15 @@ Node* ParseTools::parseBreakStatement(Node* node) {
         key.append(label->name);
 
         if (!(hasSet(key, state.labelSet))) {
-            task->throwError(NULLPTRTKN, 
+            task->throwError(Tokenizer::NULLPTRTKN, 
                        Messages[Mssg::UnknownLabel], {label->name});
         }
     }
 
     consumeSemicolon();
 
-    if (label == NULLNODE && !(state.inIteration || state.inSwitch)) {
-        task->throwError(NULLPTRTKN, Messages[Mssg::IllegalBreak], {});
+    if (label == nullptr && !(state.inIteration || state.inSwitch)) {
+        task->throwError(Tokenizer::NULLPTRTKN, Messages[Mssg::IllegalBreak], {});
     }
 
     node->finishBreakStatement(label);
@@ -1676,12 +1700,12 @@ Node* ParseTools::parseReturnStatement(Node* node) {
     DEBUGIN(" parseReturnStatement(Node node)", false);
     Node *argument;
     bool pltresult;
-    argument = NULLNODE;
+    argument = nullptr;
 
     expectKeyword("return");
 
     if (!(state.inFunctionBody)) {
-        task->throwErrorTolerant(NULLPTRTKN, Messages[Mssg::IllegalReturn], {});
+        task->throwErrorTolerant(Tokenizer::NULLPTRTKN, Messages[Mssg::IllegalReturn], {});
     }
 
     // 'return' followed by a space and an identifier is very common.
@@ -1697,7 +1721,7 @@ Node* ParseTools::parseReturnStatement(Node* node) {
 
     pltresult = peekLineTerminator();
     if (pltresult) {
-        node->finishReturnStatement(NULLNODE);
+        node->finishReturnStatement(nullptr);
         DEBUGOUT("parseReturnStatement", false);
         return node;
     }
@@ -1724,7 +1748,7 @@ Node* ParseTools::parseWithStatement(Node* node) {
     if (task->strict) {
         // TODO(ikarienator): Should we update the test cases instead?
         scanner.skipComment(); //ev
-        task->throwErrorTolerant(NULLPTRTKN, 
+        task->throwErrorTolerant(Tokenizer::NULLPTRTKN, 
                            Messages[Mssg::StrictModeWith], {});
     }
 
@@ -1748,7 +1772,7 @@ Node* ParseTools::parseSwitchCase() {
 
     if (matchKeyword("default")) {
         scanner.lex();
-        test = NULLNODE;
+        test = nullptr;
     } else {
         expectKeyword("case");
         test = parseExpression();
@@ -1799,7 +1823,7 @@ Node* ParseTools::parseSwitchStatement(Node *node) {
         clause = parseSwitchCase();
         if (clause->jv[text::_test].IsNull()) {
             if (defaultFound) {
-                task->throwError(NULLPTRTKN, 
+                task->throwError(Tokenizer::NULLPTRTKN, 
                            Messages[Mssg::MultipleDefaultsInSwitch],{});
             }
             defaultFound = true;
@@ -1824,7 +1848,7 @@ Node* ParseTools::parseThrowStatement(Node* node) {
     expectKeyword("throw");
     pltresult = peekLineTerminator();
     if (pltresult) {
-        task->throwError(NULLPTRTKN, 
+        task->throwError(Tokenizer::NULLPTRTKN, 
                    Messages[Mssg::NewlineAfterThrow],{});
     }
     argument = parseExpression();
@@ -1852,7 +1876,7 @@ Node* ParseTools::parseCatchClause() {
     param = parseVariableIdentifier();
     // 12.14.1
     if (task->strict && Tokenizer::isRestrictedWord(param->name)) { 
-        task->throwErrorTolerant(NULLPTRTKN, 
+        task->throwErrorTolerant(Tokenizer::NULLPTRTKN, 
                            Messages[Mssg::StrictCatchVariable],{});
     }
 
@@ -1869,7 +1893,7 @@ Node* ParseTools::parseTryStatement(Node* node) {
     Node *block, *finalizer; 
     vector< Node* > handlers;
 
-    finalizer = NULLNODE;
+    finalizer = nullptr;
 
     expectKeyword("try");
 
@@ -1890,8 +1914,8 @@ Node* ParseTools::parseTryStatement(Node* node) {
         finalizer = parseBlock();
     }
 
-    if (handlers.size() == 0 && finalizer == NULLNODE) {
-        task->throwError(NULLPTRTKN, Messages[Mssg::NoCatchOrFinally], {});
+    if (handlers.size() == 0 && finalizer == nullptr) {
+        task->throwError(Tokenizer::NULLPTRTKN, Messages[Mssg::NoCatchOrFinally], {});
     }
 
     node->finishTryStatement(block, EMPTY_NODE_LIST, 
@@ -1985,7 +2009,7 @@ Node* ParseTools::parseStatement() {
         key.append(expr->name);
 
         if (hasSet(key, state.labelSet)) {
-            task->throwError(NULLPTRTKN, Messages[Mssg::Redeclaration], 
+            task->throwError(Tokenizer::NULLPTRTKN, Messages[Mssg::Redeclaration], 
                        {"Label", expr->name}); 
         }
         state.labelSet.insert(key);
@@ -2063,7 +2087,7 @@ Node* ParseTools::parseFunctionSourceElements() {
             break;
         }
         sourceElement = parseSourceElement();
-        if (sourceElement == NULLNODE) {
+        if (sourceElement == nullptr) {
             break;
         }
         sourceElements.push_back(sourceElement);
@@ -2191,7 +2215,7 @@ Node* ParseTools::parseFunctionDeclaration() {
     vector< Node* > params;
     vector< Node* > defaults;
     bool previousStrict;
-    id = NULLNODE;
+    id = nullptr;
 
     expectKeyword("function");
 
@@ -2257,7 +2281,7 @@ Node* ParseTools::parseFunctionExpression() {
     vector< Node* > defaults;
     bool previousStrict;
 
-    id = NULLNODE;
+    id = nullptr;
     expectKeyword("function");
 
     if (!match("(")) {
@@ -2336,7 +2360,7 @@ Node* ParseTools::parseSourceElement() {
     }
 
     DEBUGOUT("parseSourceElement", false);
-    return NULLNODE;
+    return nullptr;
 }
 
 //throw_ 
@@ -2383,7 +2407,7 @@ vector< Node* > ParseTools::parseSourceElements() {
     while (idx < length) {
         sourceElement = parseSourceElement();
 
-        if (sourceElement == NULLNODE) {
+        if (sourceElement == nullptr) {
             break;
         }
         sourceElements.push_back(sourceElement);

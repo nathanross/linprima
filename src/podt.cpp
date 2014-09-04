@@ -1,4 +1,19 @@
+#line 1 "podt.cpp"
+#include "podt.hpp"
+#include "debug.hpp"
 
+using namespace std;
+using namespace rapidjson;
+
+
+
+RegexHalf::RegexHalf() { 
+#ifndef THROWABLE
+        err = false;
+#endif
+        start = -1; 
+        end = -1; 
+}
 
 #ifndef THROWABLE
 AssertError::AssertError() {
@@ -115,9 +130,15 @@ void Comment::toJson(const ExtraStruct *extra,
     DEBUGOUT("comment::toJson", false);
 }
 
+TokenStruct::TokenStruct() :    
+    isNull(true), lineNumber(-1), lineStart(-1),
+    startLineNumber(-1), startLineStart(-1), start(-1),
+    end(-1),
+    loc(-1,-1,-1) {
+}
 
 TokenStruct::TokenStruct(int lineNumber, int idx, int lineStart) :    
-    lineNumber(-1), lineStart(-1),
+    isNull(false), lineNumber(-1), lineStart(-1),
     startLineNumber(-1), startLineStart(-1), start(-1),
     end(-1),
     loc(lineNumber, idx, lineStart) {
@@ -125,7 +146,6 @@ TokenStruct::TokenStruct(int lineNumber, int idx, int lineStart) :
 #ifndef THROWABLE
     err = false;
 #endif
-    isNull = false;
     type = TknType::None;
     octal=false; 
     range[0] = -1;

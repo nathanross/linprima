@@ -1,3 +1,9 @@
+#line 1 "NodesComments.cpp"
+#include "NodesComments.hpp"
+#include "jsonutils.hpp"
+using namespace std;
+using namespace rapidjson;
+
 NodesComments::NodesComments(AllocatorType* alloc): 
     nodesAlloc(alloc),
     resolved(true)

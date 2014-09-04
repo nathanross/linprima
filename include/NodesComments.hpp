@@ -1,6 +1,12 @@
 #ifndef NODES_COMMENTS_HPP
 #define NODES_COMMENTS_HPP
 
+#line 4 "NodesComments.hpp"
+#include "strref.hpp"
+#include "podt.hpp"
+#include <rapidjson/document.h>
+#include <vector>
+
 //# good to have these separated from individual nodes,
 //# because unless we start storing nodes in heap,
 //# what happens is we create a node, goes on stack,
@@ -12,22 +18,25 @@
 //# these are the only data members that will be necessary
 //# once the node has left the stack (barring Assignment
 //# Expressions which which put a nodecopy on the heap)
+
+class Node;
+
 class NodesComments {
 public:
-    vector<Comment> leadingComments;
-    vector<Comment> trailingComments;
+    std::vector<Comment> leadingComments;
+    std::vector<Comment> trailingComments;
 #ifdef LIMITJSON
-    Document * nodesJv;
+    rapidjson::Document * nodesJv;
 #endif
 #ifndef LIMITJSON
-    Value * nodesJv;
+    rapidjson::Value * nodesJv;
 #endif
     AllocatorType * nodesAlloc;
     int range[2];
     bool isNull;
     bool resolved;
     NodesComments(AllocatorType* alloc);
-    NodesComments(Document& jv,AllocatorType* alloc);
+    NodesComments(rapidjson::Document& jv,AllocatorType* alloc);
     void commentsIntoJson(const ExtraStruct *extra,
                           const bool leading);
     void resolve();
@@ -38,4 +47,5 @@ private:
     Node * detachedNode;
 #endif
 };
+
 #endif

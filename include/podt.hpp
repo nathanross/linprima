@@ -1,11 +1,20 @@
 #ifndef PODT_HPP
 #define PODT_HPP
-#line 2 "podt.h"
-//#include <rapidjson/etc...
 
+#line 4 "podt.hpp"
+#include "strref.hpp"
+#include "enums.hpp"
+#include <string>
+#include <memory>
+#include <vector>
+#include <unordered_set>
+#include <rapidjson/document.h>
+
+#ifdef THROWABLE
+#include <exception>
+#endif
 //using namespace rapidjson
 //using namespace std;
-typedef Document::AllocatorType AllocatorType;
 
 class Node;
 class NodesComments;
@@ -13,8 +22,8 @@ struct ExtraStruct;
 
 
 struct RegexHalf {
-    string value;
-    string literal;
+    std::string value;
+    std::string literal;
 #ifndef THROWABLE
     bool err;
 #endif
@@ -23,14 +32,6 @@ struct RegexHalf {
     RegexHalf();
 };
 
-RegexHalf::RegexHalf() { 
-#ifndef THROWABLE
-        err = false;
-#endif
-        start = -1; 
-        end = -1; 
-}
-
 struct Loc { 
     //aka SourceLocation
     int startLine;
@@ -38,20 +39,22 @@ struct Loc {
     int endLine;
     int endColumn;
     bool hasSource;
-    string source;
+    std::string source;
 
     Loc(int lineNumber, int idx, int lineStart);
-    void toJson(Value& out, AllocatorType* alloc) const;
+    void toJson(rapidjson::Value& out, 
+                rapidjson::Document::AllocatorType* alloc) const;
 };
 
 struct Comment {
     const StrRef * type;
-    string value;
+    std::string value;
     int range[2];
     Loc loc;
     Comment(int lineNumber, int idx, int lineStart);
     void toJson(const ExtraStruct *extra,
-                Value& out, AllocatorType* alloc);
+                rapidjson::Value& out, 
+                rapidjson::Document::AllocatorType* alloc);
 };
 
 //# called ExError to prevent forseeable 
@@ -59,29 +62,32 @@ struct Comment {
 
 class ExError 
 #ifdef THROWABLE
- : public exception 
+    : public std::exception 
 #endif
 {
 public:
-    string description;
+    std::string description;
     int index;
     int lineNumber;
     int column;
     ExError();
     void toJson(const ExtraStruct *extra,
-                Value& out, AllocatorType* alloc);
+                rapidjson::Value& out, 
+                rapidjson::Document::AllocatorType* alloc);
     void toJsonTolerant(const ExtraStruct *extra,
-                        Value& out, AllocatorType* alloc);
+                        rapidjson::Value& out, 
+                        rapidjson::Document::AllocatorType* alloc);
 };
 
 #ifndef THROWABLE
 
 class AssertError {
 public:
-    string description;
+    std::string description;
     AssertError();
     void toJson(const ExtraStruct *extra,
-                Value& out, AllocatorType* alloc);
+                rapidjson::Value& out, 
+                rapidjson::Document::AllocatorType* alloc);
 };
 #endif
 
@@ -91,7 +97,7 @@ public:
 struct TokenStruct {
     bool isNull; 
     TknType type;
-    string strvalue;
+    std::string strvalue;
     double dblvalue;
     int intvalue;
     bool bvalue;
@@ -101,8 +107,8 @@ struct TokenStruct {
 
     int literaltype; //lin only.
 
-    string literal; //regex literal only
-    string flags; //regex literal only
+    std::string literal; //regex literal only
+    std::string flags; //regex literal only
 
     int prec; 
     //# for staying as close to orig. as possible in parseBinaryExpression
@@ -118,10 +124,11 @@ struct TokenStruct {
     int end;
     bool octal;
     Loc loc;
+    TokenStruct(); //null token
     TokenStruct(int lineNumber, int idx, int lineStart);
 };
 
-typedef shared_ptr<TokenStruct> ptrTkn;
+typedef std::shared_ptr<TokenStruct> ptrTkn;
 
 #ifndef THROWABLE
 
@@ -144,12 +151,13 @@ public:
 struct TokenRecord {
     Loc loc;
     int range[2];
-    string valuestring;
+    std::string valuestring;
     TknType type;
     TokenRecord(Loc locArg);
     TokenRecord(int lineNumber, int idx, int lineStart);
     void toJson(const ExtraStruct *extra,
-                Value& out, AllocatorType* alloc);
+                rapidjson::Value& out, 
+                rapidjson::Document::AllocatorType* alloc);
 };
 
 struct RegexLeg {
@@ -179,7 +187,7 @@ struct RegexLeg {
 struct StateStruct {
     bool allowIn;
     int parenthesisCount;
-    unordered_set<string> labelSet;
+    std::unordered_set<std::string> labelSet;
     bool inFunctionBody;
     bool inIteration;
     bool inSwitch;
@@ -196,10 +204,10 @@ struct OptionsStruct {
     bool tokens;
     bool tokenize;
     bool hasSource;
-    string source;
+    std::string source;
     OptionsStruct();
-    bool json_getbool(Value& in, 
-                      const string key, 
+    bool json_getbool(rapidjson::Value& in, 
+                      const std::string key, 
                       const bool defaultVal);
     OptionsStruct(const char *in_o);
 };
@@ -207,12 +215,12 @@ struct OptionsStruct {
 struct ExtraStruct {
     //# port-specific member to replace "if (extra.tokens)"
     bool tokenTracking;
-    vector<TokenRecord> tokenRecords; //called extra.tokens in esprima
+    std::vector<TokenRecord> tokenRecords; //called extra.tokens in esprima
     // name changed here to distinguish specific type and different domains
     // of these types.
 
     bool hasSource;
-    string source; 
+    std::string source; 
 
     bool tokenize;
     unsigned int openParenToken;
@@ -224,17 +232,17 @@ struct ExtraStruct {
     //# port-specific member to replace "if (extra.comments)"
     bool commentTracking; 
     
-    vector<Comment> comments;
+    std::vector<Comment> comments;
 
     //# port specific member to replace "if (extra.errors)"
     bool errorTolerant;  
 
-    vector<ExError> errors;
+    std::vector<ExError> errors;
 
     bool attachComment;
-    vector<Comment> leadingComments;
-    vector<Comment> trailingComments;
-    vector< shared_ptr<NodesComments> > bottomRightStack; //! todo Node header text.
+    std::vector<Comment> leadingComments;
+    std::vector<Comment> trailingComments;
+    std::vector< std::shared_ptr<NodesComments> > bottomRightStack; //! todo Node header text.
 
     ExtraStruct(OptionsStruct opt);
     void clear();

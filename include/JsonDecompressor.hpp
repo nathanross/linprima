@@ -1,6 +1,11 @@
 #ifndef JSON_DECOMPRESSOR_HPP
 #define JSON_DECOMPRESSOR_HPP
 
+#line 4 "JsonDecompressor.hpp"
+#include <rapidjson/document.h>
+#include <vector>
+#include <string>
+
 /* 
 
 JsonDecompressor.decompress is a function that takes a json
@@ -39,12 +44,13 @@ public:
 
     JsonDecompressor(
 #ifdef LIMITJSON
-                     vector<string> * completeObjs, 
+                     std::vector<std::string> * completeObjs, 
 #endif
                      long len);
     void Put(Ch c);
     void Flush() { };
     void decompress(char *&out, long &lenOut);
+    std::string encodeObjId(size_t in);
     
     //dummy functions
     Ch Peek() const { assert(false); return '\0'; }
@@ -52,18 +58,19 @@ public:
     size_t Tell() const { return 0; }
     Ch* PutBegin() { assert(false); return 0; }
     size_t PutEnd(Ch*) { assert(false); return 0; }
+
 private:
     const long MAX_BLOCK_SIZE = 200000;
     long len;
     long blockSize;
 
     long i;
-    vector<char*> blocks;
+    std::vector<char*> blocks;
     char * current;
 
 #ifdef LIMITJSON
     int objExpandSeq=0;
-    vector<string> * completeObjects;
+    std::vector<std::string> * completeObjects;
 
     const int OBJ_NONE = 0;
     const char OBJ_MARKER_BEGIN=1;
@@ -72,9 +79,9 @@ private:
     const char *MARKER = "\"#`@$";
 
     //use vector to avoid another include.
-    vector<const char*> putStack;
-    vector<int> putStackLen;
-    vector<int> putStackPos;
+    std::vector<const char*> putStack;
+    std::vector<int> putStackLen;
+    std::vector<int> putStackPos;
     int addr;
     //    OStreamWrapper(const OStreamWrapper&);
     //OStreamWrapper& operator=(const OStreamWrapper&);    

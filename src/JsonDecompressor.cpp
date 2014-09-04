@@ -1,5 +1,29 @@
+#line 1 "JsonDecompressor.cpp"
+#include "JsonDecompressor.hpp"
+using namespace std;
+using namespace rapidjson;
 
 #ifdef LOWMEM
+
+string encodeObjId(size_t in) {
+    std::string out;
+    size_t intmp = in;
+    char next;
+    while (intmp > 0) {
+        next = intmp % 62;
+        if (next < 10) { next = '0' + next; }
+        else if(next <36) { next = 'A' + next - 10; }
+        else { next = 'a' + next - 36; }
+        out.insert(out.begin(), next); //not most efficient,
+                             //but most encodes won't be 
+                             //more than 4 chars or so.
+        intmp = intmp / 62;
+    }
+    //marker could be any arbitrary sequence. just chose this one.
+    std::string outwithmarker = std::string("#`@$");
+    outwithmarker.append(out);
+    return outwithmarker;
+}
 
 
 int JsonDecompressor::getDecodeIdx(char in) {

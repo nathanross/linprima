@@ -1,7 +1,10 @@
 #ifndef LINPRIMA_TASK_HPP
 #define LINPRIMA_TASK_HPP
-#line 1 "LinprimaTask.h"
 
+#line 4 "LinprimaTask.h"
+#include "strref.hpp"
+#include "podt.hpp"
+#include <rapidjson/document.h>
 
   // Ensure the condition is true, otherwise throw an error.
   // This is only to have a better contract semantic, i.e. another safety net
@@ -13,14 +16,14 @@
 //and is shared between them.
 
 struct LinprimaTask {
-    u16string sourceStr;
+    std::u16string sourceStr;
     const char16_t *sourceRaw;
     const int length;
 
 #ifdef LIMITJSON
-    StringBuffer buffer;
-    Writer<StringBuffer> writer;
-    vector<string> * completeObjects;
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer;
+    std::vector<std::string> * completeObjects;
 #endif
 
     int errorType;
@@ -36,7 +39,7 @@ struct LinprimaTask {
     int lineNumber;
     int lineStart;
     ptrTkn lookahead;
-    LinprimaTask(const u16string sourceStr,
+    LinprimaTask(const std::u16string sourceStr,
                  //const char16_t *sourceRaw,
                  //const long length,
                  const OptionsStruct opt);
@@ -55,23 +58,23 @@ struct LinprimaTask {
 #endif
 
     ExError genExError(ptrTkn token, 
-                       const string messageFormat, 
-                       vector< string > args);
+                       const std::string messageFormat, 
+                       std::vector< std::string > args);
     //#throw_begin
     void throwError(ptrTkn token, 
-                    const string messageFormat, 
-                    vector< string > args);
+                    const std::string messageFormat, 
+                    std::vector< std::string > args);
     void throwErrorTolerant(ptrTkn token, 
-                            const string messageFormat, 
-                            vector<string> args);
+                            const std::string messageFormat, 
+                            std::vector<std::string> args);
     void throwUnexpected(ptrTkn token);
 
 
 #ifndef THROWABLE
-    int softAssert(const bool condition, const string message);
+    int softAssert(const bool condition, const std::string message);
 #endif
 #ifdef THROWABLE
-    void softAssert(const bool condition, const string message);
+    void softAssert(const bool condition, const std::string message);
 #endif
     //#throw_end
 };

@@ -1,18 +1,27 @@
 #ifndef TOKENIZER_HPP
 #define TOKENIZER_HPP
-#line 1 "Tokenizer.h"
+
+#line 4 "Tokenizer.hpp"
+#include "LinprimaTask.hpp"
+#include "podt.hpp"
+#include "strref.hpp"
+#include <string>
+#include <memory>
+#include <rapidjson/document.h>
+
 
 class Tokenizer {
 public:
-    Tokenizer(u16string code, OptionsStruct options);
-    Tokenizer(shared_ptr<LinprimaTask> task);
+    static ptrTkn NULLPTRTKN;
+    Tokenizer(std::u16string code, OptionsStruct options);
+    Tokenizer(std::shared_ptr<LinprimaTask> task);
     static bool isIdentifierName(const TknType type);
     static bool isIdentifierStart(const char16_t ch);
     static bool isIdentifierPart(const char16_t ch);
-    static bool isFutureReservedWord(const string id);
-    static bool isStrictModeReservedWord(const string id);
-    static bool isRestrictedWord(const string id);
-    bool isKeyword(const string id);
+    static bool isFutureReservedWord(const std::string id);
+    static bool isStrictModeReservedWord(const std::string id);
+    static bool isRestrictedWord(const std::string id);
+    bool isKeyword(const std::string id);
 
     //#throw_begin
     void skipComment();
@@ -20,17 +29,17 @@ public:
     ptrTkn collectRegex();
     ptrTkn lex();
     void peek();
-    void readTokens(vector<TokenRecord> &tokens);
+    void readTokens(std::vector<TokenRecord> &tokens);
     //#throw_end
-    void tokenize(Document& out, 
+    void tokenize(rapidjson::Document& out, 
 #ifdef LIMITJSON
-                  vector<string> &completedObjectsOut,
+                  std::vector<std::string> &completedObjectsOut,
 #endif
                   const bool retErrAsJson);
     void filterTokenLocation();
     ptrTkn makeToken();
 private:
-    shared_ptr<LinprimaTask> task;
+    std::shared_ptr<LinprimaTask> task;
     const char16_t * sourceRaw;
     const int length;
 
@@ -44,9 +53,10 @@ private:
     char16_t source(long pos);
 
 
-    static bool intervalarr_contains(unsigned int key, vector< vector< unsigned int > > * arr);
+    static bool intervalarr_contains(unsigned int key, 
+                                     std::vector< std::vector< unsigned int > > * arr);
 
-    void addComment(const StrRef * type, const string& value, 
+    void addComment(const StrRef * type, const std::string& value, 
                 const int start, const int end, const Loc& loc);
     int skipSingleLineComment(int idxtmp, const int offset);
     //#throw_begin
@@ -54,9 +64,9 @@ private:
     //#throw_end
     char16_t scanHexEscape(const char16_t prefix);
     //#throw_begin
-    u16string scanUnicodeCodePointEscape();
-    string getEscapedIdentifier();
-    string getIdentifier();
+    std::u16string scanUnicodeCodePointEscape();
+    std::string getEscapedIdentifier();
+    std::string getIdentifier();
     ptrTkn scanIdentifier();
     ptrTkn scanPunctuator();
     ptrTkn scanHexLiteral(const int start);

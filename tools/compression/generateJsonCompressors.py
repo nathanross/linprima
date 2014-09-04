@@ -57,15 +57,26 @@ def compressed(decoder_arr, termctr, original):
 def main():
     CPP_DECODE = 1
     outputdir = "cmpR_out"
+    MODULE_NAME = "strrefconsts"
     allterms = getTerms("cmpR_tmp/ordered.txt")
     allterms.remove('')
     suffixString = {'compressed':'_', 'full':'_FULL'}
+    hpp = []
     cpp = []
-    cpp.append("#line 2 \"jsoncomp.cpp\" ")
-    cpp.append("typedef rapidjson::GenericStringRef<char> StrRef;");
+    module_header_id = MODULE_NAME.upper().replace(".", "_")
+    hpp.append("#ifndef {0}\n#define {0}".format(module_header_id))
+    hpp.append('\n#line 4 "{}.hpp" '.format(MODULE_NAME))
+    hpp.append("#include <rapidjson/document.h>")
+    hpp.append('#include "strref.hpp"');
+    hpp.append("namespace text {")
+
+    cpp.append('#line 1 "{}.cpp" '.format(MODULE_NAME))
+    cpp.append('#include "{}"'.format(MODULE_NAME + ".hpp"));
     cpp.append("namespace text {")
 
+    assign_h = 'extern const char * {0};'
     assign = 'const char * {0} = "{1}";'
+    strRef_h = "extern const StrRef {0};"
     strRef = "const StrRef {0} = rapidjson::StringRef({1},{2});"
 
     decoder_arr = []
@@ -74,9 +85,11 @@ def main():
     if (CPP_DECODE):
         for term in allterms:
             capterm = "_" + term.replace("<","Z").replace(">","Z")
+            hpp.append(assign_h.format(capterm+suffixString['full']))
             cpp.append(assign.format(capterm+suffixString['full'], term))
     for lowmem in [True, False]:
-        cpp.append(("#ifdef" if lowmem else "#ifndef") + " LOWMEM")
+        hpp.append(("#ifdef" if lowmem else "#ifndef") + " LOWMEM")
+        cpp.append(hpp[-1])
         for term in allterms:
             capterm = "_" + term.replace("<","Z").replace(">","Z")
             if (not CPP_DECODE) and (not lowmem):
@@ -87,12 +100,15 @@ def main():
                 findoriginal = capterm+suffixString['full'] if CPP_DECODE else term
                 stringRep = compressed(decoder_arr, termctr, 
                                        findoriginal)
+                hpp.append(assign_h.format(capterm+suffixString['compressed']));
                 cpp.append(assign.format(capterm+suffixString['compressed'], #lvalue
                                          stringRep)) #rvalue
+                hpp.append(strRef_h.format(capterm));
                 cpp.append(strRef.format(capterm,  #lvalue
                                          capterm+suffixString['compressed'],#rvalue
                                          len(stringRep))) 
             else:
+                hpp.append(strRef_h.format(capterm)); 
                 cpp.append(strRef.format(capterm, 
                                          capterm+suffixString['full'],
                                          len(term)))
@@ -101,6 +117,7 @@ def main():
 
             rows = len(decoder_arr)
             columns = len(decoder_arr[0])
+            hpp.append("\n extern const char * decoder[{}][{}];".format(rows, columns))
             cpp.append("\n const char * decoder[{}][{}] = ".format(rows, columns)+"{")
             for row in range(0,rows):
                 while len(decoder_arr[row]) < columns:
@@ -109,10 +126,16 @@ def main():
                 cpp.append("{" + colvals + "},")
             cpp.append("};\n");
 
+        hpp.append("#endif")
         cpp.append("#endif")
 
-    cpp.append("}")
-    writeout(outputdir + "/jsoncompress.cpp", "\n".join(cpp))
+    cpp.append("}\n")
+
+    hpp.append("}\n")
+    hpp.append("#endif\n")
+
+    writeout(outputdir + "/" + MODULE_NAME + ".hpp", "\n".join(hpp))
+    writeout(outputdir + "/" + MODULE_NAME + ".cpp", "\n".join(cpp))
 
     if CPP_DECODE:
         return
