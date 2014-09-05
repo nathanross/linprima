@@ -23,7 +23,6 @@ string tokenizeRetString(const u16string code, OptionsStruct options){
     }
     options.tokens = true;
     options.tokenize = true;
-    initglobals();
     Tokenizer tknr(code, options);
 #ifdef LIMITJSON
     vector<string> completeObjects;
@@ -64,7 +63,6 @@ string parseRetString(const u16string code, OptionsStruct options) {
     if (asmRetVal != 0x0) {
         free (asmRetVal);
     }
-    initglobals();
     ParseTools pt(code, options);
 #ifdef LIMITJSON
     vector<string> completeObjects;

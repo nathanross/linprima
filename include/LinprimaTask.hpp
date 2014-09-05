@@ -1,10 +1,11 @@
 #ifndef LINPRIMA_TASK_HPP
 #define LINPRIMA_TASK_HPP
 
-#line 4 "LinprimaTask.h"
+#line 4 "LinprimaTask.hpp"
 #include "strref.hpp"
 #include "podt.hpp"
 #include <rapidjson/document.h>
+#include <rapidjson/writer.h>
 
   // Ensure the condition is true, otherwise throw an error.
   // This is only to have a better contract semantic, i.e. another safety net

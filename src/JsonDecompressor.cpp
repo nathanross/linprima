@@ -1,5 +1,6 @@
 #line 1 "JsonDecompressor.cpp"
 #include "JsonDecompressor.hpp"
+#include "jsonutils.hpp"
 using namespace std;
 using namespace rapidjson;
 

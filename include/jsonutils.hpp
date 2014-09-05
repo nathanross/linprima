@@ -92,4 +92,20 @@ void vec2jsonCallbackVal(rapidjson::Value& root,
     //DEBUGOUT("", false);     
 }
 
+
+
+#ifdef LIMITJSON
+struct LinprimaTask;
+void AddDocument(LinprimaTask* task,
+                 const StrRef &path, 
+                 rapidjson::Document &root, 
+                 rapidjson::Document &branch);
+void PushDocument(LinprimaTask* task, 
+                  AllocatorType &alloc,
+                  rapidjson::Value &root, 
+                  rapidjson::Document &branch);
+#endif
+
+
+
 #endif

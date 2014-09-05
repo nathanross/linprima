@@ -50,7 +50,7 @@ public:
     void Put(Ch c);
     void Flush() { };
     void decompress(char *&out, long &lenOut);
-    std::string encodeObjId(size_t in);
+    static std::string encodeObjId(size_t in);
     
     //dummy functions
     Ch Peek() const { assert(false); return '\0'; }

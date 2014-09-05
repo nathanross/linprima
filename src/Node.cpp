@@ -2,6 +2,8 @@
 #include "Node.hpp"
 #include "NodesComments.hpp"
 #include "stringutils.hpp"
+#include "jsonutils.hpp"
+#include "JsonDecompressor.hpp"
 #include "debug.hpp"
 using namespace std;
 using namespace rapidjson;
@@ -163,39 +165,13 @@ void Node::regNoadd(const vector<RegexLeg> paths, Node * child) {
     }
     //DEBUGOUT("Node::regNoAdd", false);
 }
-#ifdef LIMITJSON
-void AddDocument(LinprimaTask* task,
-            const StrRef &path, Document &root, Document &branch) {
-    Writer<StringBuffer> writer(task->buffer);
-    branch.Accept(writer);
-    task->completeObjects->push_back(task->buffer.GetString());
-    task->buffer.Clear();
-    string objectAddr = encodeObjId(task->completeObjects->size()-1);
-    root.AddMember(path,
-                       Value(objectAddr.data(),
-                                 objectAddr.length(),
-                                 root.GetAllocator()).Move(), 
-                    root.GetAllocator());
-}
-void PushDocument(LinprimaTask* task, AllocatorType &alloc,
-                Value &root, Document &branch) {
-    Writer<StringBuffer> writer(task->buffer);
-    branch.Accept(writer);
-    task->completeObjects->push_back(task->buffer.GetString());
-    task->buffer.Clear();
-    string objectAddr = encodeObjId(task->completeObjects->size()-1);
-    root.PushBack(Value(objectAddr.data(),
-                        objectAddr.length(),
-                        alloc).Move(), 
-                  alloc);
-}
-#endif
+
 #ifdef LIMITJSON
 
 size_t Node::addUnresolvedDocument(const StrRef &path) {
      size_t pos = task->completeObjects->size();
      task->completeObjects->push_back("{}");  
-     string objectAddr = encodeObjId(pos);
+     string objectAddr = JsonDecompressor::encodeObjId(pos);
      jv.AddMember(path, 
                   Value(objectAddr.data(),
                         objectAddr.length(),
@@ -206,7 +182,7 @@ size_t Node::addUnresolvedDocument(const StrRef &path) {
 size_t Node::pushUnresolvedDocument(Value &root) {
      size_t pos = task->completeObjects->size();
      task->completeObjects->push_back("{}");  
-     string objectAddr = encodeObjId(pos);
+     string objectAddr = JsonDecompressor::encodeObjId(pos);
      root.PushBack(Value(objectAddr.data(),
                          objectAddr.length(),
                          *alloc).Move(),

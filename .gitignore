@@ -10,6 +10,8 @@ test/codetotest.js
 lib/*.so
 esprima/
 archive
-test.out
+*.out
 tools/compression/cmpR_out
 tools/compression/cmpR_tmp
+*.gch
+*.o
