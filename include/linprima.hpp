@@ -9,6 +9,7 @@
 #include "stringutils.hpp"
 #include "strref.hpp"
 #include "podt.hpp"
+#include "t52types.hpp"
 #include <rapidjson/document.h>
 #include <string>
 

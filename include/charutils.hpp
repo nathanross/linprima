@@ -4,7 +4,7 @@
 #line 4 "charutils.hpp"
 #include "debug.hpp"
 #include "stringutils.hpp"
-
+#include "t52types.hpp"
 #define reqinline inline //save tweaking this for last. Talking maybe 10ms system / 20 ms asm in one rep of Chart.js (huge file), so pretty low return on optimization.
 
 reqinline

@@ -4,6 +4,7 @@
 #line 4 "NodesComments.hpp"
 #include "strref.hpp"
 #include "podt.hpp"
+#include "t52types.hpp"
 #include <rapidjson/document.h>
 #include <vector>
 

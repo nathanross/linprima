@@ -7,6 +7,7 @@
 #include "strref.hpp"
 #include "enums.hpp"
 #include "podt.hpp"
+#include "t52types.hpp"
 #include <rapidjson/document.h>
 #include <string>
 #include <vector>

@@ -6,6 +6,7 @@
 #include "debug.hpp"
 #include "podt.hpp"
 #include "Node.hpp"
+#include "t52types.hpp"
 #include <rapidjson/document.h>
 #include <vector>
 #include <string>

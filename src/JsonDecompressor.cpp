@@ -6,7 +6,7 @@ using namespace rapidjson;
 
 #ifdef LOWMEM
 
-string encodeObjId(size_t in) {
+string JsonDecompressor::encodeObjId(size_t in) {
     std::string out;
     size_t intmp = in;
     char next;

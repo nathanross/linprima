@@ -4,6 +4,7 @@
 #line 1 "parsepod.hpp"
 #include "strref.hpp"
 #include "Node.hpp"
+#include "t52types.hpp"
 #include <unordered_set>
 #include <vector>
 #include <string>

@@ -5,6 +5,7 @@
 #include "LinprimaTask.hpp"
 #include "podt.hpp"
 #include "strref.hpp"
+#include "t52types.hpp"
 #include <string>
 #include <memory>
 #include <rapidjson/document.h>

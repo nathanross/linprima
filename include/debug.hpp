@@ -2,6 +2,7 @@
 #define DEBUG_HPP
 
 #line 4 "debug.hpp"
+#include "t52types.hpp"
 #include <string>
 #include <rapidjson/document.h>
 

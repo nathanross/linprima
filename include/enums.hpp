@@ -4,6 +4,7 @@
 #line 4 "enums.hpp"
 #include "strref.hpp"
 #include "strrefconsts.hpp"
+#include "t52types.hpp"
 #include <map>
 
 //typedef GenericStringRef<char> StrRef

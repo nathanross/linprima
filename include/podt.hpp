@@ -4,6 +4,7 @@
 #line 4 "podt.hpp"
 #include "strref.hpp"
 #include "enums.hpp"
+#include "t52types.hpp"
 #include <string>
 #include <memory>
 #include <vector>

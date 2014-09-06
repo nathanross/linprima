@@ -2,6 +2,7 @@
 #define JSON_DECOMPRESSOR_HPP
 
 #line 4 "JsonDecompressor.hpp"
+#include "t52types.hpp"
 #include <rapidjson/document.h>
 #include <vector>
 #include <string>
