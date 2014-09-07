@@ -1513,15 +1513,21 @@ Node* ParseTools::parseWhileStatement(Node* node) {
     DEBUGIN(" parseWhileStatement(Node node)", false);
     Node *test, *body;
     bool oldInIteration;
+    node->addType(Synt::WhileStatement);
+
     expectKeyword("while");
     expect("(");
     test = parseExpression();
+    node->reg(text::_test, test);
+
     expect(")");
     oldInIteration = state.inIteration;
     state.inIteration = true;
     body = parseStatement();
+    node->reg(text::_body, body);
+
     state.inIteration = oldInIteration;
-    node->finishWhileStatement(test, body);
+    node->finish();
     DEBUGOUT("parseWhileStatement", false);
     return node;
 }
@@ -1933,6 +1939,49 @@ Node* ParseTools::parseCatchClause() {
     DEBUGOUT("parseCatchClause", false);
     return node;
 }
+
+/* //throw_
+Node* ParseTools::parseTryStatement(Node* node) {
+    DEBUGIN(" parseTryStatement(Node node)", false);
+    Node *block, *finalizer; 
+    vector< Node* > handlers;
+    node->addType(Synt::TryStatement);
+
+    finalizer = nullptr;
+
+    expectKeyword("try");
+
+    block = parseBlock();
+    node->reg(text::_block, block);
+    node->initVec(text::_guardedHandlers);
+    Value * vecHandlers = node->initVec(text::_handlers);
+
+    if (matchKeyword("catch")) {
+#ifndef THROWABLE
+        Node *tmp = parseCatchClause();
+        node->regPush(vecHandlers, text::_handlers, tmp);
+#endif
+#ifdef THROWABLE
+        node->regPush(vecHandlers, text::_handlers, 
+                      parseCatchClause());
+#endif
+    }
+
+    if (matchKeyword("finally")) {
+        scanner.lex();
+        finalizer = parseBlock();
+    }
+
+    if (handlers.size() == 0 && finalizer == nullptr) {
+        task->throwError(Tokenizer::NULLPTRTKN, Messages[Mssg::NoCatchOrFinally], {});
+    }
+    node->reg(text::_finalizer, finalizer);
+    node->finish();
+
+    DEBUGOUT("parseTryStatement", false);
+    return node;
+    }*/
+
 
 //throw_
 Node* ParseTools::parseTryStatement(Node* node) {
