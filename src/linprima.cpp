@@ -166,8 +166,8 @@ int main() {
     
     string finput;
     string finputOpt;
-    //ifstream ifs("/home/n/coding/esp3/bench/cases/active/mootools.js");
-    ifstream ifs("/home/n/coding/esp7/test/codetotest.js");
+    ifstream ifs("/home/n/coding/esp3/bench/cases/active/mootools.js");
+    //ifstream ifs("/home/n/coding/esp7/test/codetotest.js");
     ifstream optifs("/home/n/coding/esp7/test/opttotest");
 
     finput.assign( (std::istreambuf_iterator<char>(ifs) ),

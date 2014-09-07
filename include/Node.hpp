@@ -68,6 +68,10 @@ public:
                   Node * child);
     void reg(const StrRef& path, 
              Node * child);
+    rapidjson::Value* initVec(const StrRef &path);
+    void regPush(rapidjson::Value* arr, 
+                 const StrRef &path, 
+                 Node* child);
     void nodeVec(const StrRef& path, 
                  const std::vector<Node*>& nodes);
     void addType(const Synt in);

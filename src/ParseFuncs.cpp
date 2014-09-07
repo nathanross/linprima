@@ -1252,6 +1252,7 @@ Node* ParseTools::parseExpression() {
     return expr;
 }
 
+/*
 // 12.1 Block
 //throw_
 vector< Node* > ParseTools::parseStatementList() { 
@@ -1274,6 +1275,7 @@ vector< Node* > ParseTools::parseStatementList() {
     return list;
 }
 
+
 //throw_
 Node* ParseTools::parseBlock() { 
     DEBUGIN(" parseBlock()", false);
@@ -1287,7 +1289,38 @@ Node* ParseTools::parseBlock() {
     DEBUGOUT("parseBlock", false); 
     return node;
 }
+*/
 
+//throw_
+Node* ParseTools::parseBlock() { 
+    DEBUGIN(" parseBlock()", false);
+    vector< Node* > block;
+    Node *node = makeNode(true, true);
+
+    node->addType(Synt::BlockStatement);
+    const StrRef *sr = &(text::_body);
+    Value* vec = node->initVec(*sr);
+
+    expect("{");
+    //inline of parseStatementList
+    Node *statement;
+
+    while (idx < length) {
+        if (match("}")) {
+            break;
+        }
+        statement = parseSourceElement();
+        if (statement == nullptr) { 
+            break;
+        }
+        node->regPush(vec, *sr, statement);
+    }
+
+    expect("}");
+    node->finish();
+    DEBUGOUT("parseBlock", false); 
+    return node;
+}
 
 // 12.2 Variable Statement
 
@@ -2363,6 +2396,98 @@ Node* ParseTools::parseSourceElement() {
     return nullptr;
 }
 
+
+//throw_ 
+void ParseTools::parseSourceElements(Node * parent) {
+    DEBUGIN(" parseSourceElementS() ", false);
+    Node *sourceElement;
+    vector< Node* > sourceElements;
+    ptrTkn token, firstRestricted = scanner.makeToken();
+    u16string directive;
+
+    Value* vec = parent->initVec(text::_body);
+
+    firstRestricted->isNull = true;
+    while (idx < length) {
+        token = lookahead;
+        if (token->type != TknType::StringLiteral) {
+            break;
+        }
+
+        sourceElement = parseSourceElement();
+        //#todo make a function that accepts vector of nested finds
+        //#so we can make tests like this more legible.
+
+        if (sourceElement->spareStrref != Syntax[Synt::Literal]) {
+            // this is not directive
+            parent->regPush(vec, text::_body, sourceElement);
+            break;
+        }
+        parent->regPush(vec, text::_body, sourceElement);
+        directive = slice(sourceRaw, token->start + 1, token->end - 1);
+        if (directive == u"use strict") {
+            task->strict = true;
+
+            if (!(firstRestricted->isNull)) { 
+
+                task->throwErrorTolerant(firstRestricted, 
+                                   Messages[Mssg::StrictOctalLiteral],{});
+            }
+        } else {
+            if (firstRestricted->isNull && token->octal) {
+                firstRestricted = token;
+                firstRestricted->isNull = false; //#probably not neces.
+            }
+        }
+    }
+
+    while (idx < length) {
+        sourceElement = parseSourceElement();
+
+        if (sourceElement == nullptr) {
+            break;
+        }
+        parent->regPush(vec, text::_body, sourceElement);
+    }
+
+    DEBUGOUT("parseSourceElementS", false);
+    return; //throw52;
+}
+
+//throw_ 
+Node* ParseTools::parseProgram() {
+    DEBUGIN(" parseProgram()", false);
+    Node *node;
+    vector< Node* > body;
+
+    scanner.skipComment(); //ev
+    scanner.peek();
+    node = makeNode(true, true);
+    node->addType(Synt::Program);
+    task->strict = false;
+    parseSourceElements(node);
+    for (int i=0; i<task->extra.bottomRightStack.size(); i++) {
+        task->extra.bottomRightStack[i]->resolve();
+    }
+    node->finish();
+
+    if (task->extra.range) {
+        Value rangearr(kArrayType);
+        rangearr.PushBack(node->range[0], *alloc);
+        rangearr.PushBack(node->range[1], *alloc);
+        node->jv.AddMember(text::_range, rangearr, *alloc);
+    }
+    if (task->extra.loc) {
+        Value locjson(kObjectType);
+        node->loc.toJson(locjson, alloc);
+        node->jv.AddMember(text::_loc, locjson, *alloc);
+    }
+
+    DEBUGOUT("parseProgram", false);
+    return node;
+}
+
+/*
 //throw_ 
 vector< Node* > ParseTools::parseSourceElements() {
     DEBUGIN(" parseSourceElementS() ", false);
@@ -2432,7 +2557,7 @@ Node* ParseTools::parseProgram() {
 
     DEBUGOUT("parseProgram", false);
     return node;
-}
+}*/
 
 //# Returns a map containing
 //# (optional) 'comments' - list of comments as per esprima.

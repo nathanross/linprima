@@ -252,7 +252,53 @@ void Node::reg(const StrRef &path, Node * child) {
 
     //DEBUGOUT("node::reg", false);
 }
+Value* Node::initVec(const StrRef &path) {
+    Value tmp(kArrayType);
+    jv.AddMember(path, tmp, *alloc);
+    return &(jv[path]);
+}
+void Node::regPush(Value* arr, const StrRef &path, Node* child) {
+    if (child != nullptr) {
+        if (child->type == Syntax[Synt::SequenceExpression]) {
+            child->nodeVec(text::_expressions, child->expressions);
+        } else if (child->type == Syntax[Synt::AssignmentExpression]) {
+            child->reg(text::_left, child->leftAssign);
+            child->reg(text::_right, child->rightAssign);
+        } else if (child->type == Syntax[Synt::Property]) {
+            child->reg(text::_key, child->leftAssign);
+            child->reg(text::_value, child->rightAssign);
+            child->jvput(text::_kind, *(child->spareStrref));
+        }
+        vector<RegexLeg> pathlist;
+        pathlist.emplace_back((&(path)));
+        //child not added yet, so no need for ->Size()-1
+        pathlist.emplace_back((arr->Size()));
+        regNoadd(pathlist, child);
+#ifndef LIMITJSON
+        arr->PushBack(child->jv.Move(), *alloc);
+        if (child->thisnc
+            && !(child->thisnc->resolved)) {
+            child->thisnc->nodesJv = &((*arr)[(arr->Size()-1)]);
+        }
+        delNode (child);
+#endif
+#ifdef LIMITJSON
+        if (task->extra.attachComment 
+            && child->thisnc 
+            && !(child->thisnc->resolved)) {
 
+            child->completedPos = pushUnresolvedDocument(*arr);                
+            child->thisnc->setNodeDetached(child);
+        } else {
+            PushDocument(task, jv.GetAllocator(), *arr, child->jv);
+            delNode (child);
+        }
+#endif
+    } else {
+        Value tmp;
+        arr->PushBack(tmp, *alloc);
+    }
+}
 void Node::nodeVec(const StrRef &path, const vector< Node* > & nodes) { 
     //DEBUGIN("nodeVec(string path, vector< Node > & nodes)", false);
     Value arr(kArrayType);
@@ -300,7 +346,7 @@ void Node::nodeVec(const StrRef &path, const vector< Node* > & nodes) {
     jv.AddMember(path, arr, *alloc);
     //DEBUGOUT("node::nodeVec", false);
 }
-inline
+
 void Node::addType(const Synt in) { 
     //DEBUGIN("addType", false);
     type = Syntax[in];
@@ -310,9 +356,10 @@ void Node::addType(const Synt in) {
 void Node::regexPaths2json(Value& out, AllocatorType *alloc) { 
     //DEBUGIN("Node::regexPaths2json()", false);
     out.SetArray();    
-    Value path;
+    
     for (unsigned int i=0; i<regexPaths.size(); i++) {
-        path.SetArray();
+        Value path(kArrayType);
+        
         for (int j=regexPaths[i].size()-1; j>=0; j--) {
             if (regexPaths[i][j].isNum) {
                 path.PushBack(regexPaths[i][j].num,

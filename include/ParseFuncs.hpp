@@ -98,7 +98,7 @@ std::shared_ptr<LinprimaTask> task;
                                    Node *node);
     Node* parseAssignmentExpression();
     Node* parseExpression();
-    std::vector< Node* > parseStatementList();
+    //std::vector< Node* > parseStatementList();
     Node* parseBlock();
     Node* parseVariableIdentifier();
     Node* parseVariableDeclaration(const StrRef &kind);
@@ -132,7 +132,8 @@ std::shared_ptr<LinprimaTask> task;
     Node* parseFunctionDeclaration();
     Node* parseFunctionExpression();
     Node* parseSourceElement();
-    std::vector< Node* > parseSourceElements();
+    //std::vector< Node* > parseSourceElements();
+    void parseSourceElements(Node * parent);
     //#throw_end
 };
 #endif
