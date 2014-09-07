@@ -5,6 +5,9 @@
 #include "t52types.hpp"
 #include <string>
 #include <rapidjson/document.h>
+#ifdef PROFINY
+#include "Profiny.h"
+#endif
 
 #ifdef DO_DEBUG
 

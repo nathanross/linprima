@@ -1,10 +1,11 @@
 #ifndef JSONUTILS_HPP
 #define JSONUTILS_HPP
 
-#line 4 "jsonutils.h"
+#line 4 "jsonutils.hpp"
 #include "strref.hpp"
 #include "podt.hpp"
 #include "t52types.hpp"
+#include "debug.hpp"
 #include <rapidjson/document.h>
 #include <vector>
 #include <functional>
