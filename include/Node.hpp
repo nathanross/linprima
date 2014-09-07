@@ -164,7 +164,7 @@ public:
                              Node * body);
     void delNode(Node * toDel);
 
-private:
+protected:
     LinprimaTask * task;
 
 }; 

@@ -217,6 +217,9 @@ Node* ParseTools::makeNode(bool lookavailInit, bool exists) {
 WrappingNode* ParseTools::makeWrappingNode(ptrTkn token) {
     return new WrappingNode(token, &heapNodes, alloc, task.get());
 }
+WrappingNode* ParseTools::makeWrappingNode() {
+    return new WrappingNode(&heapNodes, alloc, task.get());
+}
 
 // 11.1.4 Array Initialiser
 
@@ -572,18 +575,19 @@ Node* ParseTools::parsePrimaryExpression() {
 
 // 11.2 Left-Hand-Side Expressions
 //throw_
-vector< Node* > ParseTools::parseArguments() {
+void ParseTools::parseArguments(Node *parent) {
     DEBUGIN(" parseArguments()", false);
-    vector< Node* > args; 
+    Value* vec = parent->initVec(text::_arguments);
     expect("(");
     if (!match(")")) {
         while (idx < length) {
 #ifndef THROWABLE
             Node *tmp = parseAssignmentExpression();
-            args.push_back(tmp);
+            parent->regPush(vec, text::_arguments, tmp);
 #endif
 #ifdef THROWABLE
-            args.push_back(parseAssignmentExpression());
+            parent->regPush(vec, text::_arguments, 
+                            parseAssignmentExpression());
 #endif
             if (match(")")) {
                 break;
@@ -593,8 +597,9 @@ vector< Node* > ParseTools::parseArguments() {
     }
     expect(")");
     DEBUGOUT("parseArguments", false);
-    return args;
+    return;
 }
+
 
 //throw_
 Node* ParseTools::parseNonComputedProperty() {
@@ -637,14 +642,19 @@ Node* ParseTools::parseNewExpression() {
     vector< Node* > args;
     Node *callee, 
         *node = makeNode(true, true);
+    node->addType(Synt::NewExpression);
 
     expectKeyword("new");
     callee = parseLeftHandSideExpression();
-    if (match("(")) { 
-        args = parseArguments(); 
-    }
+    node->reg(text::_callee, callee);
 
-    node->finishNewExpression(callee, args);
+    if (match("(")) { 
+        parseArguments(node);
+    } else { 
+        node->initVec(text::_arguments); 
+    }
+    
+    node->finish();
     DEBUGOUT("parseNewExpr", false);
     return node;
 }
@@ -653,7 +663,8 @@ Node* ParseTools::parseNewExpression() {
 Node* ParseTools::parseLeftHandSideExpressionAllowCall() {
     DEBUGIN(" parseLeftHandSideExpressionAllowCall()", false);
     vector< Node * > args;
-    Node *expr, *property, *tmpnode;
+    Node *expr, *property;
+    WrappingNode *tmpnode;
     ptrTkn startToken;
     bool previousAllowIn = state.allowIn;
 
@@ -673,9 +684,12 @@ Node* ParseTools::parseLeftHandSideExpressionAllowCall() {
             tmpnode->finishMemberExpression(u'.', expr, property);
             expr = tmpnode;
         } else if (match("(")) {
-            args = parseArguments();
-            tmpnode = makeWrappingNode(startToken);
-            tmpnode->finishCallExpression(expr, args);
+            tmpnode = makeWrappingNode();
+            tmpnode->addType(Synt::CallExpression);
+            tmpnode->reg(text::_callee, expr);
+            parseArguments(tmpnode);
+            tmpnode->usualInit(startToken);
+            tmpnode->finish();
             expr = tmpnode;
         } else if (match("[")) {
             property = parseComputedMember();
@@ -2577,7 +2591,7 @@ Node* ParseTools::parseProgram() {
 
 void ParseTools::parse(Document& outJson, 
 #ifdef LIMITJSON
-                       vector<string> &completeObjectsOut,
+                       vector<string *> &completeObjectsOut,
 #endif
                        const bool retErrorsAsJson) {
 #ifdef LIMITJSON

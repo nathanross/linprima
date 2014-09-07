@@ -1503,7 +1503,7 @@ void Tokenizer::filterTokenLocation() {
 
 void Tokenizer::tokenize(Document &outJson, 
 #ifdef LIMITJSON
-                         vector<string> &completeObjectsOut,
+                         vector<string*> &completeObjectsOut,
 #endif
                          const bool retErrorsAsJson) {
 #ifdef LIMITJSON

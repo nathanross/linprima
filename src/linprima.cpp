@@ -25,7 +25,7 @@ string tokenizeRetString(const u16string code, OptionsStruct options){
     options.tokenize = true;
     Tokenizer tknr(code, options);
 #ifdef LIMITJSON
-    vector<string> completeObjects;
+    vector<string*> completeObjects;
     tknr.tokenize(*out, completeObjects, true);
     JsonDecompressor wrapper(&completeObjects, code.length());
 #endif
@@ -65,7 +65,7 @@ string parseRetString(const u16string code, OptionsStruct options) {
     }
     ParseTools pt(code, options);
 #ifdef LIMITJSON
-    vector<string> completeObjects;
+    vector<string*> completeObjects;
     pt.parse(*out, completeObjects,
                        true);
     JsonDecompressor wrapper(&completeObjects, code.length());

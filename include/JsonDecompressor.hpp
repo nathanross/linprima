@@ -45,7 +45,7 @@ public:
 
     JsonDecompressor(
 #ifdef LIMITJSON
-                     std::vector<std::string> * completeObjs, 
+                     std::vector<std::string *> * completeObjs, 
 #endif
                      long len);
     void Put(Ch c);
@@ -71,7 +71,7 @@ private:
 
 #ifdef LIMITJSON
     int objExpandSeq=0;
-    std::vector<std::string> * completeObjects;
+    std::vector<std::string *> * completeObjects;
 
     const int OBJ_NONE = 0;
     const char OBJ_MARKER_BEGIN=1;
@@ -83,7 +83,8 @@ private:
     std::vector<const char*> putStack;
     std::vector<int> putStackLen;
     std::vector<int> putStackPos;
-    int addr;
+    std::vector<size_t> putStackAddr;
+    size_t addr;
     //    OStreamWrapper(const OStreamWrapper&);
     //OStreamWrapper& operator=(const OStreamWrapper&);    
 #endif

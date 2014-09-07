@@ -34,7 +34,7 @@ public:
     //#throw_end
     void tokenize(rapidjson::Document& out, 
 #ifdef LIMITJSON
-                  std::vector<std::string> &completedObjectsOut,
+                  std::vector<std::string *> &completedObjectsOut,
 #endif
                   const bool retErrAsJson);
     void filterTokenLocation();

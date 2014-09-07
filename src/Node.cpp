@@ -170,7 +170,7 @@ void Node::regNoadd(const vector<RegexLeg> paths, Node * child) {
 
 size_t Node::addUnresolvedDocument(const StrRef &path) {
      size_t pos = task->completeObjects->size();
-     task->completeObjects->push_back("{}");  
+     task->completeObjects->push_back(nullptr);  
      string objectAddr = JsonDecompressor::encodeObjId(pos);
      jv.AddMember(path, 
                   Value(objectAddr.data(),
@@ -181,7 +181,7 @@ size_t Node::addUnresolvedDocument(const StrRef &path) {
 }
 size_t Node::pushUnresolvedDocument(Value &root) {
      size_t pos = task->completeObjects->size();
-     task->completeObjects->push_back("{}");  
+     task->completeObjects->push_back(nullptr);  
      string objectAddr = JsonDecompressor::encodeObjId(pos);
      root.PushBack(Value(objectAddr.data(),
                          objectAddr.length(),
@@ -193,9 +193,7 @@ size_t Node::pushUnresolvedDocument(Value &root) {
 void Node::lateResolve() {
     Writer<StringBuffer> writer(task->buffer);
     jv.Accept(writer);
-    string result = task->buffer.GetString(); 
-    //printf(" late resolve %s \n", result.data());
-    (*(task->completeObjects))[completedPos] = result;
+    (*(task->completeObjects))[completedPos] = new string(task->buffer.GetString());
     task->buffer.Clear();
     delNode(this);       
 }

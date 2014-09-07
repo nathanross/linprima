@@ -26,7 +26,7 @@ public:
     //#throw_end
     void parse(rapidjson::Document& out, 
 #ifdef LIMITJSON
-               std::vector<std::string > & completedObjectsOut,
+               std::vector<std::string *> & completedObjectsOut,
 #endif
                const bool retErrAsJson);
 private:    
@@ -46,6 +46,7 @@ std::shared_ptr<LinprimaTask> task;
 
     Node * makeNode(bool lookavailInit, bool exists);
     WrappingNode * makeWrappingNode(ptrTkn token);
+    WrappingNode * makeWrappingNode();
 
     char16_t source(long pos);
 
@@ -73,7 +74,7 @@ std::shared_ptr<LinprimaTask> task;
     Node* parseObjectInitialiser();
     Node* parseGroupExpression();
     Node* parsePrimaryExpression();
-    std::vector< Node* > parseArguments();
+    void parseArguments(Node *parent);
     Node* parseNonComputedProperty();
     Node* parseNonComputedMember();
     Node* parseComputedMember();

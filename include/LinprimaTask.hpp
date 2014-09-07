@@ -25,7 +25,7 @@ struct LinprimaTask {
 #ifdef LIMITJSON
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer;
-    std::vector<std::string> * completeObjects;
+    std::vector<std::string *> * completeObjects;
 #endif
 
     int errorType;

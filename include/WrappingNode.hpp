@@ -16,9 +16,12 @@ public:
     WrappingNode(ptrTkn startToken, 
                  std::vector<Node*>*heapNodesArg,
                  AllocatorType* alloc,
+                 LinprimaTask* task);
+    WrappingNode(std::vector<Node*>*heapNodesArg,
+                 AllocatorType* alloc,
                  LinprimaTask* task); 
     Loc WrappingSourceLocation(ptrTkn startToken);
-
+    void usualInit(ptrTkn startTkn);
 };
 
 #endif
