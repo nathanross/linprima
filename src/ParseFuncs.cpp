@@ -231,6 +231,46 @@ Node* ParseTools::parseArrayInitialiser() {
 
     expect("[");
 
+    const StrRef *sr = &(text::_elements);
+    node->addType(Synt::ArrayExpression);
+    Value *vec = node->initVec(*sr);
+    while (!match("]")) {
+
+        if (match(",")) {
+            scanner.lex();
+            node->regPush(vec, *sr, nullptr);
+        } else {
+#ifndef THROWABLE
+            Node *tmp = parseAssignmentExpression();
+            node->regPush(vec, *sr, tmp);
+#endif
+#ifdef THROWABLE
+            node->regPush(vec, *sr, 
+                          parseAssignmentExpression());
+#endif
+            if (!match("]")) {
+                expect(",");
+            }
+        }
+    }
+
+    scanner.lex();
+
+    node->finish();
+    DEBUGOUT("parseArrInit", false);
+    return node;
+}
+
+/*
+
+//throw_
+Node* ParseTools::parseArrayInitialiser() {
+    DEBUGIN(" parseArrayInitialiser()", false);
+    vector< Node* > elements;
+    Node *node = makeNode(true, true);    
+
+    expect("[");
+
     while (!match("]")) {
 
         if (match(",")) {
@@ -256,6 +296,7 @@ Node* ParseTools::parseArrayInitialiser() {
     DEBUGOUT("parseArrInit", false);
     return node;
 }
+*/
 
 // 11.1.5 Object Initialiser
 
@@ -407,6 +448,8 @@ Node* ParseTools::parseObjectInitialiser() {
     int kind;
     map<string, int> kmap;
 
+    //node->addType(Synt::ObjectExpression);
+    //Value *vec = node->initVec(text::_properties);
     expect("{");
 
     while (!match("}")) {
@@ -454,6 +497,8 @@ Node* ParseTools::parseObjectInitialiser() {
             kmap[key] = kind;
         }
 
+        //problem with test case: (function () { 'use strict'; delete i; }())
+        //node->PushBack(vec, text::_properties, property);
         properties.push_back(property);
 
         if (!match("}")) {
@@ -463,6 +508,7 @@ Node* ParseTools::parseObjectInitialiser() {
 
     expect("}");
 
+    //node->finish();
     node->finishObjectExpression(properties);
     DEBUGOUT("parseObjectInit", false);
     return node;
@@ -990,6 +1036,51 @@ Node* ParseTools::parseBinaryExpression() {
 
 // 11.12 Conditional Operator
 
+//works fine, just haven't seen any maxheap savings
+/*//throw_
+Node* ParseTools::parseConditionalExpression() {
+    DEBUGIN(" parseConditionalExpression()", false);
+    Node *expr,
+        *consequent, *alternate;
+    bool previousAllowIn;
+    ptrTkn startToken;
+
+    startToken = lookahead;
+
+    expr = parseBinaryExpression();
+    if (expr->type == PlaceHolders["ArrowParameterPlaceHolder"]->type) { 
+        //? ever supposed to eval. to true? cause it might in some cases
+        //? even tho it seems in javascript it never ever will.
+
+        DEBUGOUT("parseCondExpr1", false); 
+        return expr;
+    }
+    if (match("?")) {
+        WrappingNode *tmpnode = makeWrappingNode();
+        tmpnode->addType(Synt::ConditionalExpression);
+        tmpnode->reg(text::_test, expr);
+
+        scanner.lex();
+        previousAllowIn = state.allowIn;
+        state.allowIn = true;
+        consequent = parseAssignmentExpression();
+        tmpnode->reg(text::_consequent, consequent);
+
+        state.allowIn = previousAllowIn;
+        expect(":");
+        alternate = parseAssignmentExpression();
+        tmpnode->reg(text::_alternate, alternate);
+
+        tmpnode->usualInit(startToken);
+        tmpnode->finish();
+        DEBUGOUT("parseCondExpr2", false); 
+        return tmpnode;
+    }
+
+    DEBUGOUT("parseCondExpr3", false);
+    return expr;
+}*/
+
 //throw_
 Node* ParseTools::parseConditionalExpression() {
     DEBUGIN(" parseConditionalExpression()", false);
@@ -1308,7 +1399,6 @@ Node* ParseTools::parseBlock() {
 //throw_
 Node* ParseTools::parseBlock() { 
     DEBUGIN(" parseBlock()", false);
-    vector< Node* > block;
     Node *node = makeNode(true, true);
 
     node->addType(Synt::BlockStatement);
@@ -1382,17 +1472,19 @@ Node* ParseTools::parseVariableDeclaration(const StrRef &kind) {
 }
 
 //throw_
-vector< Node* > ParseTools::parseVariableDeclarationList(const StrRef &kind) {
+void ParseTools::parseVariableDeclarationList(const StrRef &kind,
+                                                         Node *parent) {
     DEBUGIN("parseVariableDeclarationList", false);
-    vector< Node* > list; 
+    Value *vec = parent->initVec(text::_declarations);
 
     do {
 #ifndef THROWABLE
         Node *tmp = parseVariableDeclaration(kind);
-        list.push_back(tmp);
+        parent->regPush(vec, text::_declarations, tmp);
 #endif
 #ifdef THROWABLE
-        list.push_back(parseVariableDeclaration(kind));
+        parent->regPush(vec, text::_declarations, 
+                      parseVariableDeclaration(kind));
 #endif
         if (!match(",")) {
             break;
@@ -1401,19 +1493,21 @@ vector< Node* > ParseTools::parseVariableDeclarationList(const StrRef &kind) {
     } while (idx < length);
 
     DEBUGOUT("parseVariableDeclarationList", false); 
-    return list;
+    return;
 }
 
 //throw_
 Node* ParseTools::parseVariableStatement(Node* node) { 
     DEBUGIN(" parseVariableStatement(Node node)", false);
-    vector< Node* > declarations;
+    node->addType(Synt::VariableDeclaration);
 
     expectKeyword("var");
-    declarations = parseVariableDeclarationList(EMPTY_STRREF); 
+    parseVariableDeclarationList(EMPTY_STRREF, 
+                                 node); 
     consumeSemicolon();
 
-    node->finishVariableDeclaration(declarations, text::_var);
+    node->jvput(text::_kind, text::_var);
+    node->finish();
     DEBUGOUT("parseVariableStatement", false); 
     return node;
 }
@@ -1425,14 +1519,16 @@ Node* ParseTools::parseVariableStatement(Node* node) {
 //throw_
 Node* ParseTools::parseConstLetDeclaration(const string kind, 
                                            const StrRef &kindref) { 
-    DEBUGIN(" parseConstLetDeclaration(u16string kind)", false);
-    vector< Node* > declarations;
+    DEBUGIN(" parseConstLetDeclaration(u16string kind)", false);    
     Node *node = makeNode(true, true);
+    node->addType(Synt::VariableDeclaration);
 
     expectKeyword(kind);
-    declarations = parseVariableDeclarationList(kindref);
+    parseVariableDeclarationList(kindref, node);
     consumeSemicolon();
-    node->finishVariableDeclaration(declarations, kindref);
+    
+    node->jvput(text::_kind, kindref);
+    node->finish();
     DEBUGOUT("parseConstLetDeclaration", false); 
     return node;
 }
@@ -1467,6 +1563,34 @@ Node* ParseTools::parseIfStatement(Node *node) {
     DEBUGIN(" parseIfStatement(Node node)", false);
     Node *test, 
         *consequent, *alternate;
+    node->addType(Synt::IfStatement);
+    expectKeyword("if");
+    expect("(");
+    test = parseExpression();
+    node->reg(text::_test, test);
+    expect(")");
+    consequent = parseStatement();
+    node->reg(text::_consequent, consequent);
+    if (matchKeyword("else")) {
+        scanner.lex();
+        alternate = parseStatement();
+    } else {
+        alternate = nullptr;
+    }
+    node->reg(text::_alternate, alternate);
+    node->finish();
+    //node->finishIfStatement(test, consequent, alternate);
+    DEBUGOUT("parseIfStatement", false); 
+    return node;
+}
+
+/*
+// 12.5 If statement
+//throw_
+Node* ParseTools::parseIfStatement(Node *node) { 
+    DEBUGIN(" parseIfStatement(Node node)", false);
+    Node *test, 
+        *consequent, *alternate;
     expectKeyword("if");
     expect("(");
     test = parseExpression();
@@ -1482,7 +1606,7 @@ Node* ParseTools::parseIfStatement(Node *node) {
     DEBUGOUT("parseIfStatement", false); 
     return node;
 }
-
+*/
 // 12.6 Iteration Statements
 
 //throw_
@@ -1513,6 +1637,24 @@ Node* ParseTools::parseWhileStatement(Node* node) {
     DEBUGIN(" parseWhileStatement(Node node)", false);
     Node *test, *body;
     bool oldInIteration;
+    expectKeyword("while");
+    expect("(");
+    test = parseExpression();
+    expect(")");
+    oldInIteration = state.inIteration;
+    state.inIteration = true;
+    body = parseStatement();
+    state.inIteration = oldInIteration;
+    node->finishWhileStatement(test, body);
+    DEBUGOUT("parseWhileStatement", false);
+    return node;
+}
+/*
+//throw_
+Node* ParseTools::parseWhileStatement(Node* node) { 
+    DEBUGIN(" parseWhileStatement(Node node)", false);
+    Node *test, *body;
+    bool oldInIteration;
     node->addType(Synt::WhileStatement);
 
     expectKeyword("while");
@@ -1531,18 +1673,21 @@ Node* ParseTools::parseWhileStatement(Node* node) {
     DEBUGOUT("parseWhileStatement", false);
     return node;
 }
-
+*/
 //throw_
 Node* ParseTools::parseForVariableDeclaration() { 
     DEBUGIN(" parseForVariableDeclaration()", false);
     ptrTkn token;
     vector< Node* > declarations;
     Node *node = makeNode(true, true);
+    node->addType(Synt::VariableDeclaration);
 
     token = scanner.lex();
-    declarations = parseVariableDeclarationList(EMPTY_STRREF);
-    node->finishVariableDeclaration(declarations, (token->strvalue == "var")? text::_var: ((token->strvalue == "const")? text::_const : text::_let));
-    DEBUGOUT("parseForVariableDeclaration", false); 
+    parseVariableDeclarationList(EMPTY_STRREF, node);
+
+    node->jvput(text::_kind, (token->strvalue == "var")? text::_var: ((token->strvalue == "const")? text::_const : text::_let));
+    node->finish();
+    DEBUGOUT("parseForVariableDeclaration", false);     
     return node;
 }
 
@@ -1822,6 +1967,43 @@ Node* ParseTools::parseSwitchCase() {
     Node *test, *statement, 
         *node = makeNode(true, true);
     vector< Node* > consequent;
+    node->addType(Synt::SwitchCase);
+
+    if (matchKeyword("default")) {
+        scanner.lex();
+        test = nullptr;
+    } else {
+        expectKeyword("case");
+        test = parseExpression();
+    }
+    node->reg(text::_test, test);
+    Value *vec = node->initVec(text::_consequent);
+    expect(":");
+
+    while (idx < length) {
+        if (match("}") 
+            || matchKeyword("default") 
+            || matchKeyword("case")) {
+            break;
+        }
+        statement = parseStatement();
+        node->regPush(vec, text::_consequent, statement);
+    }
+
+    node->finish();
+    DEBUGOUT("parseSwitchCase", false);
+    return node;
+}
+
+/*
+
+// 12.10 The swith statement
+//throw_
+Node* ParseTools::parseSwitchCase() {
+    DEBUGIN(" parseSwitchCase()", false);
+    Node *test, *statement, 
+        *node = makeNode(true, true);
+    vector< Node* > consequent;
 
     if (matchKeyword("default")) {
         scanner.lex();
@@ -1846,6 +2028,7 @@ Node* ParseTools::parseSwitchCase() {
     DEBUGOUT("parseSwitchCase", false);
     return node;
 }
+*/
 
 //throw_
 Node* ParseTools::parseSwitchStatement(Node *node) {
@@ -1854,9 +2037,16 @@ Node* ParseTools::parseSwitchStatement(Node *node) {
     vector< Node* > cases; 
     bool oldInSwitch, defaultFound;
 
+    //    node->addType(Synt::SwitchStatement);
+
     expectKeyword("switch");
     expect("(");
     discriminant = parseExpression();
+    //discriminant doesn't have member ->expressions
+    //available to read yet.
+    //node->reg(text::_discriminant, discriminant);
+    //Value *vec = node->initVec(text::_cases);
+
     expect(")");
     expect("{");
     if (match("}")) {
@@ -1881,12 +2071,14 @@ Node* ParseTools::parseSwitchStatement(Node *node) {
             }
             defaultFound = true;
         }
+        //node->regPush(vec, text::_cases, clause);
         cases.push_back(clause);
     }
 
     state.inSwitch = oldInSwitch;
     expect("}");
     node->finishSwitchStatement(discriminant, cases);
+    //    node->finish();
     DEBUGOUT("parseSwitchStatement", false);
     return node;
 }
@@ -2130,6 +2322,85 @@ Node* ParseTools::parseFunctionSourceElements() {
     DEBUGIN(" parseFunctionSourceElements()", false);
     Node *sourceElement, 
         *node = makeNode(true, true);
+    ptrTkn token, firstRestricted = scanner.makeToken();
+    u16string directive;
+    StateStruct oldstate;
+
+    node->addType(Synt::BlockStatement);
+    Value *vec = node->initVec(text::_body);
+    expect("{");
+
+    firstRestricted->isNull = true;
+    while (idx < length) {
+        if (lookahead->type != TknType::StringLiteral) {
+            break;
+        }
+        token = lookahead;
+
+        sourceElement = parseSourceElement(); 
+        //# returns in turn the value of parseStatement for stringLiteral 
+        //# so returns a string literal expression node wrapped in an expressionStatement node.
+        if (sourceElement->spareStrref != Syntax[Synt::Literal]) {
+            //? this one I doubt there's more an efficient way to do this
+            //? then json-c accesses. Storing node hierarchies just to fix this call seems to 
+            //? be likely less performant.
+            // this is not directive
+            node->regPush(vec, text::_body, sourceElement); 
+            break;
+        }
+        node->regPush(vec, text::_body, sourceElement); 
+        directive = slice(sourceRaw, token->start + 1, token->end - 1);
+        if (directive == u"use strict") {
+            task->strict = true;
+            if (!(firstRestricted->isNull)) {
+                task->throwErrorTolerant(firstRestricted, 
+                                   Messages[Mssg::StrictOctalLiteral], {});
+            }
+        } else {
+            if (firstRestricted->isNull && token->octal) {
+                firstRestricted = token;
+                firstRestricted->isNull = false;
+            }
+        }
+    }
+
+    oldstate = state;
+
+    state.labelSet.clear();
+    state.inIteration = false;
+    state.inSwitch = false;
+    state.inFunctionBody = true;
+    state.parenthesisCount = 0;
+
+    while (idx < length) {
+        if (match("}")) {
+            break;
+        }
+        sourceElement = parseSourceElement();
+        if (sourceElement == nullptr) {
+            break;
+        }
+        node->regPush(vec, text::_body, sourceElement);
+    }
+
+    expect("}");
+
+    state.labelSet = oldstate.labelSet;
+    state.inIteration = oldstate.inIteration;
+    state.inSwitch = oldstate.inSwitch;
+    state.inFunctionBody = oldstate.inFunctionBody;
+    state.parenthesisCount = oldstate.parenthesisCount;
+
+    node->finish();
+    DEBUGOUT("parseFunctionSourceElements", false);
+    return node;
+}
+
+/*//throw_
+Node* ParseTools::parseFunctionSourceElements() {
+    DEBUGIN(" parseFunctionSourceElements()", false);
+    Node *sourceElement, 
+        *node = makeNode(true, true);
     vector< Node* > sourceElements;
     ptrTkn token, firstRestricted = scanner.makeToken();
     u16string directive;
@@ -2201,6 +2472,8 @@ Node* ParseTools::parseFunctionSourceElements() {
     DEBUGOUT("parseFunctionSourceElements", false);
     return node;
 }
+
+ */
 
 //throw_ 
 void ParseTools::validateParam(ParseParamsOptions& options, 

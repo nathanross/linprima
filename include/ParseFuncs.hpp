@@ -103,7 +103,7 @@ std::shared_ptr<LinprimaTask> task;
     Node* parseBlock();
     Node* parseVariableIdentifier();
     Node* parseVariableDeclaration(const StrRef &kind);
-    std::vector< Node* > parseVariableDeclarationList(const StrRef &kind);
+    void parseVariableDeclarationList(const StrRef &kind, Node *parent);
     Node* parseVariableStatement(Node* node);
     Node* parseConstLetDeclaration(const std::string kind, 
                                    const StrRef &kindref);
