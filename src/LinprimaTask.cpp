@@ -34,6 +34,13 @@ int LinprimaTask::throwToJS(ExError err) {
     DEBUGIN(" throwToJS(ExError err)", false);
     retError = err;
     errorType = 0;
+#ifdef LIMITJSON
+    for(int i=0;i<completeObjects->size();i++){
+        if (completeObjects->at(i) != nullptr) {
+            free(completeObjects->at(i));
+        }
+    }
+#endif
     ErrWrapint evoid;
     evoid.err = true;
     DEBUGOUT("throwToJs", false);
@@ -44,6 +51,13 @@ int LinprimaTask::throwToJS(ExError err) {
 void LinprimaTask::throwToJS(const ExError err) {
     DEBUGIN(" throwToJS(ExError err)", false);
     DEBUGOUT("throwToJs", false);    
+#ifdef LIMITJSON
+    for(int i=0;i<completeObjects->size();i++){
+        if (completeObjects->at(i) != nullptr) {
+            free(completeObjects->at(i));
+        }
+    }
+#endif
     throw err;
 }
 #endif

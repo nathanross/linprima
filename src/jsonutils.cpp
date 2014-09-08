@@ -3,6 +3,7 @@
 #include "JsonDecompressor.hpp"
 #include "FixedString.hpp"
 #include "LinprimaTask.hpp"
+#include <stdio.h>
 using namespace std;
 using namespace rapidjson;
 

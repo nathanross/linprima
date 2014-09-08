@@ -1,4 +1,4 @@
-#line 1 "ParseFuncs.cpp"
+//#line 1 "ParseFuncs.cpp"
 #include "ParseFuncs.hpp"
 #include "stringutils.hpp"
 #include "strrefconsts.hpp"
@@ -448,8 +448,8 @@ Node* ParseTools::parseObjectInitialiser() {
     int kind;
     map<string, int> kmap;
 
-    //node->initJV(Synt::ObjectExpression);
-    //Value *vec = node->initVec(text::_properties);
+    node->initJV(Synt::ObjectExpression);
+    Value *vec = node->initVec(text::_properties);
     expect("{");
 
     while (!match("}")) {
@@ -498,8 +498,8 @@ Node* ParseTools::parseObjectInitialiser() {
         }
 
         //problem with test case: (function () { 'use strict'; delete i; }())
-        //node->PushBack(vec, text::_properties, property);
-        properties.push_back(property);
+        node->regPush(vec, text::_properties, property);
+        //properties.push_back(property);
 
         if (!match("}")) {
             expectTolerant(",");
@@ -508,8 +508,8 @@ Node* ParseTools::parseObjectInitialiser() {
 
     expect("}");
 
-    //node->finish();
-    node->finishObjectExpression(properties);
+    node->finish();
+    //node->finishObjectExpression(properties);
     DEBUGOUT("parseObjectInit", false);
     return node;
 }
@@ -872,11 +872,13 @@ Node* ParseTools::parseUnaryExpression() {
         token = scanner.lex();
         expr = parseUnaryExpression();
         tmpnode = makeWrappingNode(startToken);
-        tmpnode->finishUnaryExpression(token->strvalue, expr);
+
         if (task->strict && token->strvalue == "delete" 
             && expr->type == Syntax[Synt::Identifier]) {
-            task->throwErrorTolerant(Tokenizer::NULLPTRTKN, Messages[Mssg::StrictDelete], {});
+            task->throwErrorTolerant(Tokenizer::NULLPTRTKN, 
+                                     Messages[Mssg::StrictDelete], {});
         }
+        tmpnode->finishUnaryExpression(token->strvalue, expr);
         DEBUGOUT("parseUnary", false); 
         return tmpnode;
     } else {
@@ -1701,12 +1703,12 @@ Node* ParseTools::parseForStatement(Node* node) {
 
     Node *body, *left, *right =0x0, 
         *update, *test, *init;
+    bool forIn = false;
     left=nullptr;
     update=nullptr; test=nullptr; init=nullptr;
 
     expectKeyword("for");
     expect("(");
-
     if (match(";")) {
         scanner.lex();
     } else {
@@ -1720,7 +1722,16 @@ Node* ParseTools::parseForStatement(Node* node) {
 
                 scanner.lex();
                 left = init;
+                if (left != nullptr) {
+                    forIn = true;                    
+                    node->initJV(Synt::ForInStatement);
+                    node->reg(text::_left, left);
+                }
                 right = parseExpression();
+
+                if (forIn) {
+                    node->reg(text::_right, right);
+                }
                 init = nullptr;
             }
         } else {
@@ -1738,26 +1749,39 @@ Node* ParseTools::parseForStatement(Node* node) {
 
                 scanner.lex();
                 left = init;
+                if (left != nullptr) {
+                    forIn = true;
+                    node->initJV(Synt::ForInStatement);
+                    node->reg(text::_left, left);
+                }
                 right = parseExpression();
+                if (forIn) {
+                    node->reg(text::_right, right);
+                }
                 init = nullptr;
             }
         }
 
-        if (left == nullptr) {
+        if (! forIn) {            
             expect(";");
         }
     }
-
-    if (left == nullptr) {
-
+    if (! forIn) {        
+        node->initJV(Synt::ForStatement);   
+        node->reg(text::_init, init);
+                
+        test = nullptr;
         if (!match(";")) {
-            test = parseExpression();
+            test = parseExpression(); 
         }
+        node->reg(text::_test, test);
         expect(";");
 
+        update = nullptr;
         if (!match(")")) {
             update = parseExpression();
         }
+        node->reg(text::_update, update);
     }
 
     expect(")");
@@ -1766,14 +1790,14 @@ Node* ParseTools::parseForStatement(Node* node) {
     state.inIteration = true;
 
     body = parseStatement();
+    node->reg(text::_body, body);
 
     state.inIteration = oldInIteration;
 
-    if (left == nullptr) {
-        node->finishForStatement(init, test, update, body);
-    } else {
-        node->finishForInStatement(left, right, body);
+    if (forIn) {
+        node->jvput(text::_each, false);
     }
+    node->finish();
     DEBUGOUT("parseForStatement", false);
     return node;
 }

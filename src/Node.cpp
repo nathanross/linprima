@@ -100,7 +100,6 @@ void Node::unused() {
 }
 
 
-reqinline
 void Node::jvput(const StrRef path, const string b)  {
     jv->AddMember(path, 
               Value(b.data(), b.length(), *alloc).Move(), 
@@ -112,19 +111,15 @@ void Node::jvput(const StrRef path, const StrRef &b) {
     jv->AddMember(path, b, *alloc); 
 }
 
-reqinline
 void Node::jvput(const StrRef path, const int b) 
 {jv->AddMember(path, b, *alloc); }
 
-reqinline
 void Node::jvput(const StrRef path, const bool b) 
 {jv->AddMember(path, b, *alloc); }
 
-reqinline
 void Node::jvput_dbl(const StrRef path, const double b) 
 {jv->AddMember(path, b, *alloc); }
 
-reqinline
 void Node::jvput_null(const StrRef path)
 { Value tmp; jv->AddMember(path, tmp, *alloc); }
  
