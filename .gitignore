@@ -15,3 +15,5 @@ tools/compression/cmpR_out
 tools/compression/cmpR_tmp
 *.gch
 *.o
+*.pyc
+.sconsign.dblite
