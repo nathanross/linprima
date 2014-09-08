@@ -46,6 +46,8 @@ if c_clang or c_gcc:
     #debug with valgrind     
     gdb = int(ARGUMENTS.get('gdb', 0))
 
+    log = int(ARGUMENTS.get('log', 0))
+
     #use asmjs stack-based exceptions instead of throws.    
     t52 = int(ARGUMENTS.get('t52', 0))
 
