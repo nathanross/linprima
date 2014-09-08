@@ -2,6 +2,7 @@
 #define JSON_DECOMPRESSOR_HPP
 
 #line 4 "JsonDecompressor.hpp"
+#include "FixedString.hpp"
 #include "t52types.hpp"
 #include <rapidjson/document.h>
 #include <vector>
@@ -45,7 +46,7 @@ public:
 
     JsonDecompressor(
 #ifdef LIMITJSON
-                     std::vector<std::string *> * completeObjs, 
+                     std::vector<fixedstring::FixedString> * completeObjs, 
 #endif
                      long len);
     void Put(Ch c);
@@ -71,7 +72,7 @@ private:
 
 #ifdef LIMITJSON
     int objExpandSeq=0;
-    std::vector<std::string *> * completeObjects;
+    std::vector<fixedstring::FixedString> * completeObjects;
 
     const int OBJ_NONE = 0;
     const char OBJ_MARKER_BEGIN=1;
@@ -83,7 +84,7 @@ private:
     std::vector<const char*> putStack;
     std::vector<int> putStackLen;
     std::vector<int> putStackPos;
-    std::vector<size_t> putStackAddr;
+    std::vector<void *> putStackFixedStr;
     size_t addr;
     //    OStreamWrapper(const OStreamWrapper&);
     //OStreamWrapper& operator=(const OStreamWrapper&);    

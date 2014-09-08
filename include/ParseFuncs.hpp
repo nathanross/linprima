@@ -10,6 +10,7 @@
 #include "Node.hpp"
 #include "strref.hpp"
 #include "podt.hpp"
+#include "FixedString.hpp"
 #include "t52types.hpp"
 #include <rapidjson/document.h>
 #include <string>
@@ -26,7 +27,7 @@ public:
     //#throw_end
     void parse(rapidjson::Document& out, 
 #ifdef LIMITJSON
-               std::vector<std::string *> & completedObjectsOut,
+               std::vector<fixedstring::FixedString> & completedObjectsOut,
 #endif
                const bool retErrAsJson);
 private:    

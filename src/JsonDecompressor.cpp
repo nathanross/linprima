@@ -3,6 +3,7 @@
 #include "jsonutils.hpp"
 using namespace std;
 using namespace rapidjson;
+using namespace fixedstring;
 
 #ifdef LOWMEM
 
@@ -41,7 +42,7 @@ int JsonDecompressor::getDecodeIdx(char in) {
 
 JsonDecompressor::JsonDecompressor(
 #ifdef LIMITJSON
-                                   vector<string*> * completeObjs,
+                                   vector<fixedstring::FixedString> * completeObjs,
 #endif
                                    long lenArg)
 #ifdef LIMITJSON
@@ -77,7 +78,7 @@ void JsonDecompressor::Put(char in) {
     putStack.push_back(&in);
     putStackLen.push_back(1);
     putStackPos.push_back(0);
-    putStackAddr.push_back(-1);
+    putStackFixedStr.push_back(nullptr);
     char c = in;
 
     //review:
@@ -101,8 +102,8 @@ void JsonDecompressor::Put(char in) {
             if (putStack.empty()) {
                 return;
             }
-            delete (completeObjects->at(putStackAddr.back()));
-            putStackAddr.pop_back();
+            free(putStackFixedStr.back());
+            putStackFixedStr.pop_back();
             inpos = putStackPos.back();
             //printf(" stackframe complete adding end bracket }\n");
             //current[i] = '}';
@@ -166,9 +167,10 @@ void JsonDecompressor::Put(char in) {
                 //printf(" seeking addr %i ", (int) addr);
                 //printf("at completeObjs of size %i \n", 
                        //       (int) completeObjects->size());
-                putStack.push_back(completeObjects->at(addr)->data());
-                putStackLen.push_back(completeObjects->at(addr)->length());
-                putStackAddr.push_back(addr);
+                FixedString fs = completeObjects->at(addr);
+                putStack.push_back(fixedstring::data(fs));
+                putStackLen.push_back(fixedstring::length(fs));
+                putStackFixedStr.push_back(fs);
                 putStackPos.push_back(0);
                 inpos = 0;
                 objExpandSeq = OBJ_NONE;

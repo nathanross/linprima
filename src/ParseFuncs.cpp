@@ -2915,7 +2915,7 @@ Node* ParseTools::parseProgram() {
 
 void ParseTools::parse(Document& outJson, 
 #ifdef LIMITJSON
-                       vector<string *> &completeObjectsOut,
+                       vector<fixedstring::FixedString> &completeObjectsOut,
 #endif
                        const bool retErrorsAsJson) {
 #ifdef LIMITJSON

@@ -4,6 +4,7 @@
 #include "stringutils.hpp"
 #include "jsonutils.hpp"
 #include "JsonDecompressor.hpp"
+#include "FixedString.hpp"
 #include "debug.hpp"
 using namespace std;
 using namespace rapidjson;
@@ -197,7 +198,8 @@ size_t Node::pushUnresolvedDocument(Value &root) {
 void Node::lateResolve() {
     Writer<StringBuffer> writer(task->buffer);
     jv->Accept(writer);
-    (*(task->completeObjects))[completedPos] = new string(task->buffer.GetString());
+    (*(task->completeObjects))[completedPos] = 
+        fixedstring::getFixedStr(task->buffer.GetString());
     task->buffer.Clear();
     delNode(this);       
 }

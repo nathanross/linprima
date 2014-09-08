@@ -5,6 +5,7 @@
 #include "LinprimaTask.hpp"
 #include "podt.hpp"
 #include "strref.hpp"
+#include "FixedString.hpp"
 #include "t52types.hpp"
 #include <string>
 #include <memory>
@@ -34,7 +35,7 @@ public:
     //#throw_end
     void tokenize(rapidjson::Document& out, 
 #ifdef LIMITJSON
-                  std::vector<std::string *> &completedObjectsOut,
+                  std::vector<fixedstring::FixedString> &completedObjectsOut,
 #endif
                   const bool retErrAsJson);
     void filterTokenLocation();
