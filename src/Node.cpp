@@ -17,9 +17,10 @@ Node::Node(bool lookaheadAvail,
            vector<Node*>* heapNodes,
            AllocatorType* allocArg,
            LinprimaTask * taskArg):
-    loc(-1,-1,-1), 
+    jv(nullptr),
+    loc(-1,-1,-1),
 #ifdef LIMITJSON
-    alloc(&(jv.GetAllocator())), 
+    alloc(nullptr), 
 #endif
 #ifndef LIMITJSON
     alloc(allocArg), 
@@ -59,21 +60,21 @@ string Node::s(const u16string in) { return toU8(in); }
 
 void Node::lookavailInit() {
     hasJv = true;
-    jv.SetObject();
+    
 
-     task->idx = task->lookahead->start;
-     if (task->lookahead->type == TknType::StringLiteral) {
-         task->lineNumber = task->lookahead->startLineNumber;
-         task->lineStart = task->lookahead->startLineStart;
-     } else {
-         task->lineNumber = task->lookahead->lineNumber;
-         task->lineStart = task->lookahead->lineStart;
-     }
-     if (hasRange) { //#should always be true, but keep it open while testing.
-         loc.startLine = task->lineNumber;
-         loc.startColumn = task->idx - task->lineStart;
-         range[0] = task->idx;
-     }
+    task->idx = task->lookahead->start;
+    if (task->lookahead->type == TknType::StringLiteral) {
+        task->lineNumber = task->lookahead->startLineNumber;
+        task->lineStart = task->lookahead->startLineStart;
+    } else {
+        task->lineNumber = task->lookahead->lineNumber;
+        task->lineStart = task->lookahead->lineStart;
+    }
+    if (hasRange) { //#should always be true, but keep it open while testing.
+        loc.startLine = task->lineNumber;
+        loc.startColumn = task->idx - task->lineStart;
+        range[0] = task->idx;
+    }
  }
 
 
@@ -81,6 +82,7 @@ void Node::delNode(Node * toDel) {
     if (toDel == nullptr) { return; }
     auto iter = find(heapNodes->begin(), heapNodes->end(), toDel);
     if (iter != heapNodes->end()) { heapNodes->erase(iter); }
+    delete toDel->jv;
     delete (toDel);
 }
 
@@ -99,29 +101,31 @@ void Node::unused() {
 
 reqinline
 void Node::jvput(const StrRef path, const string b)  {
-    jv.AddMember(path, 
+    jv->AddMember(path, 
               Value(b.data(), b.length(), *alloc).Move(), 
               *alloc); 
 }
 
 void Node::jvput(const StrRef path, const StrRef &b) {
-    jv.AddMember(path, b, *alloc); 
+    
+    jv->AddMember(path, b, *alloc); 
 }
+
 reqinline
 void Node::jvput(const StrRef path, const int b) 
-{jv.AddMember(path, b, *alloc); }
+{jv->AddMember(path, b, *alloc); }
 
 reqinline
 void Node::jvput(const StrRef path, const bool b) 
-{jv.AddMember(path, b, *alloc); }
+{jv->AddMember(path, b, *alloc); }
 
 reqinline
 void Node::jvput_dbl(const StrRef path, const double b) 
-{jv.AddMember(path, b, *alloc); }
+{jv->AddMember(path, b, *alloc); }
 
 reqinline
 void Node::jvput_null(const StrRef path)
-{ Value tmp; jv.AddMember(path, tmp, *alloc); }
+{ Value tmp; jv->AddMember(path, tmp, *alloc); }
  
 
 //# different name to prevent easy bug of forgetting the string.
@@ -139,12 +143,12 @@ void Node::regNoadd(const vector<RegexLeg> paths, Node * child) {
         //        rangearr.PushBack(n, *alloc);
         rangearr.PushBack(child->range[0], *alloc);
         rangearr.PushBack(child->range[1], *alloc);
-        child->jv.AddMember(text::_range, rangearr, *alloc);
+        child->jv->AddMember(text::_range, rangearr, *alloc);
     } 
     if (child->hasLoc) {        
         Value locjson(kObjectType);
         child->loc.toJson(locjson, alloc);
-        child->jv.AddMember(text::_loc, locjson, *alloc);
+        child->jv->AddMember(text::_loc, locjson, *alloc);
     }
     if (child->regexPaths.size() > 0) {
         if (child->regexPaths[0][0].isStart) {
@@ -172,7 +176,7 @@ size_t Node::addUnresolvedDocument(const StrRef &path) {
      size_t pos = task->completeObjects->size();
      task->completeObjects->push_back(nullptr);  
      string objectAddr = JsonDecompressor::encodeObjId(pos);
-     jv.AddMember(path, 
+     jv->AddMember(path, 
                   Value(objectAddr.data(),
                         objectAddr.length(),
                         *alloc).Move(),
@@ -192,7 +196,7 @@ size_t Node::pushUnresolvedDocument(Value &root) {
 
 void Node::lateResolve() {
     Writer<StringBuffer> writer(task->buffer);
-    jv.Accept(writer);
+    jv->Accept(writer);
     (*(task->completeObjects))[completedPos] = new string(task->buffer.GetString());
     task->buffer.Clear();
     delNode(this);       
@@ -220,13 +224,13 @@ void Node::reg(const StrRef &path, Node * child) {
         pathlist.emplace_back((&(path)));
         regNoadd(pathlist, child);
 #ifndef LIMITJSON
-        jv.AddMember(path, 
-                     child->jv.Move(), 
+        jv->AddMember(path, 
+                     child->jv->Move(), 
                      *alloc);
 
         if (child->thisnc
             && !(child->thisnc->resolved)) {
-            child->thisnc->nodesJv = &(jv[path]);
+            child->thisnc->nodesJv = &((*jv)[path]);
         }
         delNode (child); 
 #endif
@@ -238,13 +242,13 @@ void Node::reg(const StrRef &path, Node * child) {
           
             child->thisnc->setNodeDetached(child);
         } else {
-            AddDocument(task, path, jv, child->jv);
+            AddDocument(task, path, *jv, *(child->jv));
             delNode (child); 
         }
 #endif
     } else {
         Value tmp;
-        jv.AddMember(path,
+        jv->AddMember(path,
                       tmp, *alloc);
     }
 
@@ -252,8 +256,8 @@ void Node::reg(const StrRef &path, Node * child) {
 }
 Value* Node::initVec(const StrRef &path) {
     Value tmp(kArrayType);
-    jv.AddMember(path, tmp, *alloc);
-    return &(jv[path]);
+    jv->AddMember(path, tmp, *alloc);
+    return &((*jv)[path]);
 }
 void Node::regPush(Value* arr, const StrRef &path, Node* child) {
     if (child != nullptr) {
@@ -273,7 +277,7 @@ void Node::regPush(Value* arr, const StrRef &path, Node* child) {
         pathlist.emplace_back((arr->Size()));
         regNoadd(pathlist, child);
 #ifndef LIMITJSON
-        arr->PushBack(child->jv.Move(), *alloc);
+        arr->PushBack(child->jv->Move(), *alloc);
         if (child->thisnc
             && !(child->thisnc->resolved)) {
             child->thisnc->nodesJv = &((*arr)[(arr->Size()-1)]);
@@ -288,7 +292,7 @@ void Node::regPush(Value* arr, const StrRef &path, Node* child) {
             child->completedPos = pushUnresolvedDocument(*arr);                
             child->thisnc->setNodeDetached(child);
         } else {
-            PushDocument(task, jv.GetAllocator(), *arr, child->jv);
+            PushDocument(task, jv->GetAllocator(), *arr, *(child->jv));
             delNode (child);
         }
 #endif
@@ -317,7 +321,7 @@ void Node::nodeVec(const StrRef &path, const vector< Node* > & nodes) {
             pathlist.emplace_back(i);
             regNoadd(pathlist, nodes[i]);
 #ifndef LIMITJSON
-            arr.PushBack(nodes[i]->jv.Move(), *alloc);
+            arr.PushBack(nodes[i]->jv->Move(), *alloc);
             if (nodes[i]->thisnc
                 && !(nodes[i]->thisnc->resolved)) {
                 nodes[i]->thisnc->nodesJv = &(arr[i]);
@@ -332,7 +336,7 @@ void Node::nodeVec(const StrRef &path, const vector< Node* > & nodes) {
                 nodes[i]->completedPos = pushUnresolvedDocument(arr);                
                 nodes[i]->thisnc->setNodeDetached(nodes[i]);
             } else {
-                PushDocument(task, jv.GetAllocator(), arr, nodes[i]->jv);
+                PushDocument(task, jv->GetAllocator(), arr, *(nodes[i]->jv));
                 delNode (nodes[i]);
             }
 #endif
@@ -341,15 +345,19 @@ void Node::nodeVec(const StrRef &path, const vector< Node* > & nodes) {
             arr.PushBack(tmp, *alloc);
         }
     } 
-    jv.AddMember(path, arr, *alloc);
+    jv->AddMember(path, arr, *alloc);
     //DEBUGOUT("node::nodeVec", false);
 }
 
-void Node::addType(const Synt in) { 
-    //DEBUGIN("addType", false);
+void Node::initJV(const Synt in) { 
+    //DEBUGIN("initJV", false);
     type = Syntax[in];
-    
-    jv.AddMember(text::_type, *type, *alloc);
+    jv = new Document;
+#ifdef LIMITJSON
+    alloc = &(jv->GetAllocator());
+#endif
+    jv->SetObject();
+    jv->AddMember(text::_type, *type, *alloc);
 }
 void Node::regexPaths2json(Value& out, AllocatorType *alloc) { 
     //DEBUGIN("Node::regexPaths2json()", false);
@@ -388,14 +396,14 @@ void Node::processComment() {
         &(extra.bottomRightStack);
     shared_ptr<NodesComments> lastChild;
     shared_ptr<NodesComments> last;
-    thisnc.reset(new NodesComments(jv, alloc));
+    thisnc.reset(new NodesComments(*jv, alloc));
     bool LEADING = true, TRAILING= false;
     if (bottomRight->size() > 0) {
         last = bottomRight->back();
     }
 
     if (type == Syntax[Synt::Program]) {  
-        if (jv[text::_body].Size() > 0) {
+        if ((*jv)[text::_body].Size() > 0) {
             DEBUGOUT("", false); 
             thisnc->resolved = true;
             return;
@@ -511,7 +519,7 @@ void Node::finish() {
 
 void Node::finishArrayExpression(const vector< Node* >& elements) {
     DEBUGIN("finishArrayExpression(vector< Node >& elements)", false);
-    addType(Synt::ArrayExpression);
+    initJV(Synt::ArrayExpression);
     nodeVec(text::_elements, elements);
     this->finish();
     DEBUGOUT("", false);
@@ -522,7 +530,7 @@ void Node::finishArrowFunctionExpression(const vector< Node* >& params,
                                          Node * body, 
                                          const bool expression) {
     DEBUGIN("finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression)", false);
-    addType(Synt::ArrowFunctionExpression);
+    initJV(Synt::ArrowFunctionExpression);
 
     jvput_null(text::_id);
     nodeVec(text::_params, params);
@@ -541,7 +549,7 @@ void Node::finishAssignmentExpression(const string oper,
                                       Node * right) {
     DEBUGIN("finishAssignmentExpression(u16string oper, Node& left, Node& right)", false);
 
-    addType(Synt::AssignmentExpression);
+    initJV(Synt::AssignmentExpression);
     jvput(text::_operator, oper);
 
     leftAssign = left;
@@ -556,7 +564,7 @@ void Node::finishBinaryExpression(const string oper,
                                   Node * left, 
                                   Node * right) {
     DEBUGIN("finishBinaryExpression(u16string oper, Node& left, Node& right)", false);
-    addType((oper == "||" || oper == "&&") ? 
+    initJV((oper == "||" || oper == "&&") ? 
             Synt::LogicalExpression : Synt::BinaryExpression);
     jvput(text::_operator, oper);
     reg(text::_left, left); 
@@ -568,7 +576,7 @@ void Node::finishBinaryExpression(const string oper,
 
 void Node::finishBlockStatement(const vector< Node* >& body) {
     DEBUGIN("finishBlockStatement(vector< Node >& body)", false);
-    addType(Synt::BlockStatement);
+    initJV(Synt::BlockStatement);
     nodeVec(text::_body, body);
     this->finish();
     DEBUGOUT("", false);
@@ -577,7 +585,7 @@ void Node::finishBlockStatement(const vector< Node* >& body) {
 
 void Node::finishBreakStatement(Node * label) {
     DEBUGIN("finishBreakStatement(Node& label)", false);
-    addType(Synt::BreakStatement);
+    initJV(Synt::BreakStatement);
     reg(text::_label, label);
     this->finish();  
     DEBUGOUT("", false);
@@ -587,7 +595,7 @@ void Node::finishBreakStatement(Node * label) {
 void Node::finishCallExpression(Node * callee, 
                                 const vector< Node* >& args) {
     DEBUGIN("finishCallExpression", false);
-    addType(Synt::CallExpression);
+    initJV(Synt::CallExpression);
     reg(text::_callee, callee);
     nodeVec(text::_arguments, args);
     this->finish(); 
@@ -598,7 +606,7 @@ void Node::finishCallExpression(Node * callee,
 void Node::finishCatchClause(Node * param, 
                              Node * body) {
     DEBUGIN("finishCatchClause", false);
-    addType(Synt::CatchClause);
+    initJV(Synt::CatchClause);
     reg(text::_param, param);
     reg(text::_body, body);
     this->finish();
@@ -610,7 +618,7 @@ void Node::finishConditionalExpression(Node * test,
                                        Node * consequent,
                                        Node * alternate) {
     DEBUGIN("finishConditionalExpression", false);
-    addType(Synt::ConditionalExpression);
+    initJV(Synt::ConditionalExpression);
     reg(text::_test, test);
     reg(text::_consequent, consequent);
     reg(text::_alternate, alternate);
@@ -621,7 +629,7 @@ void Node::finishConditionalExpression(Node * test,
 
 void Node::finishContinueStatement(Node * label) {
     DEBUGIN("finishContinueStatement", false);
-    addType(Synt::ContinueStatement);
+    initJV(Synt::ContinueStatement);
     reg(text::_label, label);
     this->finish();  DEBUGOUT("", false);
 }
@@ -629,7 +637,7 @@ void Node::finishContinueStatement(Node * label) {
 
 void Node::finishDebuggerStatement() {
     DEBUGIN("finishDebuggerStatement", false);
-    addType(Synt::DebuggerStatement);
+    initJV(Synt::DebuggerStatement);
     this->finish();
     DEBUGOUT("", false);
 }
@@ -637,7 +645,7 @@ void Node::finishDebuggerStatement() {
 
 void Node::finishDoWhileStatement(Node * body, Node * test) {
     DEBUGIN("finishDoWhileStatement", false);
-    addType(Synt::DoWhileStatement);
+    initJV(Synt::DoWhileStatement);
     reg(text::_body, body);
     reg(text::_test, test);
     this->finish();
@@ -647,7 +655,7 @@ void Node::finishDoWhileStatement(Node * body, Node * test) {
 
 void Node::finishEmptyStatement() {
     DEBUGIN("finishEmptyStatement()", false);
-    addType(Synt::EmptyStatement);
+    initJV(Synt::EmptyStatement);
     this->finish();
     DEBUGOUT("", false);
 }
@@ -655,7 +663,7 @@ void Node::finishEmptyStatement() {
 
 void Node::finishExpressionStatement(Node * expression) {
     DEBUGIN("finishExpressionStatement", false);
-    addType(Synt::ExpressionStatement);
+    initJV(Synt::ExpressionStatement);
     spareStrref = expression->type;
     reg(text::_expression, expression);
     this->finish();  DEBUGOUT("", false);
@@ -667,7 +675,7 @@ void Node::finishForStatement(Node * init,
                               Node * update, 
                               Node * body) {
     DEBUGIN("finishForStatement", false);
-    addType(Synt::ForStatement);
+    initJV(Synt::ForStatement);
     reg(text::_init, init);
     reg(text::_test, test);
     reg(text::_update, update);
@@ -681,7 +689,7 @@ void Node::finishForInStatement(Node * left,
                                 Node * right, 
                                 Node * body) {
     DEBUGIN("finishForInStatement", false);
-    addType(Synt::ForInStatement);
+    initJV(Synt::ForInStatement);
     reg(text::_left, left);
     reg(text::_right, right);
     reg(text::_body, body);
@@ -696,7 +704,7 @@ void Node::finishFunctionDeclaration(Node * id,
                                      const vector< Node* >& defaults, 
                                      Node * body) {
     DEBUGIN("Node::finishFunctionDeclaration", false);
-    addType(Synt::FunctionDeclaration);
+    initJV(Synt::FunctionDeclaration);
     reg(text::_id, id);
     nodeVec(text::_params, params);
     nodeVec(text::_defaults, defaults);
@@ -714,7 +722,7 @@ void Node::finishFunctionExpression(Node * id,
                                     const vector< Node* >& defaults, 
                                     Node * body) {  
     DEBUGIN("finishFunctionExpression", false);
-    addType(Synt::FunctionExpression);
+    initJV(Synt::FunctionExpression);
     reg(text::_id, id);
     nodeVec(text::_params, params);
     nodeVec(text::_defaults, defaults);
@@ -727,7 +735,7 @@ void Node::finishFunctionExpression(Node * id,
 }
 void Node::finishIdentifier(const string name) {
     DEBUGIN("finishIdentifier", false);
-    addType(Synt::Identifier);
+    initJV(Synt::Identifier);
     this->name = name;
     jvput(text::_name, name);
     this->finish();
@@ -739,7 +747,7 @@ void Node::finishIfStatement(Node * test,
                              Node * consequent, 
                              Node * alternate) {
     DEBUGIN("finishIfStatement", false);
-    addType(Synt::IfStatement);
+    initJV(Synt::IfStatement);
     reg(text::_test, test);
     reg(text::_consequent, consequent);
     reg(text::_alternate, alternate);
@@ -751,7 +759,7 @@ void Node::finishIfStatement(Node * test,
 void Node::finishLabeledStatement(Node * label, 
                                   Node * body) {
     DEBUGIN("finishLabeledStatement", false);
-    addType(Synt::LabeledStatement);
+    initJV(Synt::LabeledStatement);
     reg(text::_label, label);
     reg(text::_body, body);
     this->finish();
@@ -760,7 +768,7 @@ void Node::finishLabeledStatement(Node * label,
 
 void Node::finishLiteral(ptrTkn token) {
     DEBUGIN("finishLiteral(ptrTkn token)", false);
-    addType(Synt::Literal);
+    initJV(Synt::Literal);
     if (token->literaltype == LiteralType["String"]) {
         jvput(text::_value, token->strvalue);
     } else if (token->literaltype == LiteralType["Int"]) {
@@ -789,7 +797,7 @@ void Node::finishLiteral(ptrTkn token) {
                       token->end, *alloc); 
         reg.AddMember(text::_column,
                       token->end+1, *alloc); 
-        jv.AddMember(text::_value, reg, *alloc);
+        jv->AddMember(text::_value, reg, *alloc);
         RegexLeg starter(-1);
         starter.isStart = true;
         regexPaths.push_back({starter});
@@ -806,7 +814,7 @@ void Node::finishMemberExpression(const char16_t accessor,
                                   Node * object, 
                                   Node * property) {
     DEBUGIN("finishMemberExpression", false);
-    addType(Synt::MemberExpression);
+    initJV(Synt::MemberExpression);
     jvput(text::_computed, (accessor == u'['));
     reg(text::_object, object);
     reg(text::_property, property);
@@ -818,7 +826,7 @@ void Node::finishMemberExpression(const char16_t accessor,
 void Node::finishNewExpression(Node * callee, 
                                const vector<Node*>& args) {
     DEBUGIN("finishNewExpression", false);
-    addType(Synt::NewExpression);
+    initJV(Synt::NewExpression);
     reg(text::_callee, callee);
     nodeVec(text::_arguments, args);
     this->finish();
@@ -828,7 +836,7 @@ void Node::finishNewExpression(Node * callee,
 
 void Node::finishObjectExpression(const vector<Node*>& properties) {
     DEBUGIN("finishObjectExpression", false);
-    addType(Synt::ObjectExpression);
+    initJV(Synt::ObjectExpression);
     nodeVec(text::_properties, properties);
     this->finish();
     DEBUGOUT("", false);
@@ -838,7 +846,7 @@ void Node::finishObjectExpression(const vector<Node*>& properties) {
 void Node::finishPostfixExpression(const string oper, 
                                    Node * argument) {
     DEBUGIN("finishPostfixExpression", false);
-    addType(Synt::UpdateExpression);
+    initJV(Synt::UpdateExpression);
     jvput(text::_operator, oper);
     reg(text::_argument, argument);
     jvput(text::_prefix, false);
@@ -849,7 +857,7 @@ void Node::finishPostfixExpression(const string oper,
 
 void Node::finishProgram(const vector< Node* >& body) {
     DEBUGIN("finishProgram", false);
-    addType(Synt::Program);
+    initJV(Synt::Program);
     nodeVec(text::_body, body);
     for (int i=0; i<task->extra.bottomRightStack.size(); i++) {
         task->extra.bottomRightStack[i]->resolve();
@@ -860,12 +868,12 @@ void Node::finishProgram(const vector< Node* >& body) {
         Value rangearr(kArrayType);
         rangearr.PushBack(this->range[0], *alloc);
         rangearr.PushBack(this->range[1], *alloc);
-        jv.AddMember(text::_range, rangearr, *alloc);
+        jv->AddMember(text::_range, rangearr, *alloc);
     }
     if (task->extra.loc) {
         Value locjson(kObjectType);
         this->loc.toJson(locjson, alloc);
-        jv.AddMember(text::_loc, locjson, *alloc);
+        jv->AddMember(text::_loc, locjson, *alloc);
     }
     DEBUGOUT("", false);    
 }
@@ -875,7 +883,7 @@ void Node::finishProperty(const StrRef &kind,
                           Node * key, 
                           Node * value) {
     DEBUGIN("finishProperty", false);
-    addType(Synt::Property);
+    initJV(Synt::Property);
     leftAssign = key;
     rightAssign = value;
     spareStrref = &kind;
@@ -886,7 +894,7 @@ void Node::finishProperty(const StrRef &kind,
 
 void Node::finishReturnStatement(Node * argument) {
     DEBUGIN("finishReturnStatement", false);
-    addType(Synt::ReturnStatement);
+    initJV(Synt::ReturnStatement);
     reg(text::_argument, argument);
     this->finish();
     DEBUGOUT("", false);
@@ -895,7 +903,7 @@ void Node::finishReturnStatement(Node * argument) {
 
 void Node::finishSequenceExpression(const vector< Node* >& expressions) {
     DEBUGIN("finishSequenceExpression", false);
-    addType(Synt::SequenceExpression);
+    initJV(Synt::SequenceExpression);
     this->expressions = expressions;    
     this->finish();
     DEBUGOUT("", false);
@@ -905,7 +913,7 @@ void Node::finishSequenceExpression(const vector< Node* >& expressions) {
 void Node::finishSwitchCase(Node * test, 
                             const vector< Node* >& consequent) {
     DEBUGIN("finishSwitchCase", false);
-    addType(Synt::SwitchCase);
+    initJV(Synt::SwitchCase);
     reg(text::_test, test);
     nodeVec(text::_consequent, consequent);
     this->finish();
@@ -916,7 +924,7 @@ void Node::finishSwitchCase(Node * test,
 void Node::finishSwitchStatement(Node * discriminant, 
                                  const vector < Node* >& cases) {
     DEBUGIN("finishSwitchStatement", false);
-    addType(Synt::SwitchStatement);
+    initJV(Synt::SwitchStatement);
     reg(text::_discriminant, discriminant);
     nodeVec(text::_cases, cases);
     this->finish();
@@ -926,7 +934,7 @@ void Node::finishSwitchStatement(Node * discriminant,
 
 void Node::finishThisExpression() {
     DEBUGIN("finishThisExpression()", false);
-    addType(Synt::ThisExpression);
+    initJV(Synt::ThisExpression);
     this->finish();
     DEBUGOUT("", false);
 }
@@ -934,7 +942,7 @@ void Node::finishThisExpression() {
 
 void Node::finishThrowStatement(Node * argument) {
     DEBUGIN("finishThrowStatement", false);
-    addType(Synt::ThrowStatement);
+    initJV(Synt::ThrowStatement);
     reg(text::_argument, argument);
     this->finish();
     DEBUGOUT("", false);
@@ -946,7 +954,7 @@ void Node::finishTryStatement(Node * block,
                               const vector<Node*>& handlers, 
                               Node * finalizer) {
     DEBUGIN("finishTryStatement", false);
-    addType(Synt::TryStatement);
+    initJV(Synt::TryStatement);
     reg(text::_block, block);
     nodeVec(text::_guardedHandlers, guardedHandlers);
     nodeVec(text::_handlers, handlers);
@@ -959,7 +967,7 @@ void Node::finishTryStatement(Node * block,
 void Node::finishUnaryExpression(const string oper, 
                                  Node * argument) {
     DEBUGIN("finishUnaryExpression", false);
-    addType((oper == "++" || oper == "--") ? 
+    initJV((oper == "++" || oper == "--") ? 
             Synt::UpdateExpression : Synt::UnaryExpression);
     jvput(text::_operator, oper);
     reg(text::_argument, argument);
@@ -971,7 +979,7 @@ void Node::finishUnaryExpression(const string oper,
 void Node::finishVariableDeclaration(const vector< Node* >& declarations, 
                                      const StrRef& kind) {
     DEBUGIN("finishVariableDeclaration",false);
-    addType(Synt::VariableDeclaration);
+    initJV(Synt::VariableDeclaration);
     nodeVec(text::_declarations, declarations);
     jvput(text::_kind, kind);
     this->finish();
@@ -982,7 +990,7 @@ void Node::finishVariableDeclaration(const vector< Node* >& declarations,
 void Node::finishVariableDeclarator(Node * id, 
                                     Node * init) {
     DEBUGIN("finishVariableDeclarator", false);
-    addType(Synt::VariableDeclarator);
+    initJV(Synt::VariableDeclarator);
     reg(text::_id, id);
     reg(text::_init, init);
     this->finish();
@@ -993,7 +1001,7 @@ void Node::finishVariableDeclarator(Node * id,
 void Node::finishWhileStatement(Node * test, 
                                 Node * body) {
     DEBUGIN("finishWhileStatement", false);
-    addType(Synt::WhileStatement);
+    initJV(Synt::WhileStatement);
     reg(text::_test, test);
     reg(text::_body, body);
     this->finish();
@@ -1004,7 +1012,7 @@ void Node::finishWhileStatement(Node * test,
 void Node::finishWithStatement(Node * object, 
                                Node * body) {
     DEBUGIN("finishWithStatement", false);
-    addType(Synt::WithStatement);
+    initJV(Synt::WithStatement);
     reg(text::_object, object);
     reg(text::_body, body);
     this->finish();

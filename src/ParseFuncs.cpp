@@ -59,7 +59,7 @@ void ParseTools::clearNodeHeap() {
         heapNodes.erase(it);
         //if (tmp->jv != nullptr)
         //    { json_object_put(tmp->jv); tmp->jv = nullptr; }
-
+        delete (tmp->jv);
         delete (tmp);
     }
 }
@@ -232,7 +232,7 @@ Node* ParseTools::parseArrayInitialiser() {
     expect("[");
 
     const StrRef *sr = &(text::_elements);
-    node->addType(Synt::ArrayExpression);
+    node->initJV(Synt::ArrayExpression);
     Value *vec = node->initVec(*sr);
     while (!match("]")) {
 
@@ -448,24 +448,24 @@ Node* ParseTools::parseObjectInitialiser() {
     int kind;
     map<string, int> kmap;
 
-    //node->addType(Synt::ObjectExpression);
+    //node->initJV(Synt::ObjectExpression);
     //Value *vec = node->initVec(text::_properties);
     expect("{");
 
     while (!match("}")) {
         property = parseObjectProperty();
         
-        Node * keyobj = property->leftAssign; //property->jv['key']
+        Document * keyobj = property->leftAssign->jv; //property->jv['key']
 
-        keytype = GetStringCorrect(keyobj->jv[text::_type]);
+        keytype = GetStringCorrect((*keyobj)[text::_type]);
 
         if (keytype == Syntax[Synt::Identifier]->s) {
-            name = GetStringCorrect(keyobj->jv[text::_name]);            
+            name = GetStringCorrect((*keyobj)[text::_name]);            
         } else {
-            if (keyobj->jv[text::_value].IsString()) {
-                name = GetStringCorrect(keyobj->jv[text::_value]);
+            if ((*keyobj)[text::_value].IsString()) {
+                name = GetStringCorrect((*keyobj)[text::_value]);
             } else {
-                name = to_string(keyobj->jv[text::_value].GetDouble());
+                name = to_string((*keyobj)[text::_value].GetDouble());
             }
         }
         kindname = property->spareStrref; //property->jv['kind']
@@ -688,10 +688,10 @@ Node* ParseTools::parseNewExpression() {
     vector< Node* > args;
     Node *callee, 
         *node = makeNode(true, true);
-    node->addType(Synt::NewExpression);
 
     expectKeyword("new");
     callee = parseLeftHandSideExpression();
+    node->initJV(Synt::NewExpression);
     node->reg(text::_callee, callee);
 
     if (match("(")) { 
@@ -731,7 +731,7 @@ Node* ParseTools::parseLeftHandSideExpressionAllowCall() {
             expr = tmpnode;
         } else if (match("(")) {
             tmpnode = makeWrappingNode();
-            tmpnode->addType(Synt::CallExpression);
+            tmpnode->initJV(Synt::CallExpression);
             tmpnode->reg(text::_callee, expr);
             parseArguments(tmpnode);
             tmpnode->usualInit(startToken);
@@ -1057,7 +1057,7 @@ Node* ParseTools::parseConditionalExpression() {
     }
     if (match("?")) {
         WrappingNode *tmpnode = makeWrappingNode();
-        tmpnode->addType(Synt::ConditionalExpression);
+        tmpnode->initJV(Synt::ConditionalExpression);
         tmpnode->reg(text::_test, expr);
 
         scanner.lex();
@@ -1401,7 +1401,7 @@ Node* ParseTools::parseBlock() {
     DEBUGIN(" parseBlock()", false);
     Node *node = makeNode(true, true);
 
-    node->addType(Synt::BlockStatement);
+    node->initJV(Synt::BlockStatement);
     const StrRef *sr = &(text::_body);
     Value* vec = node->initVec(*sr);
 
@@ -1499,7 +1499,7 @@ void ParseTools::parseVariableDeclarationList(const StrRef &kind,
 //throw_
 Node* ParseTools::parseVariableStatement(Node* node) { 
     DEBUGIN(" parseVariableStatement(Node node)", false);
-    node->addType(Synt::VariableDeclaration);
+    node->initJV(Synt::VariableDeclaration);
 
     expectKeyword("var");
     parseVariableDeclarationList(EMPTY_STRREF, 
@@ -1521,7 +1521,7 @@ Node* ParseTools::parseConstLetDeclaration(const string kind,
                                            const StrRef &kindref) { 
     DEBUGIN(" parseConstLetDeclaration(u16string kind)", false);    
     Node *node = makeNode(true, true);
-    node->addType(Synt::VariableDeclaration);
+    node->initJV(Synt::VariableDeclaration);
 
     expectKeyword(kind);
     parseVariableDeclarationList(kindref, node);
@@ -1563,11 +1563,12 @@ Node* ParseTools::parseIfStatement(Node *node) {
     DEBUGIN(" parseIfStatement(Node node)", false);
     Node *test, 
         *consequent, *alternate;
-    node->addType(Synt::IfStatement);
     expectKeyword("if");
     expect("(");
     test = parseExpression();
+    node->initJV(Synt::IfStatement);
     node->reg(text::_test, test);
+
     expect(")");
     consequent = parseStatement();
     node->reg(text::_consequent, consequent);
@@ -1655,7 +1656,7 @@ Node* ParseTools::parseWhileStatement(Node* node) {
     DEBUGIN(" parseWhileStatement(Node node)", false);
     Node *test, *body;
     bool oldInIteration;
-    node->addType(Synt::WhileStatement);
+    node->initJV(Synt::WhileStatement);
 
     expectKeyword("while");
     expect("(");
@@ -1674,13 +1675,14 @@ Node* ParseTools::parseWhileStatement(Node* node) {
     return node;
 }
 */
+
 //throw_
 Node* ParseTools::parseForVariableDeclaration() { 
     DEBUGIN(" parseForVariableDeclaration()", false);
     ptrTkn token;
     vector< Node* > declarations;
     Node *node = makeNode(true, true);
-    node->addType(Synt::VariableDeclaration);
+    node->initJV(Synt::VariableDeclaration);
 
     token = scanner.lex();
     parseVariableDeclarationList(EMPTY_STRREF, node);
@@ -1713,7 +1715,7 @@ Node* ParseTools::parseForStatement(Node* node) {
             init = parseForVariableDeclaration();
             state.allowIn = previousAllowIn;
 
-            if (init->jv[text::_declarations].Size() == 1 
+            if ((*(init->jv))[text::_declarations].Size() == 1 
                 && matchKeyword("in")) { 
 
                 scanner.lex();
@@ -1967,7 +1969,6 @@ Node* ParseTools::parseSwitchCase() {
     Node *test, *statement, 
         *node = makeNode(true, true);
     vector< Node* > consequent;
-    node->addType(Synt::SwitchCase);
 
     if (matchKeyword("default")) {
         scanner.lex();
@@ -1976,6 +1977,7 @@ Node* ParseTools::parseSwitchCase() {
         expectKeyword("case");
         test = parseExpression();
     }
+    node->initJV(Synt::SwitchCase);
     node->reg(text::_test, test);
     Value *vec = node->initVec(text::_consequent);
     expect(":");
@@ -2037,7 +2039,7 @@ Node* ParseTools::parseSwitchStatement(Node *node) {
     vector< Node* > cases; 
     bool oldInSwitch, defaultFound;
 
-    //    node->addType(Synt::SwitchStatement);
+    //    node->initJV(Synt::SwitchStatement);
 
     expectKeyword("switch");
     expect("(");
@@ -2064,7 +2066,7 @@ Node* ParseTools::parseSwitchStatement(Node *node) {
             break;
         }
         clause = parseSwitchCase();
-        if (clause->jv[text::_test].IsNull()) {
+        if ((*(clause->jv))[text::_test].IsNull()) {
             if (defaultFound) {
                 task->throwError(Tokenizer::NULLPTRTKN, 
                            Messages[Mssg::MultipleDefaultsInSwitch],{});
@@ -2137,7 +2139,7 @@ Node* ParseTools::parseTryStatement(Node* node) {
     DEBUGIN(" parseTryStatement(Node node)", false);
     Node *block, *finalizer; 
     vector< Node* > handlers;
-    node->addType(Synt::TryStatement);
+    node->initJV(Synt::TryStatement);
 
     finalizer = nullptr;
 
@@ -2326,7 +2328,7 @@ Node* ParseTools::parseFunctionSourceElements() {
     u16string directive;
     StateStruct oldstate;
 
-    node->addType(Synt::BlockStatement);
+    node->initJV(Synt::BlockStatement);
     Value *vec = node->initVec(text::_body);
     expect("{");
 
@@ -2799,7 +2801,7 @@ Node* ParseTools::parseProgram() {
     scanner.skipComment(); //ev
     scanner.peek();
     node = makeNode(true, true);
-    node->addType(Synt::Program);
+    node->initJV(Synt::Program);
     task->strict = false;
     parseSourceElements(node);
     for (int i=0; i<task->extra.bottomRightStack.size(); i++) {
@@ -2811,12 +2813,12 @@ Node* ParseTools::parseProgram() {
         Value rangearr(kArrayType);
         rangearr.PushBack(node->range[0], *alloc);
         rangearr.PushBack(node->range[1], *alloc);
-        node->jv.AddMember(text::_range, rangearr, *alloc);
+        node->jv->AddMember(text::_range, rangearr, *alloc);
     }
     if (task->extra.loc) {
         Value locjson(kObjectType);
         node->loc.toJson(locjson, alloc);
-        node->jv.AddMember(text::_loc, locjson, *alloc);
+        node->jv->AddMember(text::_loc, locjson, *alloc);
     }
 
     DEBUGOUT("parseProgram", false);
@@ -2956,7 +2958,7 @@ void ParseTools::parse(Document& outJson,
     }
 #endif
 #ifdef LIMITJSON
-    AddDocument(task.get(), text::_program, outJson, programNode->jv); 
+    AddDocument(task.get(), text::_program, outJson, *(programNode->jv)); 
 #endif
 #ifndef LIMITJSON
     outJson.AddMember(text::_program, programNode->jv.Move(), *alloc);

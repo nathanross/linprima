@@ -18,7 +18,7 @@ public:
     const StrRef *type;
 
     bool hasJv;
-    rapidjson::Document jv;
+    rapidjson::Document * jv;
     Loc loc;
 #ifndef THROWABLE
     bool err;
@@ -74,7 +74,7 @@ public:
                  Node* child);
     void nodeVec(const StrRef& path, 
                  const std::vector<Node*>& nodes);
-    void addType(const Synt in);
+    void initJV(const Synt in);
     void regexPaths2json(rapidjson::Value& out,
                          AllocatorType * alloc);
     //void commentsIntoJson(const bool leading);
@@ -166,7 +166,6 @@ public:
 
 protected:
     LinprimaTask * task;
-
 }; 
 
 #ifndef THROWABLE

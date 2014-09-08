@@ -11,7 +11,7 @@
 
 #ifdef DO_DEBUG
 
-int *debugidx;
+extern int *debugidx;
 
 void DEBUGIN(std::string in, bool lowprio);
 

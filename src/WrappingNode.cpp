@@ -9,8 +9,7 @@ WrappingNode::WrappingNode(ptrTkn startToken,
     : Node(false, true, heapNodesArg, 
            alloc, task) {
     DEBUGIN("WrappingNode(Token)", true);
-    if (!hasJv) { 
-        jv.SetObject();
+    if (!hasJv) {         
         hasJv=true;
     }
     if (task->extra.range) {
@@ -33,7 +32,6 @@ WrappingNode::WrappingNode(vector<Node*>*heapNodesArg,
            alloc, task) {
     DEBUGIN("WrappingNode(Token)", true);
     if (!hasJv) { 
-        jv.SetObject();
         hasJv=true;
     }
     DEBUGOUT("WrappingNode(Token)", true);

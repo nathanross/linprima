@@ -6,6 +6,8 @@ using namespace std;
 using namespace rapidjson;
 
 #ifdef DO_DEBUG
+
+int *debugidx;
  
 int debuglevel = 1;
 vector<string> stackfuncs;
