@@ -2985,7 +2985,7 @@ void ParseTools::parse(Document& outJson,
     AddDocument(task.get(), text::_program, outJson, *(programNode->jv)); 
 #endif
 #ifndef LIMITJSON
-    outJson.AddMember(text::_program, programNode->jv.Move(), *alloc);
+    outJson.AddMember(text::_program, *(programNode->jv), *alloc);
 #endif
 
     Value regexList(kArrayType);

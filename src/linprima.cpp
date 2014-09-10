@@ -183,7 +183,7 @@ int main() {
             //};
    
     //allopt = finputOpt;
-    allopt = "{ \"range\": true }";
+    allopt = "{ \"range\":true, \"loc\": true }";
     //allopt = "{ \"loc\":true, \"range\":true, \"tokens\":true }";
     //    ProfilerStart("/tmp/profile2");
 

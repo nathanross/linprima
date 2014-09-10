@@ -67,18 +67,24 @@ private:
     long blockSize;
 
     long i;
-    std::vector<char*> blocks;
+    char * out;
+#ifndef LIMITJSON
     char * current;
-
+    std::vector<char *> blocks;
+#endif
 #ifdef LIMITJSON
     int objExpandSeq=0;
     std::vector<fixedstring::FixedString> * completeObjects;
+    char lastChar;
+    int firstDecodeIdx;
+    int decodeIdx;
+    int ignoreNextStrval;
+    const char * decodedPtr;
 
-    const int OBJ_NONE = 0;
-    const char OBJ_MARKER_BEGIN=1;
-    const char OBJ_MARKER_END=5;
-    const int OBJ_GET_ADDR =7;
-    const char *MARKER = "\"#`@$";
+    //needs to be at least as long as the longest
+    //text expansion + marker length.
+
+    size_t nextRealloc;
 
     //use vector to avoid another include.
     std::vector<const char*> putStack;

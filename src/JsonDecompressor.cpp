@@ -7,6 +7,17 @@ using namespace fixedstring;
 
 #ifdef LOWMEM
 
+const int OBJ_NONE = 0;
+const int OBJ_FOUND_INIT =1;
+const int OBJ_FOUND_QUOTE =2;
+const int OBJ_TEXT_CHAR_ATE =3;
+const int OBJ_FOUND_NODE_MARKER_BEGIN = 5;
+const int OBJ_GET_NODE = 9;
+
+const int REALLOC_SLACK = 30;
+const char *MARKER = "\"#`@$";
+
+
 string JsonDecompressor::encodeObjId(size_t in) {
     std::string out;
     size_t intmp = in;
@@ -46,7 +57,9 @@ JsonDecompressor::JsonDecompressor(
 #endif
                                    long lenArg)
 #ifdef LIMITJSON
-    : completeObjects(completeObjs) 
+    : completeObjects(completeObjs),
+      ignoreNextStrval(0),
+      nextRealloc(0)
 #endif
 {
     len = lenArg+50;//+50 for a basic floor.
@@ -60,9 +73,21 @@ JsonDecompressor::JsonDecompressor(
         blockSize = MAX_BLOCK_SIZE;
     }
     //printf("received input length of %li , calculated blockSize of %li \n", len,blockSize);
-    current = 0x0;
-    i = blockSize;    
+#ifndef LIMITJSON
+    i = blockSize;
+    current = nullptr;
+#endif
+#ifdef LIMITJSON    
+    out = (char *) malloc(blockSize);
+    nextRealloc = blockSize - REALLOC_SLACK;
+    i = 0;
+    out[i] = 'c';
+#endif    
 }
+
+
+
+
 void JsonDecompressor::Put(char in) {
 #ifndef LIMITJSON
     if (i == blockSize) {
@@ -90,10 +115,10 @@ void JsonDecompressor::Put(char in) {
     //putStack: stack of expanded strings.
     int inpos=0;
     while (! putStack.empty()) {
-        if (i == blockSize) {
-            current = (char *) malloc(blockSize);
-            blocks.push_back(current);
-            i = 0;
+        if (i >= nextRealloc) {            
+            out = (char *) realloc(out, 
+                                   nextRealloc + REALLOC_SLACK + blockSize);
+            nextRealloc = (nextRealloc + blockSize);
         }
         if (inpos == putStackLen.back()) {
             putStack.pop_back();
@@ -105,55 +130,150 @@ void JsonDecompressor::Put(char in) {
             free(putStackFixedStr.back());
             putStackFixedStr.pop_back();
             inpos = putStackPos.back();
-            //printf(" stackframe complete adding end bracket }\n");
+            //printf(" stackframe complete <<<<<< \n");
             //current[i] = '}';
             //++i;
             continue;
         }
-        //printf("\ndepth %i pos %i out of len %i \n", (int) putStackPos.size(), (int) inpos, (int) putStackLen.back());
+        //printf("\n\n      depth %i pos %i out of len %i \n", (int) putStackPos.size(), (int) inpos, (int) putStackLen.back());
         c = putStack.back()[inpos];
-        //printf(" -%c-",c);
+        //printf("%c     -",c);
 
         //printf("seq %i ", (int) objExpandSeq);
         if (objExpandSeq == OBJ_NONE && 
             c != '[' &&
             c != ',' &&
-            c != ':') {
+            c != ':' &&
+            c != '{') {
 
-            current[i] = c;
+            out[i] = c;
             ++i;
             ++inpos;
             continue;
-        } else if (objExpandSeq == OBJ_NONE) {
-            //printf(" found init  ");
-            objExpandSeq = OBJ_MARKER_BEGIN;
-        } else if (objExpandSeq >= OBJ_MARKER_BEGIN &&
-                   objExpandSeq <= OBJ_MARKER_END) {
-            if (c == MARKER[objExpandSeq-OBJ_MARKER_BEGIN]) {
-                //printf(" found marker part ");
-                ++objExpandSeq;
-                if (objExpandSeq > OBJ_MARKER_END) {
-                    addr = 0;
-                    objExpandSeq = OBJ_GET_ADDR;
-                }
-                ++(inpos);
+        } else if (objExpandSeq == OBJ_NONE) {            
+            if (ignoreNextStrval > 0) {
+                ignoreNextStrval--;
+            }
+            if (c != ':') {
+                ignoreNextStrval = 0;
+            }
+            //printf(" found init  ");    
+            objExpandSeq = OBJ_FOUND_INIT;
+
+        } else if (objExpandSeq == OBJ_FOUND_INIT) {
+            if (c == '"') {
+                ++inpos;
+                //printf(" found quote  ");    
+                objExpandSeq = OBJ_FOUND_QUOTE;
                 continue;
-            } else {  
-                //                printf(" sequence unfinished ");
-                for (int m=0;m<objExpandSeq-OBJ_MARKER_BEGIN;m++){
-                    //printf("adding back %c", MARKER[m]);
-                    current[i] = MARKER[m];
+            } else {
+                objExpandSeq = OBJ_NONE;
+                continue; //check for a new init here.
+            }
+        } else if (objExpandSeq == OBJ_FOUND_QUOTE) {
+            if (c == MARKER[1]) {
+                //printf(" found node expand sequence  ");    
+                objExpandSeq = OBJ_FOUND_NODE_MARKER_BEGIN + 1;
+                ++inpos;
+                continue;
+            }
+            if (ignoreNextStrval > 0) {
+                objExpandSeq = OBJ_NONE;
+                out[i] = '"';
+                ++i;
+                continue;
+            }
+            out[i] = '"'; //add back the held quote.
+            ++i;
+            //eating first char;
+            firstDecodeIdx = getDecodeIdx(c);
+            if (firstDecodeIdx >= 0) {
+                //it's a valid char.
+                lastChar = c;
+                objExpandSeq = OBJ_TEXT_CHAR_ATE;
+                ++inpos;
+                continue;
+            } else {
+                //not part of a sequence or empty str. no big deal.
+                objExpandSeq = OBJ_NONE;
+                continue; //check for a new init here.
+            }
+        } else if (objExpandSeq == OBJ_TEXT_CHAR_ATE) {
+            //looking at second char;
+            objExpandSeq = OBJ_NONE;
+            decodeIdx = getDecodeIdx(c);
+            //if returned decodeIdx is -1, gets the 
+            //first ptr in the array 
+            // (the one for a single character)
+            decodedPtr = text::decoder
+                [firstDecodeIdx][decodeIdx +1];
+
+            if (decodedPtr != 0x0) { 
+                //printf("expanding: %s ", decodedPtr);
+                if (decodedPtr == text::_raw_FULL
+                    || decodedPtr == text::_name_FULL
+                    || decodedPtr == text::_operator_FULL
+                    || decodedPtr == text::_description_FULL
+                    || decodedPtr == text::_message_FULL
+                    || decodedPtr == text::_value_FULL
+                    || decodedPtr == text::_source_FULL
+                    || decodedPtr == text::_regexpBody_FULL
+                    || decodedPtr == text::_regexpFlags_FULL) {
+                    //printf(", ignNextStrval if this is a key");
+                    // if it's a key.
+                    // we should ignore the next value.
+                    // string values to ignore (arbitrary or 
+                    // rare compression gain) conveniently 
+                    // correspond 1:1 with these keys that 
+                    // directly precede any of them. 
+                    // (e.g. there is never a list with some 
+                    // or all strings to ignore)
+                    ignoreNextStrval = (decodeIdx >=0)?3:2;
+                }
+
+                strcpy(out + i, decodedPtr);
+                while (out[i] != 0) { 
+                    //replacement texts always have null terminator at end and
+                    //only at end.
                     ++i;
-                    if (i == blockSize) {
-                        current = (char *) malloc(blockSize);
-                        blocks.push_back(current);
-                        i = 0;
-                    }
+                }
+                if (decodeIdx == -1) {
+                    out[i] = c;
+                    ++i;
+                }
+                ++inpos;
+                continue;
+            } else {
+                 // no decoded string here... 
+                //  false positive from the marker.
+                // should never happen. if it does, there's probably an error.
+                //printf("false positive from marker sequence in json decompress. null ptr at %i, %i \n", firstDecodeIdx, getDecodeIdx(c));
+                out[i] = lastChar;
+                ++i;
+                objExpandSeq = OBJ_NONE;
+                continue;
+            }   
+        } else if (objExpandSeq > OBJ_FOUND_NODE_MARKER_BEGIN
+                   && objExpandSeq < OBJ_GET_NODE) {
+            if (c == MARKER[1 + objExpandSeq - OBJ_FOUND_NODE_MARKER_BEGIN]) {
+                //printf(" matches marker ");
+                ++objExpandSeq;
+                ++inpos;
+                if (objExpandSeq == OBJ_GET_NODE) {
+                    addr = 0;
+                }
+                continue;
+            } else {
+                for (int m = 0; 
+                     m <= objExpandSeq - OBJ_FOUND_NODE_MARKER_BEGIN; 
+                     m++) {
+                    out[i] = MARKER[m];
+                    ++i;
                 }
                 objExpandSeq = OBJ_NONE;
                 continue;
-            } 
-        } else if (objExpandSeq == OBJ_GET_ADDR) {
+            }
+        } else if (objExpandSeq == OBJ_GET_NODE) {
             if (c != '"') {
                 addr *= 62;
                 addr += getDecodeIdx(c);
@@ -164,9 +284,11 @@ void JsonDecompressor::Put(char in) {
                 ++(inpos);
                 putStackPos.pop_back();
                 putStackPos.push_back(inpos);
-                //printf(" seeking addr %i ", (int) addr);
+
+                //printf(" entering str at completeobj addr %i >>>>>> ", (int) addr);
+
                 //printf("at completeObjs of size %i \n", 
-                       //       (int) completeObjects->size());
+                //              (int) completeObjects->size());
                 FixedString fs = completeObjects->at(addr);
                 putStack.push_back(fixedstring::data(fs));
                 putStackLen.push_back(fixedstring::length(fs));
@@ -176,9 +298,15 @@ void JsonDecompressor::Put(char in) {
                 objExpandSeq = OBJ_NONE;
                 continue;
             }
+        } else if (objExpandSeq > OBJ_NONE) {
+            objExpandSeq = OBJ_NONE;
+            continue; 
+                //check for the init of a new sequence 
+                // at this character.
         }
 
-        current[i] = c;
+
+        out[i] = c;
         ++i;    
         ++(inpos);
     }
@@ -186,6 +314,7 @@ void JsonDecompressor::Put(char in) {
 }
 
 void JsonDecompressor::decompress(char *&decoded, long &lenOut) {
+#ifndef LIMITJSON
     int lastBlock = blocks.size()-1;
     long lastBlockSize = i;
     //blocks[lastidx] = (char *) realloc(lastidx, i); 
@@ -411,5 +540,10 @@ void JsonDecompressor::decompress(char *&decoded, long &lenOut) {
     //printf(" final decoded: \n%s\n", decoded);
     //printf("eventual input length was %li \n", curBlockSize + (((long) lastBlock)*blockSize));
     //    return decoded;
+#endif
+#ifdef LIMITJSON
+    decoded = out;
+    lenOut = i;
+#endif
 }
 #endif
