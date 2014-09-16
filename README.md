@@ -14,7 +14,7 @@ the only competitors to esprima on speed simply cannot match its functionality 1
 
 Status
 ---
-Currently the stable branch passes around 720 or so out of 723 tests.
+Currently the stable branch passes all but 4 of esprima's ~750 unit tests.
 Stable branch is  at ~120% performance within FF with minimal options (see bench/ folder). 
 
 Concurrent branch changes 
