@@ -50,6 +50,6 @@ do
 done
 
 mkdir cmpR_out
-python generateJsonCompressors.py
+python texpansions.py
 wait $!
 #rm -rf cmpR_tmp

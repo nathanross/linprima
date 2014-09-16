@@ -4,8 +4,17 @@
 
 using namespace std;
 using namespace rapidjson;
+using namespace wojson;
 
 
+fixedstr::FixedStr lstr(string in) {
+    in.insert(wojson::LITERAL_HINT,0);
+    return fixedstr::getFixedStr(in);
+}
+
+fixedstr::FixedStr fstr(string in) {
+    return fixedstr::getFixedStr(in);
+}
 
 RegexHalf::RegexHalf() { 
 #ifndef THROWABLE
@@ -19,16 +28,11 @@ RegexHalf::RegexHalf() {
 AssertError::AssertError() {
     description = "";
 }
-void AssertError::toJson(const ExtraStruct *extra,
-                         Value& out, AllocatorType* alloc) {
-    out.AddMember(text::_message, 
-                  Value(description.data(),
-                        description.length(),
-                        *alloc).Move(),
-                  *alloc); 
+void AssertError::toJson(WojsonMap* out, WojsonDocument* doc,
+                         const ExtraStruct *extra) {
+    out->moveAssign(text::_message,  lstr(description));
                   
-                  
-    out.AddMember(text::_isAssert, true, *alloc);
+    out->assign(text::_isAssert, true);
 }
 #endif
 
@@ -38,31 +42,23 @@ ExError::ExError() {
     lineNumber = 0;
     column = 0;
 }
-void ExError::toJson(const ExtraStruct *extra,
-                     Value& out, AllocatorType* alloc) {
+void ExError::toJson(WojsonMap* out, WojsonDocument* doc,
+                     const ExtraStruct *extra) {
     DEBUGIN("Error::toJSON", false);
-    out.AddMember(text::_isError, true, *alloc);
-    out.AddMember(text::_description, 
-                  Value(description.data(),
-                        description.length(),
-                        *alloc).Move(),
-                  *alloc);
-    out.AddMember(text::_index, this->index, *alloc);
-    out.AddMember(text::_lineNumber, this->lineNumber, *alloc);
-    out.AddMember(text::_column, this->column, *alloc);
+    out->assign(text::_isError, true);
+    out->moveAssign(text::_description, lstr(description));
+    out->assign(text::_index, this->index);
+    out->assign(text::_lineNumber, this->lineNumber);
+    out->assign(text::_column, this->column);
     DEBUGOUT("Error::toJSON", false); 
 }
-void ExError::toJsonTolerant(const ExtraStruct *extra,
-                             Value& out, AllocatorType* alloc) {
+void ExError::toJsonTolerant(WojsonMap* out, WojsonDocument* doc,
+                             const ExtraStruct *extra) {
     DEBUGIN("Error::toJSON", false);
-    out.AddMember(text::_description, 
-                  Value(description.data(),
-                        description.length(),
-                        *alloc).Move(),
-                  *alloc);
-    out.AddMember(text::_index, this->index, *alloc);
-    out.AddMember(text::_lineNumber, this->lineNumber, *alloc);
-    out.AddMember(text::_column, this->column, *alloc);
+    out->moveAssign(text::_description,  lstr(description));
+    out->assign(text::_index, this->index);
+    out->assign(text::_lineNumber, this->lineNumber);
+    out->assign(text::_column, this->column);
     DEBUGOUT("Error::toJSON", false); 
 }
 
@@ -74,58 +70,51 @@ Loc::Loc(int lineNumber, int idx, int lineStart) :
     DEBUGOUT("loc()", true);
 }
 
-void Loc::toJson(Value& out, AllocatorType* alloc) const { 
+void Loc::toJson(WojsonMap* out, WojsonDocument* doc) const { 
     //DEBUGIN(" locToJson(Loc l)", false);
-    Value startjson(kObjectType);
-    startjson.AddMember(text::_line, startLine, *alloc);
-    startjson.AddMember(text::_column, startColumn, *alloc);
-    out.AddMember(text::_start, startjson, *alloc);
-    if (this->endLine != -1) {        
-        Value endjson(kObjectType);
-        endjson.AddMember(text::_line, endLine, *alloc);
-        endjson.AddMember(text::_column, endColumn, *alloc);
-        out.AddMember(text::_end, endjson, *alloc);
+    WojsonMap startjson = doc->getMap();
+    startjson.assign(text::_line, startLine);
+    startjson.assign(text::_column, startColumn);
+    out->assignColl(text::_start, &startjson);
+    if (this->endLine != -1) {
+        WojsonMap endjson = doc->getMap();
+        endjson.assign(text::_line, endLine);
+        endjson.assign(text::_column, endColumn);
+        out->assignColl(text::_end, &endjson);
     }
     if (this->hasSource) {
-        out.AddMember(text::_source,
-                      Value(this->source.data(),
-                            this->source.length(), 
-                            *alloc).Move(),
-                      *alloc);
+        out->moveAssign(text::_source,
+                    lstr(this->source));
     }
     //DEBUGOUT("locToJson", false); 
 }
 
 
 Comment::Comment(int lineNumber, int idx, int lineStart) :
+    type(&(text::_Null)),
     loc(lineNumber, idx, lineStart) {
     //DEBUGIN("Comment()", false);
-    this->type = (&(text::_Null));
     this->value = "";
     this->range[0] = -1;
     this->range[1] = -1;
     //DEBUGOUT("Comment()", false);
 }
 
-void Comment::toJson(const ExtraStruct *extra,
-                     Value& out, AllocatorType* alloc) {
+void Comment::toJson(WojsonMap* out, WojsonDocument* doc,
+                     const ExtraStruct *extra) {
     DEBUGIN("Comment::toJson", false);
-    out.AddMember(text::_type, *(this->type), *alloc);
-    out.AddMember(text::_value, 
-                  Value(value.data(),
-                        value.length(),
-                        *alloc).Move(),
-                  *alloc);
+    out->scopedAssign(text::_type, *type);
+    out->moveAssign(text::_value, lstr(value));
     if (extra->range) {
-        Value rangearr(kArrayType);
-        rangearr.PushBack(this->range[0], *alloc);
-        rangearr.PushBack(this->range[1], *alloc);
-        out.AddMember(text::_range, rangearr, *alloc);
+        WojsonArr rangearr = doc->getArr();
+        rangearr.push(this->range[0]);
+        rangearr.push(this->range[1]);
+        out->assignColl(text::_range, &rangearr);
     }
     if (extra->loc) {
-        Value locjson(kObjectType);
-        this->loc.toJson(locjson, alloc);
-        out.AddMember(text::_loc, locjson, *alloc);
+        WojsonMap locjson = doc->getMap();
+        this->loc.toJson(&locjson, doc);
+        out->assignColl(text::_loc, &locjson);
     }
     DEBUGOUT("comment::toJson", false);
 }
@@ -269,26 +258,21 @@ TokenRecord::TokenRecord(int lineNumber, int idx, int lineStart) :
     DEBUGOUT("TokenRecord()", true);
 }
 
-void TokenRecord::toJson(const ExtraStruct *extra,
-                         Value& out, AllocatorType* alloc) {
+void TokenRecord::toJson(WojsonMap* out, WojsonDocument* doc,
+                         const ExtraStruct *extra) {
     DEBUGIN(" TokenRecord::toJson", false);    
-    Value typev(*(TokenName[this->type]), *alloc); 
-    out.AddMember(text::_type, typev.Move(), *alloc);
-    out.AddMember(text::_value, 
-                      Value(valuestring.data(),
-                                valuestring.length(),
-                                *alloc).Move(),
-                      *alloc);
+    out->scopedAssign(text::_type, *(TokenName[this->type]));
+    out->moveAssign(text::_value, lstr(valuestring));
     if (extra->range) {
-        Value rangearr(kArrayType);
-        rangearr.PushBack(this->range[0], *alloc);
-        rangearr.PushBack(this->range[1], *alloc);
-        out.AddMember(text::_range, rangearr, *alloc);
+        WojsonArr rangearr = doc->getArr();
+        rangearr.push(this->range[0]);
+        rangearr.push(this->range[1]);
+        out->assignColl(text::_range, &rangearr);
     }
     if (extra->loc) {
-        Value locjson(kObjectType);
-        this->loc.toJson(locjson, alloc);
-        out.AddMember(text::_loc, locjson, *alloc);
+        WojsonMap locjson = doc->getMap();
+        this->loc.toJson(&locjson, doc);
+        out->assignColl(text::_loc, &locjson);
     }
     DEBUGOUT("TokenRecord::toJson()", false);
 }

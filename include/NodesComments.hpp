@@ -5,6 +5,7 @@
 #include "strref.hpp"
 #include "podt.hpp"
 #include "t52types.hpp"
+#include "wojson.hpp"
 #include <rapidjson/document.h>
 #include <vector>
 
@@ -26,27 +27,19 @@ class NodesComments {
 public:
     std::vector<Comment> leadingComments;
     std::vector<Comment> trailingComments;
-#ifdef LIMITJSON
-    rapidjson::Document * nodesJv;
-#endif
-#ifndef LIMITJSON
-    rapidjson::Value * nodesJv;
-#endif
-    AllocatorType * nodesAlloc;
+
+    wojson::WojsonMap * jv;
+    wojson::WojsonDocument * doc;
     int range[2];
     bool isNull;
     bool resolved;
-    NodesComments(AllocatorType* alloc);
-    NodesComments(rapidjson::Document& jv,AllocatorType* alloc);
-    void commentsIntoJson(const ExtraStruct *extra,
-                          const bool leading);
-    void resolve();
-#ifdef LIMITJSON
+    NodesComments(wojson::WojsonDocument* doc);
+    NodesComments(wojson::WojsonMap &jv, wojson::WojsonDocument* doc);
+    void resolve(const ExtraStruct *extra);
     void setNodeDetached(Node *detachedNodeAddr);
 private:
     bool nodeIsDetached;
     Node * detachedNode;
-#endif
 };
 
 #endif

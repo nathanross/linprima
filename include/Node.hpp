@@ -8,17 +8,18 @@
 #include "enums.hpp"
 #include "podt.hpp"
 #include "t52types.hpp"
-#include <rapidjson/document.h>
+#include "wojson.hpp"
+#include "fixedstr.hpp"
 #include <string>
 #include <vector>
 #include <memory>
 
 class Node {
 public:
-    const StrRef *type;
+    const fixedstr::SFixedStr *type;
 
     bool hasJv;
-    rapidjson::Document * jv;
+    wojson::WojsonMap *jv;
     Loc loc;
 #ifndef THROWABLE
     bool err;
@@ -30,6 +31,7 @@ public:
 
     std::shared_ptr<NodesComments> thisnc;
 
+
     //todo consolidate these rather than wastefully store each of them
     //for each node
     std::string name;//for identifiers
@@ -39,44 +41,42 @@ public:
 
     //for finishExpressionStatement's child node's type
     //used in parseFunctionSourceElements and parseSourceElements
-    const StrRef *spareStrref; 
+    const fixedstr::SFixedStr *spareStrref; 
 
-    AllocatorType* alloc;
+    wojson::WojsonDocument* doc;
     std::vector<Node*>* heapNodes;
-    size_t completedPos; //for late resolves
+
+    size_t completedPos; 
+    //for late resolves
+    //SEMANTIC OVERRIDE : for program completedPos signals # of children > 0
+
 
     std::string s(const std::u16string in);
     Node(bool lookaheadAvail, bool storeStats, 
          std::vector<Node*>* heapNodes,
-         AllocatorType *alloc,
+         wojson::WojsonDocument *doc,
          LinprimaTask *task);
     void lookavailInit();
     void clear();
     void unused();
-    void jvput(const StrRef path, const std::string b);
-    void jvput(const StrRef path, const StrRef &b);
-    void jvput(const StrRef path, const int b); 
-    void jvput(const StrRef path, const bool b);
-    void jvput_dbl(const StrRef path, const double b);
-    void jvput_null(const StrRef path); 
-#ifdef LIMITJSON
-    size_t addUnresolvedDocument(const StrRef &path);
+
+
+    size_t addUnresolvedDocument(const fixedstr::FixedStr &path);
     size_t pushUnresolvedDocument(rapidjson::Value &root);
     void lateResolve();
-#endif
+
     void regNoadd(const std::vector<RegexLeg> paths, 
                   Node * child);
-    void reg(const StrRef& path, 
+    void reg(const fixedstr::SFixedStr& path, 
              Node * child);
-    rapidjson::Value* initVec(const StrRef &path);
-    void regPush(rapidjson::Value* arr, 
-                 const StrRef &path, 
-                 Node* child);
-    void nodeVec(const StrRef& path, 
+    rapidjson::Value* initVec(const fixedstr::SFixedStr &path);
+    void regPush(wojson::WojsonArr *arr, fixedstr::SFixedStr &path,
+                 int &ctr, Node* child);
+    void nodeVec(const fixedstr::SFixedStr& path, 
                  const std::vector<Node*>& nodes);
     void initJV(const Synt in);
-    void regexPaths2json(rapidjson::Value& out,
-                         AllocatorType * alloc);
+    void regexPaths2json(wojson::WojsonArr &parent,
+                         wojson::WojsonDocument * doc);
     //void commentsIntoJson(const bool leading);
     void processComment();
     void finish();
@@ -137,7 +137,7 @@ public:
     void finishPostfixExpression(const std::string oper, 
                                  Node * argument);
     void finishProgram(const std::vector<Node*>& body);
-    void finishProperty(const StrRef &kind, 
+    void finishProperty(const fixedstr::SFixedStr &kind, 
                         Node * key, 
                         Node * value);
     void finishReturnStatement(Node * argument);
@@ -155,7 +155,7 @@ public:
     void finishUnaryExpression(const std::string oper, 
                                Node * argument);
     void finishVariableDeclaration(const std::vector<Node*>& declarations, 
-                                   const StrRef &kind);
+                                   const fixedstr::SFixedStr &kind);
     void finishVariableDeclarator(Node * id, 
                                   Node * init);
     void finishWhileStatement(Node * test,

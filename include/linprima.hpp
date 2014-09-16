@@ -10,99 +10,26 @@
 #include "strref.hpp"
 #include "podt.hpp"
 #include "t52types.hpp"
+#include "fixedstr.hpp"
 #include <rapidjson/document.h>
 #include <string>
 
-#ifndef LIMITJSON
-inline
-void tokenizeImpl(rapidjson::Document &outJson,
-                  const std::u16string code, 
-                  OptionsStruct options,
-                  const bool retErrorsAsJson) { 
-    options.tokens = true;
-    options.tokenize = true;
-    Tokenizer tknr(code, options);
-    tknr.tokenize(outJson, retErrorsAsJson);
-}
-inline
-void tokenizeImpl(rapidjson::Document& d, 
-                      const std::u16string code,
-                      const OptionsStruct options) { 
-    tokenizeImpl(d, code, options, false);
-}
-inline
-void tokenizeImpl(rapidjson::Document &d,
-                      const std::string code,
-                      const OptionsStruct options) { 
-    tokenizeImpl(d, toU16string(code), options, false);
-}
-inline
-void tokenizeImpl(rapidjson::Document &d, 
-                      const std::string code) { 
-    OptionsStruct o;
-    tokenizeImpl(d, toU16string(code), o, false);
-}
-inline
-void tokenizeImpl(rapidjson::Document &d, 
-                      const std::u16string code) { 
-    OptionsStruct o;
-    tokenizeImpl(d, code, o, false);
-}
-#endif
-
-std::string tokenizeRetString(const std::u16string code,
-                             OptionsStruct options);
+fixedstr::SFixedStr&& tokenizeRetString(const std::u16string code,
+                                        OptionsStruct options);
 
 inline
-std::string tokenizeRetString(const std::string code, 
-                                  const OptionsStruct options) {
+fixedstr::SFixedStr&& tokenizeRetString(const std::string code, 
+                                        const OptionsStruct options) {
     return tokenizeRetString(toU16string(code), options);
 }
 
-#ifndef LIMITJSON
-
-inline
-void parseImpl(rapidjson::Document &outJson,
-                   const std::u16string code, 
-                   OptionsStruct options, //# nonconst 1:1
-                   const bool retErrorsAsJson) { 
-    ParseTools pt(code, options);
-    pt.parse(outJson, retErrorsAsJson);
-};
-
-inline
-void parseImpl(rapidjson::Document& d, 
-                   const std::u16string code,
-                   OptionsStruct options) {    
-    parseImpl(d, code, options, false);
-}
-
-inline
-void parseImpl(rapidjson::Document& d, 
-                   const std::string code, 
-                   OptionsStruct options) {    
-    parseImpl(d, toU16string(code), options, false);
-}
-
-inline
-void parseImpl(rapidjson::Document& d, 
-                   const std::string code) { 
-    OptionsStruct o;
-    parseImpl(d, toU16string(code), o, false);
-}
-
-inline
-void parseImpl(rapidjson::Document& d, 
-                   const std::u16string code) { 
-    OptionsStruct o;
-    parseImpl(d, code, o, false);
-}
-#endif
-
 //# return json as string.
-std::string parseRetString(const std::u16string code, OptionsStruct options);
-std::string parseRetString(const std::string code,
-                      OptionsStruct options) { 
+fixedstr::SFixedStr&& parseRetString(const std::u16string code, 
+                                     OptionsStruct options);
+
+inline
+fixedstr::SFixedStr&& parseRetString(const std::string code,
+                                     const OptionsStruct options) { 
     return parseRetString(toU16string(code), options);
 }
 

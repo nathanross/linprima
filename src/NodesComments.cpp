@@ -3,30 +3,27 @@
 #include "Node.hpp"
 #include "jsonutils.hpp"
 using namespace std;
-using namespace rapidjson;
+using namespace wojson;
+using namespace fixedstr;
 
-NodesComments::NodesComments(AllocatorType* alloc): 
-    nodesAlloc(alloc),
-    resolved(true)
-#ifdef LIMITJSON
-    , nodeIsDetached(false) 
-#endif
+NodesComments::NodesComments(WojsonDocument* docArg): 
+    doc(docArg),
+    resolved(true),
+    nodeIsDetached(false) 
 {
-    nodesJv = 0x0;
+    jv = 0x0;
     isNull = false;
     range[0] = -1;
     range[1] = -1;
     leadingComments.clear();
     trailingComments.clear();
 }
-NodesComments::NodesComments(Document& jv, AllocatorType* alloc) : 
-    nodesAlloc(alloc),
-    resolved(true)
-#ifdef LIMITJSON
-    , nodeIsDetached(false) 
-#endif
+NodesComments::NodesComments(WojsonMap &jvArg, WojsonDocument* docArg) : 
+    jv(&jvArg),
+    doc(docArg),
+    resolved(true),
+    nodeIsDetached(false) 
 {
-    this->nodesJv = &jv;
     isNull = false;
     range[0] = -1;
     range[1] = -1;
@@ -34,39 +31,6 @@ NodesComments::NodesComments(Document& jv, AllocatorType* alloc) :
     trailingComments.clear();
 }
 
-void NodesComments::commentsIntoJson(const ExtraStruct *extra,
-                                     const bool leading) { 
-    //DEBUGIN(" NodesComments::commentsIntoJson(const bool leading)", false);
-    const StrRef * key;
-    vector<Comment> * commentVec;
-    if (leading) {
-        key = (&(text::_leadingComments));
-        commentVec = &leadingComments;
-    } else {
-        key = (&(text::_trailingComments));
-        commentVec = &trailingComments;
-    }
-    Value::ConstMemberIterator itr = nodesJv->FindMember(key->s);
-    if (itr != nodesJv->MemberEnd())  {
-        nodesJv->EraseMember(itr);
-        //switch to RemoveMember if this function becomes timesink.
-    }
-    if (commentVec->size() > 0) {
-#ifdef LIMITJSON
-        vec2jsonCallback<Comment>(*nodesJv,
-#endif
-#ifndef LIMITJSON
-        vec2jsonCallbackVal<Comment>(*nodesJv,
-#endif
-                                  nodesAlloc,
-                                  extra,
-                                  *key,
-                                  *commentVec,
-                                  &Comment::toJson);
-    }
-    //DEBUGOUT("commentsIntoJSon", false);
-}
-#ifdef LIMITJSON
 void NodesComments::setNodeDetached(Node *detachedNode) {
     //call this if the only reason the node is still alive
     //is because of the comment. in highmem, you can delete
@@ -79,12 +43,29 @@ void NodesComments::setNodeDetached(Node *detachedNode) {
     nodeIsDetached = true;
     this->detachedNode = detachedNode;
 }
-#endif
-void NodesComments::resolve() {
-#ifdef LIMITJSON
+
+void NodesComments::resolve(const ExtraStruct *extra) {
+    const SFixedStr * key;
+    vector<Comment> * commentVec;
+    for (int i=0; i<2; i++) {        
+        if (i == 0) {
+            key = (&(text::_leadingComments));
+            commentVec = &leadingComments;
+        } else {
+            key = (&(text::_trailingComments));
+            commentVec = &trailingComments;
+        }
+
+        if (commentVec->size() > 0) {
+            vec2jsonCallback<Comment>(doc, jv,
+                                      extra,
+                                      *key,
+                                      *commentVec,
+                                      &Comment::toJson);
+        }
+    }
     if (nodeIsDetached) {
         detachedNode->lateResolve();
     }
-#endif
     resolved = true;
 }

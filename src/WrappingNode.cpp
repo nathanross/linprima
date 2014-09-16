@@ -2,12 +2,13 @@
 #include "WrappingNode.hpp"
 using namespace std;
 using namespace rapidjson;
+using namespace wojson;
 WrappingNode::WrappingNode(ptrTkn startToken, 
                            vector<Node*>*heapNodesArg,
-                           AllocatorType* alloc,
+                           WojsonDocument *doc,
                            LinprimaTask* task)
     : Node(false, true, heapNodesArg, 
-           alloc, task) {
+           doc, task) {
     DEBUGIN("WrappingNode(Token)", true);
     if (!hasJv) {         
         hasJv=true;
@@ -26,10 +27,10 @@ WrappingNode::WrappingNode(ptrTkn startToken,
 }
 
 WrappingNode::WrappingNode(vector<Node*>*heapNodesArg,
-                           AllocatorType* alloc,
+                           WojsonDocument *doc,
                            LinprimaTask* task)
     : Node(false, true, heapNodesArg, 
-           alloc, task) {
+           doc, task) {
     DEBUGIN("WrappingNode(Token)", true);
     if (!hasJv) { 
         hasJv=true;

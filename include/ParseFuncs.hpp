@@ -10,7 +10,8 @@
 #include "Node.hpp"
 #include "strref.hpp"
 #include "podt.hpp"
-#include "FixedString.hpp"
+#include "fixedstr.hpp"
+#include "wojson.hpp"
 #include "t52types.hpp"
 #include <rapidjson/document.h>
 #include <string>
@@ -25,13 +26,10 @@ public:
     //#throw_begin
     Node* parseProgram();
     //#throw_end
-    void parse(rapidjson::Document& out, 
-#ifdef LIMITJSON
-               std::vector<fixedstring::FixedString> & completedObjectsOut,
-#endif
+    void parse(wojson::WojsonDocument &doc,
                const bool retErrAsJson);
 private:    
-    AllocatorType *alloc;
+    wojson::WojsonDocument * doc;
 
 std::shared_ptr<LinprimaTask> task;
     const char16_t * sourceRaw;
@@ -103,11 +101,12 @@ std::shared_ptr<LinprimaTask> task;
     //std::vector< Node* > parseStatementList();
     Node* parseBlock();
     Node* parseVariableIdentifier();
-    Node* parseVariableDeclaration(const StrRef &kind);
-    void parseVariableDeclarationList(const StrRef &kind, Node *parent);
+    Node* parseVariableDeclaration(const fixedstr::SFixedStr &kind);
+    void parseVariableDeclarationList(const fixedstr::SFixedStr &kind, 
+                                      Node *parent);
     Node* parseVariableStatement(Node* node);
     Node* parseConstLetDeclaration(const std::string kind, 
-                                   const StrRef &kindref);
+                                   const fixedstr::SFixedStr &kindref);
     Node* parseEmptyStatement();
     Node* parseExpressionStatement(Node *node);
     Node* parseIfStatement(Node *node);
@@ -135,7 +134,7 @@ std::shared_ptr<LinprimaTask> task;
     Node* parseFunctionExpression();
     Node* parseSourceElement();
     //std::vector< Node* > parseSourceElements();
-    void parseSourceElements(Node * parent);
+    bool parseSourceElements(Node * parent);
     //#throw_end
 };
 #endif

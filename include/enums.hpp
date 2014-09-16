@@ -2,8 +2,7 @@
 #define ENUMS_HPP
 
 #line 4 "enums.hpp"
-#include "strref.hpp"
-#include "strrefconsts.hpp"
+#include "texpconsts.hpp"
 #include "t52types.hpp"
 #include <map>
 
@@ -22,7 +21,7 @@ enum class TknType {
     RegularExpression=9
 };
 
-extern std::map<TknType, const StrRef*> TokenName;
+extern std::map<TknType, const fixedstr::SFixedStr*> TokenName;
 
 extern std::map<std::string, int> PropertyKind;
 
@@ -115,7 +114,7 @@ enum class Mssg {
 
 extern std::map<Mssg, std::string> Messages;
 
-extern std::map<Synt, const StrRef *> Syntax;
+extern std::map<Synt, const fixedstr::SFixedStr *> Syntax;
 
 #endif
 

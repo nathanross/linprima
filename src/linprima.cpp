@@ -1,96 +1,27 @@
 #line 1 "linprima.cpp"
 #include "linprima.hpp"
-#include "FixedString.hpp"
-#include "JsonDecompressor.hpp"
+#include "fixedstr.hpp"
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 
 using namespace std;
 using namespace rapidjson;
+using namespace wojson;
 
 typedef Document::AllocatorType AllocatorType;
 
+SFixedStr tokenizeRetString(const u16string code, 
+                              OptionsStruct options){
 
-
-char *asmRetVal(0x0);
-
-string tokenizeRetString(const u16string code, OptionsStruct options){
-    
-    Document *out = new Document();
-
-#ifdef LOWMEM
-    if (asmRetVal != 0x0) {
-        free (asmRetVal);
-    }
-    options.tokens = true;
-    options.tokenize = true;
     Tokenizer tknr(code, options);
-#ifdef LIMITJSON
-    vector<fixedstring::FixedString> completeObjects;
-    tknr.tokenize(*out, completeObjects, true);
-    JsonDecompressor wrapper(&completeObjects, code.length());
-#endif
-#ifndef LIMITJSON
-    tknr.tokenize(*out, true);
-    JsonDecompressor wrapper(code.length());
-#endif
-    Writer<JsonDecompressor> writer(wrapper);
-    out->Accept(writer); 
-    delete out;
-    long length;
-    wrapper.decompress(asmRetVal, length);
-    return string(asmRetVal, length);
-#endif
-#ifndef LOWMEM
-    tokenizeImpl(*out, code, options, true);
-    StringBuffer buffer;
-    Writer<StringBuffer> writer(buffer);
-    out->Accept(writer);    
-    string result = buffer.GetString();
-    delete out;
-    return result;
-#endif  
+    return tknr.tokenize(true);
 }
 
-
 //# return json as string.
-string parseRetString(const u16string code, OptionsStruct options) {    
-    Document *out = new Document();
-    out->SetObject();
-
-    //walkJson("root", out);
-    //    StringBuffer buffer;
-#ifdef LOWMEM
-    if (asmRetVal != 0x0) {
-        free (asmRetVal);
-    }
+SFixedStr parseRetString(const u16string code, 
+                           OptionsStruct options) {
     ParseTools pt(code, options);
-#ifdef LIMITJSON
-    vector<fixedstring::FixedString> completeObjects;
-    pt.parse(*out, completeObjects,
-                       true);
-    JsonDecompressor wrapper(&completeObjects, code.length());
-#endif
-#ifndef LIMITJSON
-    pt.parse(*out, true);
-    JsonDecompressor wrapper(code.length());
-#endif
-    Writer<JsonDecompressor> writer(wrapper);
-    out->Accept(writer); 
-    delete out;
-    long length;
-    wrapper.decompress(asmRetVal, length);
-    return string(asmRetVal, length);
-#endif
-#ifndef LOWMEM
-    parseImpl(*out, code, options, true);
-    StringBuffer buffer;
-    Writer<StringBuffer> writer(buffer);
-    out->Accept(writer);    
-    string result = buffer.GetString();
-    delete out;
-    return result;
-#endif  
+    return pt.parse(true);   
 }
 
 
@@ -111,15 +42,15 @@ char* strToChar(string in) {
 extern "C" {
 
     char* tokenizeExtern(const char *code, const char* options) {
-      return strToChar(tokenizeRetString(string(code), 
-                                          OptionsStruct(options)));
+        return fixedstr::data(tokenizeRetString(string(code), 
+                                          OptionsStruct(options)).f);
 
     }
     char* parseExtern(const char *code,
                       const char* options) {
-        return strToChar(parseRetString(string(code),
+        return fixedstr::data(parseRetString(string(code),
                                        OptionsStruct(
-                                         options)));
+                                         options)).f);
 
     }
 
@@ -142,16 +73,16 @@ extern "C" {
                         const char* options) {
         //printf("received string: =%s=\n", code);
 
-            return strToChar(tokenizeRetString(
-              toU16string(string(code)).substr(0,codelen), 
-                                    OptionsStruct(options)));
+        return fixedstr::data(tokenizeRetString(
+                         toU16string(string(code)).substr(0,codelen), 
+                                    OptionsStruct(options)).f);
 
     }
     char* parseASMJS(const char *code, int codelen, 
                       const char* options) {
-        return strToChar(parseRetString(
+        return fixedstr::data(parseRetString(
                     toU16string(string(code)).substr(0, codelen), 
-                                       OptionsStruct(options)));
+                                       OptionsStruct(options)).f);
 
     }
 

@@ -3,29 +3,38 @@
 #include "NodesComments.hpp"
 #include "stringutils.hpp"
 #include "jsonutils.hpp"
-#include "JsonDecompressor.hpp"
-#include "FixedString.hpp"
 #include "debug.hpp"
 using namespace std;
 using namespace rapidjson;
+using namespace wojson;
+using namespace fixedstr;
+
 #define reqinline inline
+
+reqinline
+fixedstr::FixedStr lstr(string in) {
+    in.insert(wojson::LITERAL_HINT,0);
+    return fixedstr::getFixedStr(in);
+}
+
+reqinline
+fixedstr::FixedStr fstr(string in) {
+    return fixedstr::getFixedStr(in);
+}
+
 //#this is the ONLY constructor in this code capable of 
-//#modifying state, it ALWAYS and ONLY changes state if lookaheadAvail
+//#modifying task state, it ALWAYS and ONLY changes state if lookaheadAvail
 //#is true. Important to keep in mind when making 
 //#1:1 updates.
+
 Node::Node(bool lookaheadAvail, 
            bool exists, 
            vector<Node*>* heapNodes,
-           AllocatorType* allocArg,
+           WojsonDocument* docArg,
            LinprimaTask * taskArg):
     jv(nullptr),
     loc(-1,-1,-1),
-#ifdef LIMITJSON
-    alloc(nullptr), 
-#endif
-#ifndef LIMITJSON
-    alloc(allocArg), 
-#endif
+    doc(docArg),
     task(taskArg) {
  
     DEBUGIN("Node::Node(bool, bool)", true);
@@ -100,30 +109,6 @@ void Node::unused() {
 }
 
 
-void Node::jvput(const StrRef path, const string b)  {
-    jv->AddMember(path, 
-              Value(b.data(), b.length(), *alloc).Move(), 
-              *alloc); 
-}
-
-void Node::jvput(const StrRef path, const StrRef &b) {
-    
-    jv->AddMember(path, b, *alloc); 
-}
-
-void Node::jvput(const StrRef path, const int b) 
-{jv->AddMember(path, b, *alloc); }
-
-void Node::jvput(const StrRef path, const bool b) 
-{jv->AddMember(path, b, *alloc); }
-
-void Node::jvput_dbl(const StrRef path, const double b) 
-{jv->AddMember(path, b, *alloc); }
-
-void Node::jvput_null(const StrRef path)
-{ Value tmp; jv->AddMember(path, tmp, *alloc); }
- 
-
 //# different name to prevent easy bug of forgetting the string.
 //# root path, should be first in vector, then path within it, etc.
 void Node::regNoadd(const vector<RegexLeg> paths, Node * child) { 
@@ -133,18 +118,18 @@ void Node::regNoadd(const vector<RegexLeg> paths, Node * child) {
     if (child == nullptr) { return; }
 
     if (child->hasRange) {
-        Value rangearr(kArrayType);
+        WojsonArr rangearr = doc->getArr();
         //bool m = find(heapNodes.begin(), haystack.end(), needle) != haystack.end();
         //int n = (m)? -1:0;
         //        rangearr.PushBack(n, *alloc);
-        rangearr.PushBack(child->range[0], *alloc);
-        rangearr.PushBack(child->range[1], *alloc);
-        child->jv->AddMember(text::_range, rangearr, *alloc);
+        rangearr.push(child->range[0]);
+        rangearr.push(child->range[1]);
+        child->jv->assignColl(text::_range, &rangearr);
     } 
     if (child->hasLoc) {        
-        Value locjson(kObjectType);
-        child->loc.toJson(locjson, alloc);
-        child->jv->AddMember(text::_loc, locjson, *alloc);
+        WojsonMap locjson = doc->getMap();
+        child->loc.toJson(&locjson, doc);
+        child->jv->assignColl(text::_loc, &locjson);
     }
     if (child->regexPaths.size() > 0) {
         if (child->regexPaths[0][0].isStart) {
@@ -168,40 +153,15 @@ void Node::regNoadd(const vector<RegexLeg> paths, Node * child) {
 
 #ifdef LIMITJSON
 
-size_t Node::addUnresolvedDocument(const StrRef &path) {
-     size_t pos = task->completeObjects->size();
-     task->completeObjects->push_back(nullptr);  
-     string objectAddr = JsonDecompressor::encodeObjId(pos);
-     jv->AddMember(path, 
-                  Value(objectAddr.data(),
-                        objectAddr.length(),
-                        *alloc).Move(),
-                  *alloc);
-     return pos;
-}
-size_t Node::pushUnresolvedDocument(Value &root) {
-     size_t pos = task->completeObjects->size();
-     task->completeObjects->push_back(nullptr);  
-     string objectAddr = JsonDecompressor::encodeObjId(pos);
-     root.PushBack(Value(objectAddr.data(),
-                         objectAddr.length(),
-                         *alloc).Move(),
-                    *alloc);
-     return pos;
-}
-
 void Node::lateResolve() {
-    Writer<StringBuffer> writer(task->buffer);
-    jv->Accept(writer);
-    (*(task->completeObjects))[completedPos] = 
-        fixedstring::getFixedStr(task->buffer.GetString());
-    task->buffer.Clear();
+    doc->replaceCollContents(completedPos,
+                            jv->toCompressedString());
     delNode(this);       
 }
 
 #endif
 
-void Node::reg(const StrRef &path, Node * child) { 
+void Node::reg(const SFixedStr &path, Node * child) { 
     //DEBUGIN("reg(string path, Node &child)", false);
     
     //addition of sequence expression's children is done lazily
@@ -220,43 +180,26 @@ void Node::reg(const StrRef &path, Node * child) {
         vector<RegexLeg> pathlist;
         pathlist.emplace_back((&(path)));
         regNoadd(pathlist, child);
-#ifndef LIMITJSON
-        jv->AddMember(path, 
-                     child->jv->Move(), 
-                     *alloc);
 
-        if (child->thisnc
-            && !(child->thisnc->resolved)) {
-            child->thisnc->nodesJv = &((*jv)[path]);
-        }
-        delNode (child); 
-#endif
-#ifdef LIMITJSON
         if (task->extra.attachComment 
             && child->thisnc 
             && !(child->thisnc->resolved)) {
-            child->completedPos = addUnresolvedDocument(path);
+            child->completedPos = jv->assignReserve(path);
           
             child->thisnc->setNodeDetached(child);
         } else {
-            AddDocument(task, path, *jv, *(child->jv));
+            jv->assignColl(path, child->jv);
             delNode (child); 
         }
-#endif
+
     } else {
-        Value tmp;
-        jv->AddMember(path,
-                      tmp, *alloc);
+        jv->assignNull(path);
     }
 
     //DEBUGOUT("node::reg", false);
 }
-Value* Node::initVec(const StrRef &path) {
-    Value tmp(kArrayType);
-    jv->AddMember(path, tmp, *alloc);
-    return &((*jv)[path]);
-}
-void Node::regPush(Value* arr, const StrRef &path, Node* child) {
+void Node::regPush(WojsonArr* arr, SFixedStr &path, int &ctr,
+                   Node* child) {
     if (child != nullptr) {
         if (child->type == Syntax[Synt::SequenceExpression]) {
             child->nodeVec(text::_expressions, child->expressions);
@@ -266,41 +209,32 @@ void Node::regPush(Value* arr, const StrRef &path, Node* child) {
         } else if (child->type == Syntax[Synt::Property]) {
             child->reg(text::_key, child->leftAssign);
             child->reg(text::_value, child->rightAssign);
-            child->jvput(text::_kind, *(child->spareStrref));
+            child->jv->scopedAssign(text::_kind, *(child->spareStrref));
         }
         vector<RegexLeg> pathlist;
         pathlist.emplace_back((&(path)));
         //child not added yet, so no need for ->Size()-1
-        pathlist.emplace_back((arr->Size()));
+        pathlist.emplace_back((ctr));
         regNoadd(pathlist, child);
-#ifndef LIMITJSON
-        arr->PushBack(child->jv->Move(), *alloc);
-        if (child->thisnc
-            && !(child->thisnc->resolved)) {
-            child->thisnc->nodesJv = &((*arr)[(arr->Size()-1)]);
-        }
-        delNode (child);
-#endif
-#ifdef LIMITJSON
+        ++ctr;
+
         if (task->extra.attachComment 
             && child->thisnc 
             && !(child->thisnc->resolved)) {
 
-            child->completedPos = pushUnresolvedDocument(*arr);                
+            child->completedPos = arr->pushReserve();
             child->thisnc->setNodeDetached(child);
         } else {
-            PushDocument(task, jv->GetAllocator(), *arr, *(child->jv));
+            arr->pushColl(child->jv);
             delNode (child);
         }
-#endif
     } else {
-        Value tmp;
-        arr->PushBack(tmp, *alloc);
+        arr->pushNull();
     }
 }
-void Node::nodeVec(const StrRef &path, const vector< Node* > & nodes) { 
+void Node::nodeVec(const SFixedStr &path, const vector< Node* > & nodes) { 
     //DEBUGIN("nodeVec(string path, vector< Node > & nodes)", false);
-    Value arr(kArrayType);
+    WojsonArr arr = doc->getArr();
     for (unsigned int i=0; i<nodes.size(); i++) {
         if (nodes[i] != nullptr) {
             if (nodes[i]->type == Syntax[Synt::SequenceExpression]) {
@@ -311,68 +245,52 @@ void Node::nodeVec(const StrRef &path, const vector< Node* > & nodes) {
             } else if (nodes[i]->type == Syntax[Synt::Property]) {
                 nodes[i]->reg(text::_key, nodes[i]->leftAssign);
                 nodes[i]->reg(text::_value, nodes[i]->rightAssign);
-                nodes[i]->jvput(text::_kind, *(nodes[i]->spareStrref));
+                nodes[i]->jv->scopedAssign(text::_kind, *(nodes[i]->spareStrref));
             }
             vector<RegexLeg> pathlist;
             pathlist.emplace_back((&(path)));
             pathlist.emplace_back(i);
             regNoadd(pathlist, nodes[i]);
-#ifndef LIMITJSON
-            arr.PushBack(nodes[i]->jv->Move(), *alloc);
-            if (nodes[i]->thisnc
-                && !(nodes[i]->thisnc->resolved)) {
-                nodes[i]->thisnc->nodesJv = &(arr[i]);
-            }
-            delNode (nodes[i]);
-#endif
-#ifdef LIMITJSON
+
             if (task->extra.attachComment 
                 && nodes[i]->thisnc 
                 && !(nodes[i]->thisnc->resolved)) {
 
-                nodes[i]->completedPos = pushUnresolvedDocument(arr);                
+                nodes[i]->completedPos = arr.pushReserve();                
                 nodes[i]->thisnc->setNodeDetached(nodes[i]);
             } else {
-                PushDocument(task, jv->GetAllocator(), arr, *(nodes[i]->jv));
+                arr.pushColl(nodes[i]->jv);
                 delNode (nodes[i]);
             }
-#endif
+
         } else {
-            Value tmp;
-            arr.PushBack(tmp, *alloc);
+            arr.pushNull();
         }
     } 
-    jv->AddMember(path, arr, *alloc);
+    jv->assignColl(path, &arr);
     //DEBUGOUT("node::nodeVec", false);
 }
 
 void Node::initJV(const Synt in) { 
     //DEBUGIN("initJV", false);
     type = Syntax[in];
-    jv = new Document;
-#ifdef LIMITJSON
-    alloc = &(jv->GetAllocator());
-#endif
-    jv->SetObject();
-    jv->AddMember(text::_type, *type, *alloc);
+    jv = new WojsonMap(doc->getMap());
+    jv->scopedAssign(text::_type, *type);
 }
-void Node::regexPaths2json(Value& out, AllocatorType *alloc) { 
+void Node::regexPaths2json(WojsonArr& out, WojsonDocument *doc) { 
     //DEBUGIN("Node::regexPaths2json()", false);
-    out.SetArray();    
     
     for (unsigned int i=0; i<regexPaths.size(); i++) {
-        Value path(kArrayType);
+        WojsonArr path = doc->getArr();
         
         for (int j=regexPaths[i].size()-1; j>=0; j--) {
             if (regexPaths[i][j].isNum) {
-                path.PushBack(regexPaths[i][j].num,
-                          *alloc);           
+                path.push(regexPaths[i][j].num);
             } else {
-                path.PushBack(*(regexPaths[i][j].path),
-                          *alloc);           
+                path.scopedPush(*(regexPaths[i][j].path));
             } 
         } 
-        out.PushBack(path, *alloc);
+        out.pushColl(&path);
     }
     //DEBUGOUT("", false);     
 }
@@ -393,14 +311,14 @@ void Node::processComment() {
         &(extra.bottomRightStack);
     shared_ptr<NodesComments> lastChild;
     shared_ptr<NodesComments> last;
-    thisnc.reset(new NodesComments(*jv, alloc));
+    thisnc.reset(new NodesComments(*jv, doc));
     bool LEADING = true, TRAILING= false;
     if (bottomRight->size() > 0) {
         last = bottomRight->back();
     }
 
     if (type == Syntax[Synt::Program]) {  
-        if ((*jv)[text::_body].Size() > 0) {
+        if (completedPos > 0) { //one or more body element.
             DEBUGOUT("", false); 
             thisnc->resolved = true;
             return;
@@ -425,7 +343,7 @@ void Node::processComment() {
             last->trailingComments[0].range[0] >= thisnc->range[1]) {
             trailingComments = last->trailingComments;
             last->trailingComments.clear();
-            last->commentsIntoJson(&(task->extra), TRAILING);
+            //last->commentsIntoJson(&(task->extra), TRAILING);
             //delete last->trailingComments; 
             //? maybe have a boolean to say no trailing comments? length will prob. be workable.
         }
@@ -445,7 +363,7 @@ void Node::processComment() {
                 //only when last has been assigned to lastChild twice
                 //does lastChild necesarily point to something that's
                 //about to have 0 references. (be deallocated for good.)
-                lastChild->resolve();
+                lastChild->resolve(&(task->extra));
                 ++iternum;
             }
             unattachedLast = false;
@@ -461,7 +379,7 @@ void Node::processComment() {
         }
     }
     if (iternum > 0 && unattachedLast) {
-        last->resolve();
+        last->resolve(&(task->extra));
     }
 
     if (lastChild) {
@@ -470,21 +388,21 @@ void Node::processComment() {
             .range[1] <= thisnc->range[0]) {
             thisnc->leadingComments = lastChild->leadingComments;
             lastChild->leadingComments.clear();
-            lastChild->commentsIntoJson(&(task->extra), LEADING);
-            thisnc->commentsIntoJson(&(task->extra), LEADING);
+            //lastChild->commentsIntoJson(&(task->extra), LEADING);
+            //thisnc->commentsIntoJson(&(task->extra), LEADING);
         }
-        lastChild->resolve();
+        lastChild->resolve(&(task->extra));
     } else if (extra.leadingComments.size() > 0 && 
                extra.leadingComments[extra.leadingComments.size() - 1]
                .range[1] <= thisnc->range[0]) {
         thisnc->leadingComments = extra.leadingComments;
         extra.leadingComments.clear();
-        thisnc->commentsIntoJson(&(task->extra), LEADING);
+        //thisnc->commentsIntoJson(&(task->extra), LEADING);
     }
 
     if (trailingComments.size() > 0) {
         thisnc->trailingComments = trailingComments;
-        thisnc->commentsIntoJson(&(task->extra), TRAILING);
+        //thisnc->commentsIntoJson(&(task->extra), TRAILING);
     }
 
     thisnc->resolved = false;
@@ -529,13 +447,13 @@ void Node::finishArrowFunctionExpression(const vector< Node* >& params,
     DEBUGIN("finishArrowFunctionExpression(vector< Node >& params, vector< Node >& defaults, Node& body, bool expression)", false);
     initJV(Synt::ArrowFunctionExpression);
 
-    jvput_null(text::_id);
+    jv->assignNull(text::_id);
     nodeVec(text::_params, params);
     nodeVec(text::_defaults, defaults);
     reg(text::_body, body);
-    jvput_null(text::_rest);
-    jvput(text::_generator, false);
-    jvput(text::_expression, expression);
+    jv->assignNull(text::_rest);
+    jv->assign(text::_generator, false);
+    jv->assign(text::_expression, expression);
     this->finish();
     DEBUGOUT("", false);
 }
@@ -547,7 +465,7 @@ void Node::finishAssignmentExpression(const string oper,
     DEBUGIN("finishAssignmentExpression(u16string oper, Node& left, Node& right)", false);
 
     initJV(Synt::AssignmentExpression);
-    jvput(text::_operator, oper);
+    jv->moveAssign(text::_operator, lstr(oper));
 
     leftAssign = left;
     rightAssign = right;
@@ -563,7 +481,9 @@ void Node::finishBinaryExpression(const string oper,
     DEBUGIN("finishBinaryExpression(u16string oper, Node& left, Node& right)", false);
     initJV((oper == "||" || oper == "&&") ? 
             Synt::LogicalExpression : Synt::BinaryExpression);
-    jvput(text::_operator, oper);
+
+    jv->moveAssign(text::_operator, lstr(oper));
+
     reg(text::_left, left); 
     reg(text::_right, right);
     this->finish();
@@ -690,7 +610,7 @@ void Node::finishForInStatement(Node * left,
     reg(text::_left, left);
     reg(text::_right, right);
     reg(text::_body, body);
-    jvput(text::_each, false);
+    jv->assign(text::_each, false);
     this->finish();
     DEBUGOUT("", false);
 }
@@ -706,9 +626,9 @@ void Node::finishFunctionDeclaration(Node * id,
     nodeVec(text::_params, params);
     nodeVec(text::_defaults, defaults);
     reg(text::_body, body);
-    jvput_null(text::_rest);
-    jvput(text::_generator, false);
-    jvput(text::_expression, false);
+    jv->assignNull(text::_rest);
+    jv->assign(text::_generator, false);
+    jv->assign(text::_expression, false);
     this->finish();
     DEBUGOUT("", false);
 }
@@ -724,9 +644,9 @@ void Node::finishFunctionExpression(Node * id,
     nodeVec(text::_params, params);
     nodeVec(text::_defaults, defaults);
     reg(text::_body, body);
-    jvput_null(text::_rest);
-    jvput(text::_generator, false);
-    jvput(text::_expression, false);
+    jv->assignNull(text::_rest);
+    jv->assign(text::_generator, false);
+    jv->assign(text::_expression, false);
     this->finish();
     DEBUGOUT("", false);
 }
@@ -734,7 +654,7 @@ void Node::finishIdentifier(const string name) {
     DEBUGIN("finishIdentifier", false);
     initJV(Synt::Identifier);
     this->name = name;
-    jvput(text::_name, name);
+    jv->moveAssign(text::_name, lstr(name));
     this->finish();
     DEBUGOUT("", false);
 }
@@ -767,41 +687,37 @@ void Node::finishLiteral(ptrTkn token) {
     DEBUGIN("finishLiteral(ptrTkn token)", false);
     initJV(Synt::Literal);
     if (token->literaltype == LiteralType["String"]) {
-        jvput(text::_value, token->strvalue);
+        jv->moveAssign(text::_value, lstr(token->strvalue));
     } else if (token->literaltype == LiteralType["Int"]) {
-        jvput(text::_value, token->intvalue);
+        jv->assign(text::_value, token->intvalue);
     } else if (token->literaltype == LiteralType["Double"]) {
-        jvput_dbl(text::_value, stod(token->strvalue));
+        jv->moveAssignRaw(text::_value, lstr(token->strvalue));
     } else if (token->literaltype == LiteralType["Bool"]) {
-        jvput(text::_value, token->bvalue);
+        jv->assign(text::_value, token->bvalue);
     } else if (token->literaltype == LiteralType["Null"]) {
-        jvput_null(text::_value);
+        jv->assignNull(text::_value);
     } else if (token->literaltype == LiteralType["Regexp"]) {
-        Value reg(kObjectType);
-        reg.AddMember(text::_regexpBody, 
-                      Value(token->strvalue.data(),
-                            token->strvalue.length(),
-                            *alloc).Move(),
-                      *alloc);
-        reg.AddMember(text::_regexpFlags,
-                      Value(token->flags.data(),
-                            token->flags.length(),
-                            *alloc).Move(),
-                      *alloc);
-        reg.AddMember(text::_lineNumber,
-                      task->lineNumber, *alloc); 
-        reg.AddMember(text::_index,
-                      token->end, *alloc); 
-        reg.AddMember(text::_column,
-                      token->end+1, *alloc); 
-        jv->AddMember(text::_value, reg, *alloc);
+        WojsonMap reg = doc->getMap();
+        reg.moveAssign(text::_regexpBody, 
+                      lstr(token->strvalue));
+        reg.moveAssign(text::_regexpFlags,
+                       lstr(token->flags));
+        reg.assign(text::_lineNumber,
+                      task->lineNumber); 
+        reg.assign(text::_index,
+                   token->end); 
+        reg.assign(text::_column,
+                   token->end+1); 
+        jv->assignColl(text::_value, &reg);
         RegexLeg starter(-1);
         starter.isStart = true;
         regexPaths.push_back({starter});
     }
-    jvput(text::_raw, s(slice(task->sourceRaw, 
-                              token->start, 
-                              token->end)));
+            jv->moveAssign(text::_raw, lstr(s(
+                                              slice(task->sourceRaw, 
+                                                    token->start, 
+                                                    token->end)
+                                              )));
     this->finish();
     DEBUGOUT("", false);
 }
@@ -812,7 +728,7 @@ void Node::finishMemberExpression(const char16_t accessor,
                                   Node * property) {
     DEBUGIN("finishMemberExpression", false);
     initJV(Synt::MemberExpression);
-    jvput(text::_computed, (accessor == u'['));
+    jv->assign(text::_computed, (accessor == u'['));
     reg(text::_object, object);
     reg(text::_property, property);
     this->finish();
@@ -844,9 +760,9 @@ void Node::finishPostfixExpression(const string oper,
                                    Node * argument) {
     DEBUGIN("finishPostfixExpression", false);
     initJV(Synt::UpdateExpression);
-    jvput(text::_operator, oper);
+    jv->moveAssign(text::_operator, lstr(oper));
     reg(text::_argument, argument);
-    jvput(text::_prefix, false);
+    jv->assign(text::_prefix, false);
     this->finish();
     DEBUGOUT("", false);
 }
@@ -857,26 +773,26 @@ void Node::finishProgram(const vector< Node* >& body) {
     initJV(Synt::Program);
     nodeVec(text::_body, body);
     for (int i=0; i<task->extra.bottomRightStack.size(); i++) {
-        task->extra.bottomRightStack[i]->resolve();
+        task->extra.bottomRightStack[i]->resolve(&(task->extra));
     }
     this->finish();
     //no parent node to call reg so add these atts. here.
     if (task->extra.range) {
-        Value rangearr(kArrayType);
-        rangearr.PushBack(this->range[0], *alloc);
-        rangearr.PushBack(this->range[1], *alloc);
-        jv->AddMember(text::_range, rangearr, *alloc);
+        WojsonArr rangearr = doc->getArr();
+        rangearr.push(this->range[0]);
+        rangearr.push(this->range[1]);
+        jv->assignColl(text::_range, &rangearr);
     }
     if (task->extra.loc) {
-        Value locjson(kObjectType);
-        this->loc.toJson(locjson, alloc);
-        jv->AddMember(text::_loc, locjson, *alloc);
+        WojsonMap locjson = doc->getMap();
+        this->loc.toJson(&locjson, doc);
+        jv->assignColl(text::_loc, &locjson);
     }
     DEBUGOUT("", false);    
 }
 
 
-void Node::finishProperty(const StrRef &kind,
+void Node::finishProperty(const SFixedStr &kind,
                           Node * key, 
                           Node * value) {
     DEBUGIN("finishProperty", false);
@@ -966,19 +882,19 @@ void Node::finishUnaryExpression(const string oper,
     DEBUGIN("finishUnaryExpression", false);
     initJV((oper == "++" || oper == "--") ? 
             Synt::UpdateExpression : Synt::UnaryExpression);
-    jvput(text::_operator, oper);
+    jv->moveAssign(text::_operator, lstr(oper));
     reg(text::_argument, argument);
-    jvput(text::_prefix, true);
+    jv->assign(text::_prefix, true);
     this->finish();
     DEBUGOUT("", false);
 }
 
 void Node::finishVariableDeclaration(const vector< Node* >& declarations, 
-                                     const StrRef& kind) {
+                                     const SFixedStr& kind) {
     DEBUGIN("finishVariableDeclaration",false);
     initJV(Synt::VariableDeclaration);
     nodeVec(text::_declarations, declarations);
-    jvput(text::_kind, kind);
+    jv->scopedAssign(text::_kind, kind);
     this->finish();
     DEBUGOUT("", false);
 }

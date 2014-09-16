@@ -5,7 +5,7 @@
 #include "LinprimaTask.hpp"
 #include "podt.hpp"
 #include "strref.hpp"
-#include "FixedString.hpp"
+#include "fixedstr.hpp"
 #include "t52types.hpp"
 #include <string>
 #include <memory>
@@ -33,11 +33,7 @@ public:
     void peek();
     void readTokens(std::vector<TokenRecord> &tokens);
     //#throw_end
-    void tokenize(rapidjson::Document& out, 
-#ifdef LIMITJSON
-                  std::vector<fixedstring::FixedString> &completedObjectsOut,
-#endif
-                  const bool retErrAsJson);
+    fixedstr::SFixedStr tokenize(const bool retErrAsJson);
     void filterTokenLocation();
     ptrTkn makeToken();
 private:
@@ -58,8 +54,8 @@ private:
     static bool intervalarr_contains(unsigned int key, 
                                      std::vector< std::vector< unsigned int > > * arr);
 
-    void addComment(const StrRef * type, const std::string& value, 
-                const int start, const int end, const Loc& loc);
+    void addComment(const fixedstr::SFixedStr * type, const std::string& value, 
+                    const int start, const int end, const Loc& loc);
     int skipSingleLineComment(int idxtmp, const int offset);
     //#throw_begin
     int skipMultiLineComment(int idxtmp);

@@ -1,7 +1,10 @@
 #line 1 "enums.cpp"
 #include "enums.hpp"
 
-std::map<TknType, const StrRef*> TokenName = {
+using namespace std;
+using namespace fixedstr;
+
+map<TknType, const SFixedStr*> TokenName = {
     {TknType::BooleanLiteral, (&(text::_Boolean))},
     {TknType::EOFF, (&(text::_ZendZ))},
     {TknType::Identifier, (&(text::_Identifier))},
@@ -13,13 +16,13 @@ std::map<TknType, const StrRef*> TokenName = {
     {TknType::RegularExpression, (&(text::_RegularExpression))}
 };
 
-std::map<std::string, int> PropertyKind = {
+map<string, int> PropertyKind = {
     {"Data", 1},
     {"Get", 2},
     {"Set", 4}
 };
 
-std::map<std::string, int> LiteralType = {
+map<string, int> LiteralType = {
     {"String", 1},
     {"Int", 2},
     {"Double", 3},
@@ -28,7 +31,7 @@ std::map<std::string, int> LiteralType = {
     {"Null", 6}
 };
 
-std::map<Mssg, std::string> Messages = {
+map<Mssg, string> Messages = {
     {Mssg::UnexpectedToken, "Unexpected token %0"},
     {Mssg::UnexpectedNumber, "Unexpected number"},
     {Mssg::UnexpectedString, "Unexpected string"},
@@ -64,7 +67,7 @@ std::map<Mssg, std::string> Messages = {
     {Mssg::StrictReservedWord, "Use of future reserved word in strict mode"}
 };
 
-std::map<Synt, const StrRef *> Syntax = {
+map<Synt, const SFixedStr *> Syntax = {
     {Synt::AssignmentExpression, (&(text::_AssignmentExpression))},
     {Synt::ArrayExpression, (&(text::_ArrayExpression))},
     {Synt::ArrowFunctionExpression, (&(text::_ArrowFunctionExpression))},

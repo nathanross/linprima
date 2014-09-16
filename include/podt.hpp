@@ -5,11 +5,13 @@
 #include "strref.hpp"
 #include "enums.hpp"
 #include "t52types.hpp"
+#include "wojson.hpp"
 #include <string>
 #include <memory>
 #include <vector>
 #include <unordered_set>
 #include <rapidjson/document.h>
+
 
 #ifdef THROWABLE
 #include <exception>
@@ -43,19 +45,19 @@ struct Loc {
     std::string source;
 
     Loc(int lineNumber, int idx, int lineStart);
-    void toJson(rapidjson::Value& out, 
-                rapidjson::Document::AllocatorType* alloc) const;
+    void toJson(wojson::WojsonMap *out, 
+                wojson::WojsonDocument *doc) const;
 };
 
 struct Comment {
-    const StrRef * type;
+    const fixedstr::SFixedStr *type; //was strref * type
     std::string value;
     int range[2];
     Loc loc;
     Comment(int lineNumber, int idx, int lineStart);
-    void toJson(const ExtraStruct *extra,
-                rapidjson::Value& out, 
-                rapidjson::Document::AllocatorType* alloc);
+    void toJson(wojson::WojsonMap *out, 
+                wojson::WojsonDocument *doc,
+                const ExtraStruct *extra);
 };
 
 //# called ExError to prevent forseeable 
@@ -72,12 +74,12 @@ public:
     int lineNumber;
     int column;
     ExError();
-    void toJson(const ExtraStruct *extra,
-                rapidjson::Value& out, 
-                rapidjson::Document::AllocatorType* alloc);
-    void toJsonTolerant(const ExtraStruct *extra,
-                        rapidjson::Value& out, 
-                        rapidjson::Document::AllocatorType* alloc);
+    void toJson(wojson::WojsonMap *out, 
+                wojson::WojsonDocument *doc,
+                const ExtraStruct *extra);
+    void toJsonTolerant(wojson::WojsonMap* out, 
+                        wojson::WojsonDocument* doc,
+                        const ExtraStruct *extra);
 };
 
 #ifndef THROWABLE
@@ -86,9 +88,9 @@ class AssertError {
 public:
     std::string description;
     AssertError();
-    void toJson(const ExtraStruct *extra,
-                rapidjson::Value& out, 
-                rapidjson::Document::AllocatorType* alloc);
+    void toJson(wojson::WojsonMap *out, 
+                wojson::WojsonDocument *doc,
+                const ExtraStruct *extra);
 };
 #endif
 
@@ -156,22 +158,22 @@ struct TokenRecord {
     TknType type;
     TokenRecord(Loc locArg);
     TokenRecord(int lineNumber, int idx, int lineStart);
-    void toJson(const ExtraStruct *extra,
-                rapidjson::Value& out, 
-                rapidjson::Document::AllocatorType* alloc);
+    void toJson(wojson::WojsonMap* out, 
+                wojson::WojsonDocument* doc,
+                const ExtraStruct *extra);
 };
 
 struct RegexLeg {
     bool isStart;
     bool isNum;
     int num;
-    const StrRef * path;
+    const fixedstr::SFixedStr * path;
     RegexLeg(const int num) {
         isStart = false;
         isNum = true;
         this->num = num;
     }
-    RegexLeg(const StrRef * path) {
+    RegexLeg(const fixedstr::SFixedStr * path) {
         isStart = false;
         isNum = false;
         this->path = path;

@@ -4,7 +4,7 @@
 #line 4 "LinprimaTask.hpp"
 #include "strref.hpp"
 #include "podt.hpp"
-#include "FixedString.hpp"
+#include "fixedstr.hpp"
 #include "t52types.hpp"
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
@@ -22,12 +22,6 @@ struct LinprimaTask {
     std::u16string sourceStr;
     const char16_t *sourceRaw;
     const int length;
-
-#ifdef LIMITJSON
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer;
-    std::vector<fixedstring::FixedString> * completeObjects;
-#endif
 
     int errorType;
     ExError retError;

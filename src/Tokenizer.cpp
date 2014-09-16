@@ -3,11 +3,13 @@
 #include "debug.hpp"
 #include "charutils.hpp"
 #include "stringutils.hpp"
-#include "strrefconsts.hpp"
+#include "texpconsts.hpp"
 #include "jsonutils.hpp"
+#include "wojson.hpp"
 
 using namespace std;
-using namespace rapidjson;
+using namespace wojson;
+using namespace fixedstr;
 
 ptrTkn Tokenizer::NULLPTRTKN(new TokenStruct());
 
@@ -30,12 +32,19 @@ vector< string > FnExprTokens = {
     "<=", "<", ">", "!=", "!=="
 };
 
+OptionsStruct ensureTokenize(OptionsStruct &options){ 
+    options.tokens = true;
+    options.tokenize = true;
+    return options;
+}
+
+
 Tokenizer::Tokenizer(const u16string code,
                      OptionsStruct options) :
     task(make_shared<LinprimaTask>(code,
                                        //code.data(), 
                                        //code.length(), 
-                                   options)),
+                                   ensureTokenize(options))),
     //    task(make_shared_linprima(code.data(), code.length(), options)),
          sourceRaw(task->sourceRaw),
          length(task->length),
@@ -187,7 +196,7 @@ bool Tokenizer::isIdentifierName(const TknType tkntype) {
 char16_t Tokenizer::source(long pos) { return *(sourceRaw + pos); }
 
 //# only called if extra.commentTracking
-void Tokenizer::addComment(const StrRef * type, const string& value, 
+void Tokenizer::addComment(const SFixedStr * type, const string& value, 
                  const int start, const int end, const Loc& loc) {
     DEBUGIN(" addComment(u16string type, u16string value, int start, int end, Loc loc)", false);
     Comment comment(lineNumber, idx, lineStart);
@@ -1501,16 +1510,10 @@ void Tokenizer::filterTokenLocation() {
 //#    afterwards for validation with a tool like linprima-wrapfuncs.js
 
 
-void Tokenizer::tokenize(Document &outJson, 
-#ifdef LIMITJSON
-                         vector<fixedstring::FixedString> &completeObjectsOut,
-#endif
-                         const bool retErrorsAsJson) {
-#ifdef LIMITJSON
-    task->completeObjects = &completeObjectsOut;
-#endif
-    outJson.SetObject();
-    AllocatorType& alloc = outJson.GetAllocator();
+SFixedStr Tokenizer::tokenize(const bool retErrorsAsJson) {
+    WojsonDocument doc(true);                         
+    WojsonMap& outJson = doc.getRootMap();
+
     extra.tokenize = true;    
     vector<TokenRecord> tokens;
 
@@ -1523,11 +1526,11 @@ void Tokenizer::tokenize(Document &outJson,
         if (!extra.errorTolerant) {
             //json_object_put(outJson);
             if (task->errorType == 0) {
-                task->retError.toJson(&extra, outJson, &alloc);
-                return;
+                task->retError.toJson(&outJson, &doc, &extra);
+                return doc->toDecompressedString(&outJson, true, text::decoder);
             }
-            task->retAssertError.toJson(&extra, outJson, &alloc);
-            return;
+            task->retAssertError.toJson(&outJson, &doc, &extra);
+            return doc->toDecompressedString(&outJson, true, text::decoder);
         }
     }
 #endif
@@ -1536,11 +1539,12 @@ void Tokenizer::tokenize(Document &outJson,
 #endif
 
     if (lookahead->type == TknType::EOFF) {
-        vec2jsonCallback<TokenRecord>(outJson, &alloc, &extra,
+        vec2jsonCallback<TokenRecord>(&outJson, &doc, 
+                                      &extra,
                                       text::_tokens,
                                       extra.tokenRecords, 
                                       &TokenRecord::toJson);
-         return;
+        return doc.toDecompressedString(&outJson, true, text::decoder);
     }
 
     lex();
@@ -1553,11 +1557,11 @@ void Tokenizer::tokenize(Document &outJson,
                 break;
             } else {
                 if (task->errorType == 0) {
-                    task->retError.toJson(&extra, outJson, &alloc);
-                    return;
+                    task->retError.toJson(&outJson, &doc,);
+                    return doc.toDecompressedString(&outJson, true, text::decoder);
                 }
-                task->retAssertError.toJson(&extra, outJson, &alloc);
-                return;
+                task->retAssertError.toJson(&extra, &outJson, &doc);
+                return doc.toDecompressedString(&outJson, true, text::decoder);
             }
         }
 #endif
@@ -1571,8 +1575,8 @@ void Tokenizer::tokenize(Document &outJson,
             } else {
                 if (retErrorsAsJson) {
                     //json_object_put(outJson);
-                    e.toJson(&extra, outJson, &alloc);
-                    return; 
+                    e.toJson(&outJson, &doc, &extra);
+                    return doc.toDecompressedString(&outJson, true, text::decoder);
                 }
                 throw e;
             }
@@ -1581,22 +1585,25 @@ void Tokenizer::tokenize(Document &outJson,
     }
 
     filterTokenLocation();
-    vec2jsonCallback<TokenRecord>(outJson, &alloc, &extra,
+    vec2jsonCallback<TokenRecord>(&outJson, &doc,
+                                  &extra,
                                   text::_tokens,
                                   extra.tokenRecords, 
                                   &TokenRecord::toJson); 
     if (extra.commentTracking) {
-        vec2jsonCallback<Comment>(outJson, &alloc, &extra,
+        vec2jsonCallback<Comment>(&outJson, &doc, 
+                                  &extra,
                                   text::_comments,
                                   extra.comments,
                                   &Comment::toJson);
     }
     if (extra.errorTolerant) {
-        vec2jsonCallback<ExError>(outJson, &alloc, &extra,
+        vec2jsonCallback<ExError>(&outJson, &doc, 
+                                  &extra,
                                   text::_errors,
                                   extra.errors,
                                   &ExError::toJsonTolerant);
     }
     extra.clear();
-    return;
+    return doc.toDecompressedString(&outJson, true, text::decoder);
 }
