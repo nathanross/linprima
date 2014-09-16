@@ -51,7 +51,7 @@ gulp clang
 
 ```
 
-Profiling
+Profiling and analysis
 ```
 # memory profiling (massif)
 # (outputs to folder in tmp/mem/)
@@ -68,4 +68,11 @@ gulp prof
 # (outputs to tmp/profiny.graphed.out)
 # results best viewed with a log viewer
 gulp prof --graph
+
+# memcheck
+# check for and resolve any memory 
+# leaks on edit (for the test case in
+# tests/codetotest.js)
+gulp clang --gdb
+valgrind --leak-check=full tmp/test_gdb
 ```
