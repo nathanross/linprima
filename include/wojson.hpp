@@ -6,6 +6,7 @@
 #include <string>
 #include <string.h>
 #include <stdio.h>
+#define reqinline __attribute__((always_inline)) inline
 
 namespace wojson {
     extern const fixedstr::SFixedStr TRUESTR;
@@ -41,7 +42,8 @@ namespace wojson {
         WojsonArr(WojsonDocument *doc);
         ~WojsonArr();
 
-        inline virtual void getBookends(char &start, char &end) { 
+        reqinline 
+        virtual void getBookends(char &start, char &end) { 
             start = '[';
             end = ']';
         }
@@ -56,18 +58,23 @@ namespace wojson {
         void scopedPush(const fixedstr::SFixedStr &val);
         //value is copied in push values below.
 
+        reqinline
         void pushNull() 
         { scopedPushRaw(NULLSTR); }
 
+        reqinline
         void push(bool val) 
         { scopedPushRaw((val)? TRUESTR: FALSESTR); }
 
+        reqinline
         void push(int val) 
         { movePushRaw(fixedstr::getFixedStr(std::to_string(val))); }
 
+        reqinline
         void push(unsigned int val) 
         { movePushRaw(fixedstr::getFixedStr(std::to_string(val))); }
 
+        reqinline
         void push(double val) 
         { movePushRaw(fixedstr::getFixedStr(std::to_string(val))); }
 
@@ -103,22 +110,27 @@ namespace wojson {
                           const fixedstr::SFixedStr &val);
         //value is copied in push values below.
 
-        inline void assignNull(const fixedstr::SFixedStr &key) 
+        reqinline
+        void assignNull(const fixedstr::SFixedStr &key) 
         { scopedAssignRaw(key, NULLSTR); }
 
-        inline void assign(const fixedstr::SFixedStr &key, 
+        reqinline
+        void assign(const fixedstr::SFixedStr &key, 
                            bool val) 
         { scopedAssignRaw(key, (val)? TRUESTR: FALSESTR); }
 
-        inline void assign(const fixedstr::SFixedStr &key, 
+        reqinline
+        void assign(const fixedstr::SFixedStr &key, 
                            int val) 
         { moveAssignRaw(key, fixedstr::getFixedStr(std::to_string(val))); }
 
-        inline void assign(const fixedstr::SFixedStr &key, 
+        reqinline
+        void assign(const fixedstr::SFixedStr &key, 
                        unsigned int val) 
         { moveAssignRaw(key, fixedstr::getFixedStr(std::to_string(val))); }
 
-        inline void assign(const fixedstr::SFixedStr &key, 
+        reqinline
+        void assign(const fixedstr::SFixedStr &key, 
                            double val) { 
             moveAssignRaw(key, 
                           fixedstr::getFixedStr(std::to_string(val))); 
@@ -207,29 +219,35 @@ namespace wojson {
 
         WojsonMap& getRootMap();
 
-        inline WojsonMap getMap() 
+        reqinline 
+        WojsonMap getMap() 
         { return WojsonMap(this); }
 
-        inline WojsonArr getArr() 
+        reqinline 
+        WojsonArr getArr() 
         { return WojsonArr(this); }
 
-        inline ReservedWojsonMap getReservedMap(WojsonArr *arr) {
+        reqinline 
+        ReservedWojsonMap getReservedMap(WojsonArr *arr) {
             return ReservedWojsonMap(this,
                                      arr->pushReserve());
         }
 
-        inline ReservedWojsonMap getReservedMap(WojsonMap *map, 
+        reqinline 
+        ReservedWojsonMap getReservedMap(WojsonMap *map, 
                                  const fixedstr::SFixedStr &key) {
             return ReservedWojsonMap(this,
                                      map->assignReserve(key));
         }
         
-        inline ReservedWojsonArr getReservedArr(WojsonArr *arr) {
+        reqinline 
+        ReservedWojsonArr getReservedArr(WojsonArr *arr) {
             return ReservedWojsonArr(this,
                                      arr->pushReserve());
         }
 
-        inline ReservedWojsonArr getReservedArr(WojsonMap *map, 
+        reqinline 
+        ReservedWojsonArr getReservedArr(WojsonMap *map, 
                                  const fixedstr::SFixedStr &key) {
             return ReservedWojsonArr(this,
                                      map->assignReserve(key));
@@ -239,7 +257,8 @@ namespace wojson {
                                          bool final,
                                          const char ** decoder);
 
-        inline fixedstr::SFixedStr toDecompressedString(WojsonMap *map,
+        reqinline
+        fixedstr::SFixedStr toDecompressedString(WojsonMap *map,
                                                        bool final) {
             return toDecompressedString(map, final, nullptr);
         }
@@ -247,7 +266,8 @@ namespace wojson {
         fixedstr::FixedStr regColl(size_t *retAddr, 
                                    fixedstr::FixedStr collCompressedString);
         
-        inline void replaceCollContents(size_t addr, fixedstr::FixedStr in) {
+        reqinline
+        void replaceCollContents(size_t addr, fixedstr::FixedStr in) {
             finishedCollRegistry[addr] = in;
         }
 
@@ -255,20 +275,9 @@ namespace wojson {
         std::vector<fixedstr::FixedStr> finishedCollRegistry;
         bool useTexpansions;
         WojsonMap rootmap;
-        int getDecodeIdx(char in) {
-            if (in >= '0' && in <= '9') {
-                return in - '0';
-            } else if (in >= 'A' && in <= 'Z') {
-                return (in - 'A') + 10;
-            } else if (in >= 'a' && in <= 'z') {
-                return (in - 'a') + 36;
-            } else {
-                return -1;
-            }
-        }
     };
 
 }
 
-
+#undef reqinline
 #endif

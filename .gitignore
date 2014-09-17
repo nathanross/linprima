@@ -7,6 +7,7 @@ build/*
 node_modules/*
 tmp/*
 test/codetotest.js
+test/opttotest
 lib/*.so
 esprima/
 archive

@@ -106,7 +106,7 @@ int main() {
     //    ProfilerStart("/tmp/profile2");
 
     //system_clock::time_point begin = system_clock::now();
-    int reps = 1;
+    int reps = 10;
     for (int j = 0; j<reps; j++) {
         for (unsigned int i=0; i<codeSamples.size(); i++){ 
            //result = string(tokenizeRetString(

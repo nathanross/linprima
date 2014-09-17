@@ -16,29 +16,25 @@ function print(somediv, msg, log) {
 function driver() {
     var outDiv = document.getElementById("abc");
     print(outDiv, "driver");
+
     var b;
     var lin = esprima;
-    //var parseExtern = Module.cwrap('parseASMJS', 'string', ['string', 'number', 'string'])
 
+    var codetotest = $.ajax({
+            type:"GET",
+            url:"codetotest.js",
+            async: false
+        }).responseText;
+
+    var tol = true;
     try {
-var b = lin.parse("__proto__: __proto__: 42;", {});
-
+       var b = lin.parse(codetotest, {"range":true});
     } catch(e) {
        console.log("caught:" + e + "\nlineNumber:" + e.lineNumber + "\ncolumn:" + e.column + "\nindex:" + e.index);
     }
-    try {
-var b = lin.parse("var o = {one: function() {} two:2};", {"tolerant": true});
-b = lin.parse("var o = {one: function() {} two:2};", {"tolerant": true, "loc": true});
-b = lin.parse("var o = {one: function() {} two:2};", {"comment":false,"range":true,"loc":true,"tokens":true,"raw":true,"tolerant":true});
-b = lin.parse("var o = {one: function() {} two:2};", {"comment":false,"range":true,"loc":true,"tokens":true,"raw":true,"tolerant":true});
 
-    } catch(e) {
-       console.log("caught:" + e + "\nlineNumber:" + e.lineNumber + "\ncolumn:" + e.column + "\nindex:" + e.index);
-    }
     print(outDiv, b);
-    //JSON.stringify(result, undefined, 2));
-    //print(outDiv, JSON.stringify(esprima.parse(toParse, 
-//{ comment: true, tolerant: true, range: true, loc: true }), undefined, 2));
+    //JSON.stringify(result, undefined, 2));        
 }
 
 
@@ -52,6 +48,7 @@ window.addEventListener("load", driver, false);
 <!-- <script src="../esprima/esprima/esprima.orig.js"></script> <!-- -->
 <!-- <script src="jsesc.js"></script> <!-- -->
 <!--<script src="../tmp/linprima.asm.js"></script> <!-- -->
+<script src="../bench/jquery.js"></script> <!-- -->
 <script src="../build/asm/linprima.js"></script> <!-- -->
 <!--<script src="errorRet1.js"></script> <!-- -->
 <!--<script src="../ureqout/test.js"></script> <!-- -->

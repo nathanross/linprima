@@ -288,11 +288,11 @@ var runCmpBench = function(runInit) {
     linprimaSrc.canRole(full);
     linprimaSrc.canRole(sparse);
     var cmpr = new CompareVis('esprima');
-    cmpr.addSource(esprimaSrc, true);
-    cmpr.addSource(linprimaSrc, false);
+    //cmpr.addSource(esprimaSrc, true);
+    cmpr.addSource(linprimaSrc, true);
     cmpr.useRole(full);
     cmpr.useRole(sparse);
-    cmpr.runInit('cases/active', ['blocks.js']);
+    cmpr.runInit('cases/active', ['Chart.js']);
 }
 
 var setLinprima = function(callback) {

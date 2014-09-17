@@ -18,6 +18,7 @@
   "dependencies": {
     "benchmark": "~1.0.0",
     "jsondiffpatch": "*",
-    "requirejs":"*"
+    "requirejs":"*",
+    "jquery":"*"
   }
 }

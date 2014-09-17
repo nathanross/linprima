@@ -18,6 +18,19 @@ namespace wojson {
     const fixedstr::SFixedStr QUOTE("\"");
     const fixedstr::SFixedStr KEYMID("\":\"");
     const fixedstr::SFixedStr KEYMID_RAW("\":");
+    
+    inline
+    int getDecodeIdx(char in) {
+        if (in >= '0' && in <= '9') {
+            return in - '0';
+        } else if (in >= 'A' && in <= 'Z') {
+            return (in - 'A') + 10;
+        } else if (in >= 'a' && in <= 'z') {
+            return (in - 'a') + 36;
+        } else {
+            return -1;
+        }
+    }
 
     WojsonColl::WojsonColl(WojsonDocument *docArg) :
         doc(docArg),

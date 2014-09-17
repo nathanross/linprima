@@ -1452,8 +1452,8 @@ private:
         kTypeMask = 0xFF    // bitwise-and with mask of 0xFF can be optimized by compiler
     };
 
-    static const SizeType kDefaultArrayCapacity = 16;
-    static const SizeType kDefaultObjectCapacity = 16;
+    static const SizeType kDefaultArrayCapacity = 4;
+    static const SizeType kDefaultObjectCapacity = 8;
 
     struct String {
         const Ch* str;

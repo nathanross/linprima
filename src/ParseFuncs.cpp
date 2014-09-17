@@ -3027,3 +3027,4 @@ SFixedStr ParseTools::parse(const bool retErrorsAsJson) {
    programNode->delNode(programNode);
    return doc.toDecompressedString(&outJson, true, text::decoder);
 }
+#undef reqinline

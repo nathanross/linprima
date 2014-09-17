@@ -173,14 +173,18 @@ gulp.task('mem', function() {
     argv.clang = 1;
     argv.gdb = 1;
     //get it so folders are ordered consecutively.
-    memOutfolder = String((new Date()).getTime()).substr(6,4) + "/"
+    memOutfolder = String((new Date()).getTime()).substr(5,5) + "/"
 
-    argv.lowmem = 0;
-    argv.limj = 0;
-    memstep = "reg"
+    //argv.lowmem = 0;
+    //argv.limj = 0;
+    //memstep = "reg"
 
-    runSequence('compile', 'massif', 'incrMemStep',
-               'compile', 'massif', 'incrMemStep',
+    argv.lowmem = 1;
+    argv.limj = 1;
+    memstep = "limj"
+
+    runSequence(//'compile', 'massif', 'incrMemStep',
+               //'compile', 'massif', 'incrMemStep',
                'compile', 'massif');
 });
 
