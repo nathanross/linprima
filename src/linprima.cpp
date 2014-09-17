@@ -7,6 +7,7 @@
 using namespace std;
 using namespace rapidjson;
 using namespace wojson;
+using namespace fixedstr;
 
 typedef Document::AllocatorType AllocatorType;
 
@@ -23,21 +24,6 @@ SFixedStr parseRetString(const u16string code,
     ParseTools pt(code, options);
     return pt.parse(true);   
 }
-
-
-char * outchars = new char[1];
-
-//# not the prettiest solution, but it works for now.
-//# maybe use smart pointer to free mem once returned?
-//# it'd have to be compatible with c usage as regular pointer though.
-//# fine if you have to increment it in a subcall.
-char* strToChar(string in) {
-    delete[] outchars;
-    outchars = new char[in.size()+1];
-    strcpy(outchars, in.c_str());
-    return outchars;
-}
-
 
 extern "C" {
 
@@ -114,7 +100,8 @@ int main() {
             //};
    
     //allopt = finputOpt;
-    allopt = "{ \"range\":true, \"loc\": true }";
+    //allopt = "{ }";
+    allopt = "{ \"range\":true }";
     //allopt = "{ \"loc\":true, \"range\":true, \"tokens\":true }";
     //    ProfilerStart("/tmp/profile2");
 
@@ -123,15 +110,13 @@ int main() {
     for (int j = 0; j<reps; j++) {
         for (unsigned int i=0; i<codeSamples.size(); i++){ 
            //result = string(tokenizeRetString(
-           result = string(parseRetString(
-                                           toU16string(codeSamples[i]),
-                                           OptionsStruct(allopt.data())));
-            resultlength += result.length() % 6;
+            SFixedStr && r = parseRetString(
+                                            toU16string(codeSamples[i]),
+                                            OptionsStruct(allopt.data()));
+            result = fixedstr::data(r.f);
+            resultlength += fixedstr::length(r.f) % 6;
         }
     }
-#ifdef LOWMEM
-    free (asmRetVal);
-#endif
     codeSamples.clear();
     finput = "";
     
@@ -142,8 +127,6 @@ int main() {
     //    ProfilerStop();
     printf("total length %u\n", resultlength);
 
-    printf("text::_Identifier %s\n", text::_Identifier.s);
-    
     ofstream lastResult;
     lastResult.open("/tmp/lastresult.txt");
     lastResult << result;

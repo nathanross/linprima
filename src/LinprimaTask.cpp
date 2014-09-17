@@ -11,9 +11,6 @@ LinprimaTask::LinprimaTask(const u16string sourceStrArg,
                            const OptionsStruct optArg):
     sourceStr(sourceStrArg),
     sourceRaw(sourceStr.data()), length(sourceStr.length()),
-#ifdef LIMITJSON
-    writer(buffer),
-#endif
     strict(false),
     extra(optArg), state(),
     idx(0), lineNumber(0), lineStart(0),
@@ -34,13 +31,6 @@ int LinprimaTask::throwToJS(ExError err) {
     DEBUGIN(" throwToJS(ExError err)", false);
     retError = err;
     errorType = 0;
-#ifdef LIMITJSON
-    for(int i=0;i<completeObjects->size();i++){
-        if (completeObjects->at(i) != nullptr) {
-            free(completeObjects->at(i));
-        }
-    }
-#endif
     ErrWrapint evoid;
     evoid.err = true;
     DEBUGOUT("throwToJs", false);
@@ -51,13 +41,6 @@ int LinprimaTask::throwToJS(ExError err) {
 void LinprimaTask::throwToJS(const ExError err) {
     DEBUGIN(" throwToJS(ExError err)", false);
     DEBUGOUT("throwToJs", false);    
-#ifdef LIMITJSON
-    for(int i=0;i<completeObjects->size();i++){
-        if (completeObjects->at(i) != nullptr) {
-            free(completeObjects->at(i));
-        }
-    }
-#endif
     throw err;
 }
 #endif

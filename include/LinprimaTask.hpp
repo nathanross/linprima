@@ -6,8 +6,7 @@
 #include "podt.hpp"
 #include "fixedstr.hpp"
 #include "t52types.hpp"
-#include <rapidjson/document.h>
-#include <rapidjson/writer.h>
+#include "wojson.hpp"
 
   // Ensure the condition is true, otherwise throw an error.
   // This is only to have a better contract semantic, i.e. another safety net
@@ -25,6 +24,7 @@ struct LinprimaTask {
 
     int errorType;
     ExError retError;
+
 #ifndef THROWABLE
     AssertError retAssertError;
 #endif

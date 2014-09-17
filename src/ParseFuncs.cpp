@@ -6,11 +6,13 @@
 #include "debug.hpp"
 using namespace std;
 using namespace rapidjson;
+using namespace wojson;
+using namespace fixedstr;
 #define reqinline inline
 
 
-const char * emptystr = "";
-const StrRef EMPTY_STRREF = StringRef(emptystr, 0);
+
+const SFixedStr EMPTY_STRREF = SFixedStr("");
 
 unique_ptr<Node> make_unique_node() {
     unique_ptr<Node> a(new Node(false, false, 0x0, 0x0, 0x0));
@@ -212,13 +214,13 @@ bool ParseTools::isLeftHandSide(Node* expr) {
 
 
 Node* ParseTools::makeNode(bool lookavailInit, bool exists) {
-    return new Node(lookavailInit, exists, &heapNodes, alloc, task.get());
+    return new Node(lookavailInit, exists, &heapNodes, doc, task.get());
 }
 WrappingNode* ParseTools::makeWrappingNode(ptrTkn token) {
-    return new WrappingNode(token, &heapNodes, alloc, task.get());
+    return new WrappingNode(token, &heapNodes, doc, task.get());
 }
 WrappingNode* ParseTools::makeWrappingNode() {
-    return new WrappingNode(&heapNodes, alloc, task.get());
+    return new WrappingNode(&heapNodes, doc, task.get());
 }
 
 // 11.1.4 Array Initialiser
@@ -230,21 +232,23 @@ Node* ParseTools::parseArrayInitialiser() {
     Node *node = makeNode(true, true);    
 
     expect("[");
+    int ctr=0;
+    const SFixedStr& path = text::_elements;
 
     node->initJV(Synt::ArrayExpression);
-    auto vec = doc->getReservedMap(node->jv, text::_elements);
+    auto vec = doc->getReservedArr(node->jv, path);
     while (!match("]")) {
 
         if (match(",")) {
             scanner.lex();
-            node->regPush(&vec, nullptr);
+            node->regPush(&vec, path, ctr, nullptr);
         } else {
 #ifndef THROWABLE
             Node *tmp = parseAssignmentExpression();
-            node->regPush(&vec, tmp);
+            node->regPush(&vec, path, ctr, tmp);
 #endif
 #ifdef THROWABLE
-            node->regPush(&vec,
+            node->regPush(&vec, path, ctr,
                           parseAssignmentExpression());
 #endif
             if (!match("]")) {
@@ -431,10 +435,6 @@ Node* ParseTools::parseObjectProperty() {
     }
 }
 
-string GetStringCorrect(const Value& val) {
-    return string(fixedstring::data(val), fixedstring::val.GetStringLength());
-}
-
 //throw_
 Node* ParseTools::parseObjectInitialiser() {
     DEBUGIN(" parseObjectInitialiser()", false);
@@ -443,13 +443,15 @@ Node* ParseTools::parseObjectInitialiser() {
     Node *property, 
         *node = makeNode(true, true);
     
-    string keytype, key, name;
-    const StrRef *kindname;
+    string key, name;
+    const SFixedStr *kindname;
     int kind;
     map<string, int> kmap;
 
     node->initJV(Synt::ObjectExpression);
-    auto vec = doc->getReservedMap(node->jv, text::_properties);
+    const SFixedStr &path = text::_properties;
+    auto vec = doc->getReservedArr(node->jv, path);
+    int ctr=0;
     expect("{");
 
     while (!match("}")) {
@@ -457,16 +459,10 @@ Node* ParseTools::parseObjectInitialiser() {
         
         Node * keynode = property->leftAssign;
 
-        keytype = fixedstr::tostr(keynode->type.f);
-
-        if (keytype == Syntax[Synt::Identifier]->s) {
-            name = GetStringCorrect((*keyobj)[text::_name]);            
-        } else {
-            if ((*keyobj)[text::_value].IsString()) {
-                name = GetStringCorrect((*keyobj)[text::_value]);
-            } else {
-                name = to_string((*keyobj)[text::_value].GetDouble());
-            }
+        if (keynode->type == Syntax[Synt::Identifier]) {
+            name = keynode->name;            
+        } else { //literal
+            name = keynode->name;
         }
         kindname = property->spareStrref; //property->jv['kind']
         kind = (kindname == &(text::_init)) ? PropertyKind["Data"] : 
@@ -498,7 +494,7 @@ Node* ParseTools::parseObjectInitialiser() {
         }
 
         //problem with test case: (function () { 'use strict'; delete i; }())
-        node->regPush(&vec, property);
+        node->regPush(&vec, path, ctr, property);
         //properties.push_back(property);
 
         if (!match("}")) {
@@ -624,18 +620,14 @@ Node* ParseTools::parsePrimaryExpression() {
 //throw_
 void ParseTools::parseArguments(Node *parent) {
     DEBUGIN(" parseArguments()", false);
-    auto vec = doc->getReservedMap(parent->jv, text::_arguments);
+    const SFixedStr& path = text::_arguments;
+    auto vec = doc->getReservedArr(parent->jv, path);
+    int ctr=0;    
     expect("(");
     if (!match(")")) {
         while (idx < length) {
-#ifndef THROWABLE
             Node *tmp = parseAssignmentExpression();
-            parent->regPush(&vec, tmp);
-#endif
-#ifdef THROWABLE
-            parent->regPush(&vec,
-                            parseAssignmentExpression());
-#endif
+            parent->regPush(&vec, path, ctr, tmp);
             if (match(")")) {
                 break;
             }
@@ -696,11 +688,14 @@ Node* ParseTools::parseNewExpression() {
     node->initJV(Synt::NewExpression);
     node->reg(text::_callee, callee);
 
+
     if (match("(")) { 
         parseArguments(node);
     } else {
-        node->jv->addColl(text::_arguments,
-                          &(document->getMap()));
+        WojsonArr emptyarr = doc->getArr(); 
+        //! supposed to be empty map or empty arr?
+        node->jv->assignColl(text::_arguments,
+                          &(emptyarr));
     }
     
     node->finish();
@@ -1407,7 +1402,9 @@ Node* ParseTools::parseBlock() {
     Node *node = makeNode(true, true);
 
     node->initJV(Synt::BlockStatement);
-    auto vec = doc->getReservedMap(node->jv, text::_body);
+    const SFixedStr& path = text::_body;
+    auto vec = doc->getReservedArr(node->jv, path);
+    int ctr=0;
 
     expect("{");
     //inline of parseStatementList
@@ -1421,8 +1418,9 @@ Node* ParseTools::parseBlock() {
         if (statement == nullptr) { 
             break;
         }
-        node->regPush(&vec, statement);
+        node->regPush(&vec, path, ctr, statement);
     }
+    vec.complete();
 
     expect("}");
     node->finish();
@@ -1450,7 +1448,7 @@ Node* ParseTools::parseVariableIdentifier() {
 }
 
 //throw_
-Node* ParseTools::parseVariableDeclaration(const StrRef &kind) { 
+Node* ParseTools::parseVariableDeclaration(const SFixedStr *kind) { 
     DEBUGIN(" parseVariableDeclaration(u16string kind)", false);
     Node *id, *init,
         *node = makeNode(true, true);
@@ -1460,9 +1458,10 @@ Node* ParseTools::parseVariableDeclaration(const StrRef &kind) {
 
     // 12.2.1
     if (task->strict && Tokenizer::isRestrictedWord(id->name)) {
-        task->throwErrorTolerant(Tokenizer::NULLPTRTKN, Messages[Mssg::StrictVarName], {});
+        task->throwErrorTolerant(Tokenizer::NULLPTRTKN, 
+                                 Messages[Mssg::StrictVarName], {});
     }
-    if (kind == text::_const) {
+    if (kind == &(text::_const)) {
         expect("=");
         init = parseAssignmentExpression();
     } else if (match("=")) {
@@ -1476,19 +1475,24 @@ Node* ParseTools::parseVariableDeclaration(const StrRef &kind) {
 }
 
 //throw_
-void ParseTools::parseVariableDeclarationList(const StrRef &kind,
+void ParseTools::parseVariableDeclarationList(const SFixedStr *kind,
                                                          Node *parent) {
     DEBUGIN("parseVariableDeclarationList", false);
-    auto vec = doc->getReservedMap(parent->jv, text::_declarations);
+    const SFixedStr &path = text::_declarations;
+    auto vec = doc->getReservedArr(parent->jv, path);
+    int ctr=0;
 
+    parent->numChildren = 0;
     do {
+        ++(parent->numChildren);
         Node *tmp = parseVariableDeclaration(kind);
-        parent->regPush(&vec, tmp);
+        parent->regPush(&vec, path, ctr, tmp);
         if (!match(",")) {
             break;
         }
         scanner.lex();
     } while (idx < length);
+    vec.complete();
 
     DEBUGOUT("parseVariableDeclarationList", false); 
     return;
@@ -1500,7 +1504,7 @@ Node* ParseTools::parseVariableStatement(Node* node) {
     node->initJV(Synt::VariableDeclaration);
 
     expectKeyword("var");
-    parseVariableDeclarationList(EMPTY_STRREF, 
+    parseVariableDeclarationList(&EMPTY_STRREF, 
                                  node); 
     consumeSemicolon();
 
@@ -1516,7 +1520,7 @@ Node* ParseTools::parseVariableStatement(Node* node) {
 // and http://wiki.ecmascript.org/doku.php?id=harmony:let
 //throw_
 Node* ParseTools::parseConstLetDeclaration(const string kind, 
-                                           const FixedStr kindref) { 
+                                           const SFixedStr *kindref) { 
     DEBUGIN(" parseConstLetDeclaration(u16string kind)", false);    
     Node *node = makeNode(true, true);
     node->initJV(Synt::VariableDeclaration);
@@ -1525,7 +1529,7 @@ Node* ParseTools::parseConstLetDeclaration(const string kind,
     parseVariableDeclarationList(kindref, node);
     consumeSemicolon();
     
-    node->jv->scopedAssign(text::_kind, kindref);
+    node->jv->scopedAssign(text::_kind, *kindref);
     node->finish();
     DEBUGOUT("parseConstLetDeclaration", false); 
     return node;
@@ -1683,7 +1687,7 @@ Node* ParseTools::parseForVariableDeclaration() {
     node->initJV(Synt::VariableDeclaration);
 
     token = scanner.lex();
-    parseVariableDeclarationList(EMPTY_STRREF, node);
+    parseVariableDeclarationList(&EMPTY_STRREF, node);
 
     node->jv->scopedAssign(text::_kind, (token->strvalue == "var")? text::_var: ((token->strvalue == "const")? text::_const : text::_let));
     node->finish();
@@ -1713,7 +1717,7 @@ Node* ParseTools::parseForStatement(Node* node) {
             init = parseForVariableDeclaration();
             state.allowIn = previousAllowIn;
 
-            if ((*(init->jv))[text::_declarations].Size() == 1 
+            if (init->numChildren == 1 
                 && matchKeyword("in")) { 
 
                 scanner.lex();
@@ -1984,7 +1988,7 @@ Node* ParseTools::parseWithStatement(Node* node) {
 
 // 12.10 The swith statement
 //throw_
-Node* ParseTools::parseSwitchCase() {
+Node* ParseTools::parseSwitchCase(bool &testIsNull) {
     DEBUGIN(" parseSwitchCase()", false);
     Node *test, *statement, 
         *node = makeNode(true, true);
@@ -1998,9 +2002,11 @@ Node* ParseTools::parseSwitchCase() {
         test = parseExpression();
     }
     node->initJV(Synt::SwitchCase);
+    testIsNull = (test == nullptr);
     node->reg(text::_test, test);
-    auto vec = doc->getReservedMap(node->jv, 
-                                   text::_consequent);
+    const SFixedStr& path = text::_consequent;
+    auto vec = doc->getReservedArr(node->jv, path);
+    int ctr;
     expect(":");
 
     while (idx < length) {
@@ -2010,8 +2016,9 @@ Node* ParseTools::parseSwitchCase() {
             break;
         }
         statement = parseStatement();
-        node->regPush(&vec, statement);
+        node->regPush(&vec, path, ctr, statement);
     }
+    vec.complete();
 
     node->finish();
     DEBUGOUT("parseSwitchCase", false);
@@ -2073,7 +2080,7 @@ Node* ParseTools::parseSwitchStatement(Node *node) {
     expect(")");
     expect("{");
     if (match("}")) {
-        scanner.lex();
+        scanner.lex();        
         node->finishSwitchStatement(discriminant, cases);
         DEBUGOUT("parseSwitchStatement", false); 
         return node;
@@ -2086,8 +2093,9 @@ Node* ParseTools::parseSwitchStatement(Node *node) {
         if (match("}")) {
             break;
         }
-        clause = parseSwitchCase();
-        if ((*(clause->jv))[text::_test].IsNull()) {
+        bool testIsNull = false;
+        clause = parseSwitchCase(testIsNull);
+        if (testIsNull) {
             if (defaultFound) {
                 task->throwError(Tokenizer::NULLPTRTKN, 
                            Messages[Mssg::MultipleDefaultsInSwitch],{});
@@ -2350,7 +2358,9 @@ Node* ParseTools::parseFunctionSourceElements() {
     StateStruct oldstate;
 
     node->initJV(Synt::BlockStatement);
-    auto vec = doc->getReservedMap(node->jv, text::_body);
+    const SFixedStr &path = text::_body;
+    auto vec = doc->getReservedArr(node->jv, path);
+    int ctr=0;
     expect("{");
 
     firstRestricted->isNull = true;
@@ -2368,10 +2378,10 @@ Node* ParseTools::parseFunctionSourceElements() {
             //? then json-c accesses. Storing node hierarchies just to fix this call seems to 
             //? be likely less performant.
             // this is not directive
-            node->regPush(&vec, sourceElement); 
+            node->regPush(&vec, path, ctr, sourceElement); 
             break;
         }
-        node->regPush(&vec, sourceElement); 
+        node->regPush(&vec, path, ctr, sourceElement); 
         directive = slice(sourceRaw, token->start + 1, token->end - 1);
         if (directive == u"use strict") {
             task->strict = true;
@@ -2403,7 +2413,7 @@ Node* ParseTools::parseFunctionSourceElements() {
         if (sourceElement == nullptr) {
             break;
         }
-        node->regPush(&vec, sourceElement);
+        node->regPush(&vec, path, ctr, sourceElement);
     }
     vec.complete();
 
@@ -2735,10 +2745,10 @@ Node* ParseTools::parseSourceElement() {
         if (val == "const" || val == "let") {
             if (val == "const") {
                 return DBGRET("", parseConstLetDeclaration("const", 
-                                                           text::_const));
+                                                           &(text::_const)));
             } else {
                 return DBGRET("", parseConstLetDeclaration("let", 
-                                                           text::_let));
+                                                           &(text::_let)));
             }
         } else if (val == "function") {
             return DBGRET("", parseFunctionDeclaration()); 
@@ -2766,7 +2776,9 @@ int ParseTools::parseSourceElements(Node * parent) {
     u16string directive;
     bool hasElements = false;
 
-    auto vec = doc->getReservedMap(node->jv, text::_body);
+    const SFixedStr &path = text::_body;
+    auto vec = doc->getReservedArr(parent->jv, path);
+    int ctr=0;
 
     firstRestricted->isNull = true;
     while (idx < length) {
@@ -2781,10 +2793,10 @@ int ParseTools::parseSourceElements(Node * parent) {
         hasElements = true;
         if (sourceElement->spareStrref != Syntax[Synt::Literal]) {
             // this is not directive
-            parent->regPush(&vec, sourceElement);
+            parent->regPush(&vec, path, ctr, sourceElement);
             break;
         }
-        parent->regPush(&vec, sourceElement);
+        parent->regPush(&vec, path, ctr, sourceElement);
         directive = slice(sourceRaw, token->start + 1, token->end - 1);
         if (directive == u"use strict") {
             task->strict = true;
@@ -2809,7 +2821,7 @@ int ParseTools::parseSourceElements(Node * parent) {
             break;
         }
         hasElements = true;
-        parent->regPush(&vec, sourceElement);
+        parent->regPush(&vec, path, ctr, sourceElement);
     }
     vec.complete();
 
@@ -2830,20 +2842,20 @@ Node* ParseTools::parseProgram() {
     task->strict = false;
     node->completedPos = parseSourceElements(node);
     for (int i=0; i<task->extra.bottomRightStack.size(); i++) {
-        task->extra.bottomRightStack[i]->resolve();
+        task->extra.bottomRightStack[i]->resolve(&(task->extra));
     }
     node->finish();
 
     if (task->extra.range) {
-        Value rangearr(kArrayType);
-        rangearr.PushBack(node->range[0], *alloc);
-        rangearr.PushBack(node->range[1], *alloc);
-        node->jv->AddMember(text::_range, rangearr, *alloc);
+        WojsonArr rangearr = doc->getArr();
+        rangearr.push(node->range[0]);
+        rangearr.push(node->range[1]);        
+        node->jv->assignColl(text::_range, &rangearr);
     }
     if (task->extra.loc) {
-        Value locjson(kObjectType);
-        node->loc.toJson(locjson, alloc);
-        node->jv->AddMember(text::_loc, locjson, *alloc);
+        WojsonMap locjson = doc->getMap();
+        node->loc.toJson(&locjson, doc);
+        node->jv->assignColl(text::_loc, &locjson);
     }
 
     DEBUGOUT("parseProgram", false);
@@ -2938,17 +2950,12 @@ Node* ParseTools::parseProgram() {
 //#    numeric literals are represented as strings, serialized to json string using a special
 //#    serializer that does not print quotes.
 
-void ParseTools::parse(Document& outJson, 
-#ifdef LIMITJSON
-                       vector<fixedstring::FixedString> &completeObjectsOut,
-#endif
-                       const bool retErrorsAsJson) {
-#ifdef LIMITJSON
-    task->completeObjects = &completeObjectsOut;
-#endif
-    outJson.SetObject();
-    AllocatorType& alloclocal = outJson.GetAllocator();    
-    alloc = &alloclocal;
+SFixedStr ParseTools::parse(const bool retErrorsAsJson) {
+    //debugin("parse()", false);
+    WojsonDocument doc(true);
+    this->doc = &doc;
+    WojsonMap& outJson = doc.getRootMap();
+
     //relevant options are range, loc, attachComment
     //source, (hasSource also of course), and tracking and tolerance.
     //also attachComment implies range = true and commentTracking = true.
@@ -2961,11 +2968,11 @@ void ParseTools::parse(Document& outJson,
         //pt.clearHeap();
         //json_object_put(programJson);
         if (task->errorType == 0) {
-            task->retError.toJson(&extra, outJson, alloc);
-            return;
+            task->retError.toJson(&outJson, &doc, &extra);
+            return doc.toDecompressedString(&outJson, true, text::decoder);
         }
-        task->retAssertError.toJson(&extra, outJson, alloc); 
-        return;
+        task->retAssertError.toJson(&outJson, &doc, &extra);
+        return doc.toDecompressedString(&outJson, true, text::decoder);
     }
     programNode = tmp.val;
 #endif
@@ -2976,34 +2983,29 @@ void ParseTools::parse(Document& outJson,
         //pt.clearHeap();
         if (retErrorsAsJson) {
             //json_object_put(programJson);
-            e.toJson(&extra, outJson, alloc);
-            return;
+            e.toJson(&outJson, &doc, &extra);
+            return doc.toDecompressedString(&outJson, true, text::decoder);
         }
         throw e;
     }
 #endif
-#ifdef LIMITJSON
-    AddDocument(task.get(), text::_program, outJson, *(programNode->jv)); 
-#endif
-#ifndef LIMITJSON
-    outJson.AddMember(text::_program, *(programNode->jv), *alloc);
-#endif
+    outJson.assignColl(text::_program, programNode->jv);
 
-    WojsonArr regexList = doc->getArr();
-    programNode->regexPaths2json(regexList, alloc);
+    WojsonArr regexList = doc.getArr();
+    programNode->regexPaths2json(regexList, &doc);
 
-    outJson.AddMember(text::_regexp, 
-                        regexList, 
-                      *alloc);
+    outJson.assignColl(text::_regexp, &regexList);
 
    if (extra.commentTracking) {
-       vec2jsonCallback<Comment>(outJson, alloc, &extra,
+       vec2jsonCallback<Comment>(&outJson, &doc, 
+                                 &extra,
                                  text::_comments, extra.comments,
                                  &Comment::toJson); 
    }
    if (extra.tokenTracking) {
        scanner.filterTokenLocation();
-       vec2jsonCallback<TokenRecord>(outJson, alloc, &extra,
+       vec2jsonCallback<TokenRecord>(&outJson, &doc,
+                                     &extra,
                                      text::_tokens,
                                      extra.tokenRecords,
                                      &TokenRecord::toJson);
@@ -3014,7 +3016,8 @@ void ParseTools::parse(Document& outJson,
    //                  dbgval, alloc);
 
    if (extra.errorTolerant) {
-       vec2jsonCallback<ExError>(outJson, alloc, &extra,
+       vec2jsonCallback<ExError>(&outJson, &doc, 
+                                 &extra,
                                  text::_errors,
                                  extra.errors,
                                  &ExError::toJsonTolerant);
@@ -3022,5 +3025,5 @@ void ParseTools::parse(Document& outJson,
 
    extra.clear();
    programNode->delNode(programNode);
-   return;
+   return doc.toDecompressedString(&outJson, true, text::decoder);
 }

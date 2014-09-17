@@ -50,6 +50,8 @@ public:
     //for late resolves
     //SEMANTIC OVERRIDE : for program completedPos signals # of children > 0
 
+    size_t numChildren;
+
 
     std::string s(const std::u16string in);
     Node(bool lookaheadAvail, bool storeStats, 
@@ -70,7 +72,7 @@ public:
     void reg(const fixedstr::SFixedStr& path, 
              Node * child);
     rapidjson::Value* initVec(const fixedstr::SFixedStr &path);
-    void regPush(wojson::WojsonArr *arr, fixedstr::SFixedStr &path,
+    void regPush(wojson::WojsonArr *arr, const fixedstr::SFixedStr &path,
                  int &ctr, Node* child);
     void nodeVec(const fixedstr::SFixedStr& path, 
                  const std::vector<Node*>& nodes);

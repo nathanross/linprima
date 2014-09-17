@@ -14,22 +14,22 @@
 #include <rapidjson/document.h>
 #include <string>
 
-fixedstr::SFixedStr&& tokenizeRetString(const std::u16string code,
-                                        OptionsStruct options);
+fixedstr::SFixedStr tokenizeRetString(const std::u16string code,
+                                      OptionsStruct options);
 
 inline
-fixedstr::SFixedStr&& tokenizeRetString(const std::string code, 
-                                        const OptionsStruct options) {
+fixedstr::SFixedStr tokenizeRetString(const std::string code, 
+                                      const OptionsStruct options) {
     return tokenizeRetString(toU16string(code), options);
 }
 
 //# return json as string.
-fixedstr::SFixedStr&& parseRetString(const std::u16string code, 
-                                     OptionsStruct options);
+fixedstr::SFixedStr parseRetString(const std::u16string code, 
+                                   OptionsStruct options);
 
 inline
-fixedstr::SFixedStr&& parseRetString(const std::string code,
-                                     const OptionsStruct options) { 
+fixedstr::SFixedStr parseRetString(const std::string code,
+                                   const OptionsStruct options) { 
     return parseRetString(toU16string(code), options);
 }
 

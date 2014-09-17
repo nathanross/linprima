@@ -30,5 +30,7 @@ void vec2jsonCallback(wojson::WojsonMap *root,
     root->assignColl(path, &arr);
     //DEBUGOUT("", false);     
 }
+fixedstr::FixedStr lstr(std::string in);
+
 
 #endif

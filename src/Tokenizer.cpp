@@ -1527,10 +1527,10 @@ SFixedStr Tokenizer::tokenize(const bool retErrorsAsJson) {
             //json_object_put(outJson);
             if (task->errorType == 0) {
                 task->retError.toJson(&outJson, &doc, &extra);
-                return doc->toDecompressedString(&outJson, true, text::decoder);
+                return doc.toDecompressedString(&outJson, true, text::decoder);
             }
             task->retAssertError.toJson(&outJson, &doc, &extra);
-            return doc->toDecompressedString(&outJson, true, text::decoder);
+            return doc.toDecompressedString(&outJson, true, text::decoder);
         }
     }
 #endif
@@ -1557,10 +1557,10 @@ SFixedStr Tokenizer::tokenize(const bool retErrorsAsJson) {
                 break;
             } else {
                 if (task->errorType == 0) {
-                    task->retError.toJson(&outJson, &doc,);
+                    task->retError.toJson(&outJson, &doc, &extra);
                     return doc.toDecompressedString(&outJson, true, text::decoder);
                 }
-                task->retAssertError.toJson(&extra, &outJson, &doc);
+                task->retAssertError.toJson(&outJson, &doc, &extra);
                 return doc.toDecompressedString(&outJson, true, text::decoder);
             }
         }

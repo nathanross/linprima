@@ -57,7 +57,7 @@ void NodesComments::resolve(const ExtraStruct *extra) {
         }
 
         if (commentVec->size() > 0) {
-            vec2jsonCallback<Comment>(doc, jv,
+            vec2jsonCallback<Comment>(jv, doc,
                                       extra,
                                       *key,
                                       *commentVec,

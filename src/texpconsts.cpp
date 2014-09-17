@@ -154,7 +154,7 @@ const char * _let_FULL = "let";
 const char * _super_FULL = "super";
 const char * _UnresolvedNode_FULL = "UnresolvedNode";
 const char * _yield_FULL = "yield";
-#ifdef LOWMEM
+#ifndef NOTEXP
 const char * _line_ = "0";
 const fixedstr::SFixedStr _line(_line_,1);
 const char * _column_ = "1";
@@ -619,7 +619,7 @@ _yield_FULL
 };
 
 #endif
-#ifndef LOWMEM
+#ifdef NOTEXP
 const fixedstr::SFixedStr _line(_line_FULL,4);
 const fixedstr::SFixedStr _column(_column_FULL,6);
 const fixedstr::SFixedStr _type(_type_FULL,4);

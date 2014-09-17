@@ -19,7 +19,7 @@ namespace wojson {
     class WojsonColl  {
     public:
         WojsonColl(WojsonDocument *doc);
-        ~WojsonColl();
+        virtual ~WojsonColl();
 
         virtual void getBookends(char &start, char &end) = 0;
 
@@ -39,6 +39,7 @@ namespace wojson {
     class WojsonArr : public WojsonColl {
     public:  
         WojsonArr(WojsonDocument *doc);
+        ~WojsonArr();
 
         inline virtual void getBookends(char &start, char &end) { 
             start = '[';
@@ -80,6 +81,7 @@ namespace wojson {
     class WojsonMap : public WojsonColl {
     public:
         WojsonMap(WojsonDocument *doc);
+        ~WojsonMap();
         
         inline virtual void getBookends(char &start, char &end) { 
             start = '{';

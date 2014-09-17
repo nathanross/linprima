@@ -1,4 +1,5 @@
 #include "wojson.hpp"
+#include "debug.hpp"
 
 using namespace std;
 using namespace fixedstr;
@@ -10,7 +11,7 @@ namespace wojson {
     const fixedstr::SFixedStr NULLSTR("null");
     const char LITERAL_HINT = '#';
 
-    const char * MARKER = "@%$^";
+    const char * MARKER = "@%";
     const int MARKERLEN = strlen(MARKER);
     const fixedstr::SFixedStr COMMA(",");
     const fixedstr::SFixedStr COMMAQUOTE(",\"");
@@ -29,6 +30,7 @@ namespace wojson {
     }
 
     fixedstr::FixedStr WojsonColl::toCompressedString() {
+        //DEBUGIN("toCompressedString()", false);
         size_t len=2; //+2 bookends
         for (size_t s=0; s<segments.size(); s++) {
             len += fixedstr::length(segments[s]);
@@ -48,8 +50,8 @@ namespace wojson {
         long seglength;
 
         for (size_t s=0; s<segments.size(); s++) {
-            char * segchars = fixedstr::data(segments[s]);
-            long seglength = fixedstr::length(segments[s]);
+            segchars = fixedstr::data(segments[s]);
+            seglength = fixedstr::length(segments[s]);
             memcpy(outchars+outpos, segchars, seglength);
             outpos+= seglength;
         }
@@ -62,6 +64,8 @@ namespace wojson {
 
     WojsonArr::WojsonArr(WojsonDocument *docArg) :
         WojsonColl(docArg) {
+    }
+    WojsonArr::~WojsonArr() {
     }
 
     //string is inserted directly w/o quotes.
@@ -90,7 +94,7 @@ namespace wojson {
         if (!first) {
             segments.push_back(COMMA.f);
         } else { first = false; }
-        segments.push_back(val);
+        segments.push_back(val.f);
     }
 
     void WojsonArr::scopedPush(const fixedstr::SFixedStr &val) {
@@ -100,7 +104,7 @@ namespace wojson {
             segments.push_back(QUOTE.f);
             first = false; 
         }
-        segments.push_back(val);
+        segments.push_back(val.f);
         segments.push_back(QUOTE.f);
     }
 
@@ -117,6 +121,9 @@ namespace wojson {
         WojsonColl(doc) {
     }
 
+    WojsonMap::~WojsonMap() {
+    }
+
     void WojsonMap::moveAssignRaw(const fixedstr::SFixedStr &key, 
                                   fixedstr::FixedStr val) {
         if (!first) {
@@ -125,7 +132,7 @@ namespace wojson {
             segments.push_back(QUOTE.f);
             first = false; 
         }
-        segments.push_back(key);
+        segments.push_back(key.f);
         segments.push_back(KEYMID_RAW.f);
         segments.push_back(val);
 
@@ -141,7 +148,7 @@ namespace wojson {
             segments.push_back(QUOTE.f);
             first = false; 
         }
-        segments.push_back(key);
+        segments.push_back(key.f);
         segments.push_back(KEYMID.f);
         segments.push_back(val);
         segments.push_back(QUOTE.f);
@@ -171,9 +178,9 @@ namespace wojson {
             segments.push_back(QUOTE.f);
             first = false; 
         }
-        segments.push_back(key);
+        segments.push_back(key.f);
         segments.push_back(KEYMID.f);
-        segments.push_back(val);
+        segments.push_back(val.f);
         segments.push_back(QUOTE.f);
     }
 
@@ -218,7 +225,7 @@ namespace wojson {
     SFixedStr WojsonDocument::toDecompressedString(WojsonMap *map,
                                                    bool final,
                                                    const char ** decoder) {
-
+        //DEBUGIN("toDecompressedString()", false);
         std::vector<const char*> dataStack;
         std::vector<long> lenStack;
         std::vector<long> posStack;
@@ -262,10 +269,11 @@ namespace wojson {
 
 
         int objExpandSeq = 0;
-        char c,lastChar;
+        char c;
+        //char lastChar;
         long texpAddr;
         long texpVal;
-        int ignoreNextStrval;
+        //int ignoreNextStrval;
         const char * decodedPtr;
         size_t addr;
             
@@ -461,8 +469,9 @@ namespace wojson {
         }*/
 
     fixedstr::FixedStr WojsonDocument::regColl(size_t *retAddr, 
-                                               fixedstr::FixedStr collCompressedString) {
+                                fixedstr::FixedStr collCompressedString) {
         //62**6 includes ulong_max, which is used as the limit for # of supported nodes.
+        //DEBUGIN("regColl", false);
         char rev[6], subst[10]; //assumes marker not > 4 chars.
         finishedCollRegistry.push_back(collCompressedString);
         size_t pos = finishedCollRegistry.size()-1;

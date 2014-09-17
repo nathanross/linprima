@@ -4,18 +4,16 @@
 #include "stringutils.hpp"
 #include "jsonutils.hpp"
 #include "debug.hpp"
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
+#include <string>
 using namespace std;
-using namespace rapidjson;
 using namespace wojson;
 using namespace fixedstr;
 
 #define reqinline inline
 
-reqinline
-fixedstr::FixedStr lstr(string in) {
-    in.insert(wojson::LITERAL_HINT,0);
-    return fixedstr::getFixedStr(in);
-}
+
 
 reqinline
 fixedstr::FixedStr fstr(string in) {
@@ -151,15 +149,11 @@ void Node::regNoadd(const vector<RegexLeg> paths, Node * child) {
     //DEBUGOUT("Node::regNoAdd", false);
 }
 
-#ifdef LIMITJSON
-
 void Node::lateResolve() {
     doc->replaceCollContents(completedPos,
                             jv->toCompressedString());
     delNode(this);       
 }
-
-#endif
 
 void Node::reg(const SFixedStr &path, Node * child) { 
     //DEBUGIN("reg(string path, Node &child)", false);
@@ -198,7 +192,7 @@ void Node::reg(const SFixedStr &path, Node * child) {
 
     //DEBUGOUT("node::reg", false);
 }
-void Node::regPush(WojsonArr* arr, SFixedStr &path, int &ctr,
+void Node::regPush(WojsonArr* arr, const SFixedStr &path, int &ctr,
                    Node* child) {
     if (child != nullptr) {
         if (child->type == Syntax[Synt::SequenceExpression]) {
@@ -312,7 +306,7 @@ void Node::processComment() {
     shared_ptr<NodesComments> lastChild;
     shared_ptr<NodesComments> last;
     thisnc.reset(new NodesComments(*jv, doc));
-    bool LEADING = true, TRAILING= false;
+    //bool LEADING = true, TRAILING= false;
     if (bottomRight->size() > 0) {
         last = bottomRight->back();
     }
@@ -687,14 +681,19 @@ void Node::finishLiteral(ptrTkn token) {
     DEBUGIN("finishLiteral(ptrTkn token)", false);
     initJV(Synt::Literal);
     if (token->literaltype == LiteralType["String"]) {
+        name = token->strvalue;
         jv->moveAssign(text::_value, lstr(token->strvalue));
     } else if (token->literaltype == LiteralType["Int"]) {
+        name = to_string(token->intvalue);
         jv->assign(text::_value, token->intvalue);
     } else if (token->literaltype == LiteralType["Double"]) {
-        jv->moveAssignRaw(text::_value, lstr(token->strvalue));
+        name = token->strvalue;
+        jv->moveAssignRaw(text::_value, fstr(token->strvalue));
     } else if (token->literaltype == LiteralType["Bool"]) {
+        name = (token->bvalue)? "true": "false";
         jv->assign(text::_value, token->bvalue);
     } else if (token->literaltype == LiteralType["Null"]) {
+        name = "null";
         jv->assignNull(text::_value);
     } else if (token->literaltype == LiteralType["Regexp"]) {
         WojsonMap reg = doc->getMap();

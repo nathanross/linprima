@@ -86,7 +86,7 @@ def main():
             hpp.append(assign_h.format(capterm+suffixString['full']))
             cpp.append(assign.format(capterm+suffixString['full'], term))
     for lowmem in [True, False]:
-        hpp.append(("#ifdef" if lowmem else "#ifndef") + " LOWMEM")
+        hpp.append(("#ifndef" if lowmem else "#ifdef") + " NOTEXP")
         cpp.append(hpp[-1])
         for term in allterms:
             capterm = "_" + term.replace("<","Z").replace(">","Z")

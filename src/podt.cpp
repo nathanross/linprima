@@ -1,16 +1,15 @@
 #line 1 "podt.cpp"
 #include "podt.hpp"
+#include "jsonutils.hpp"
 #include "debug.hpp"
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
 
 using namespace std;
 using namespace rapidjson;
 using namespace wojson;
 
 
-fixedstr::FixedStr lstr(string in) {
-    in.insert(wojson::LITERAL_HINT,0);
-    return fixedstr::getFixedStr(in);
-}
 
 fixedstr::FixedStr fstr(string in) {
     return fixedstr::getFixedStr(in);

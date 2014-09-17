@@ -26,12 +26,11 @@ public:
     //#throw_begin
     Node* parseProgram();
     //#throw_end
-    void parse(wojson::WojsonDocument &doc,
-               const bool retErrAsJson);
+    fixedstr::SFixedStr parse(const bool retErrAsJson);
 private:    
     wojson::WojsonDocument * doc;
 
-std::shared_ptr<LinprimaTask> task;
+    std::shared_ptr<LinprimaTask> task;
     const char16_t * sourceRaw;
     const int length;
     int& idx;
@@ -101,12 +100,12 @@ std::shared_ptr<LinprimaTask> task;
     //std::vector< Node* > parseStatementList();
     Node* parseBlock();
     Node* parseVariableIdentifier();
-    Node* parseVariableDeclaration(const fixedstr::SFixedStr &kind);
-    void parseVariableDeclarationList(const fixedstr::SFixedStr &kind, 
+    Node* parseVariableDeclaration(const fixedstr::SFixedStr *kind);
+    void parseVariableDeclarationList(const fixedstr::SFixedStr *kind, 
                                       Node *parent);
     Node* parseVariableStatement(Node* node);
     Node* parseConstLetDeclaration(const std::string kind, 
-                                   const fixedstr::SFixedStr &kindref);
+                                   const fixedstr::SFixedStr *kindref);
     Node* parseEmptyStatement();
     Node* parseExpressionStatement(Node *node);
     Node* parseIfStatement(Node *node);
@@ -118,7 +117,7 @@ std::shared_ptr<LinprimaTask> task;
     Node* parseBreakStatement(Node* node);
     Node* parseReturnStatement(Node* node);
     Node* parseWithStatement(Node* node);
-    Node* parseSwitchCase();
+    Node* parseSwitchCase(bool &testIsNull);
     Node* parseSwitchStatement(Node *node);
     Node* parseThrowStatement(Node* node);
     Node* parseCatchClause();
@@ -134,7 +133,7 @@ std::shared_ptr<LinprimaTask> task;
     Node* parseFunctionExpression();
     Node* parseSourceElement();
     //std::vector< Node* > parseSourceElements();
-    bool parseSourceElements(Node * parent);
+    int parseSourceElements(Node * parent);
     //#throw_end
 };
 #endif

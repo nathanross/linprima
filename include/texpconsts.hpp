@@ -157,7 +157,7 @@ extern const char * _let_FULL;
 extern const char * _super_FULL;
 extern const char * _UnresolvedNode_FULL;
 extern const char * _yield_FULL;
-#ifdef LOWMEM
+#ifndef NOTEXP
 extern const char * _line_;
 extern const fixedstr::SFixedStr _line;
 extern const char * _column_;
@@ -467,7 +467,7 @@ extern const fixedstr::SFixedStr _yield;
 
  extern const char * decoder[153];
 #endif
-#ifndef LOWMEM
+#ifdef NOTEXP
 extern const fixedstr::SFixedStr _line;
 extern const fixedstr::SFixedStr _column;
 extern const fixedstr::SFixedStr _type;

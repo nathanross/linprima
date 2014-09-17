@@ -34,6 +34,7 @@ if c_asmjs:
    gdb = 0
    t52 = 1
    profiny = 0
+   emccprofiling = int(ARGUMENTS.get('profiling', 0))
    lowmem = int(ARGUMENTS.get('lowmem', 1))
    limitjson = int(ARGUMENTS.get('limj', 1))
 #-----------------------
@@ -51,6 +52,7 @@ if c_clang or c_gcc:
     #use asmjs stack-based exceptions instead of throws.    
     t52 = int(ARGUMENTS.get('t52', 0))
 
+    emccprofiling = 0
     profiny = int(ARGUMENTS.get('profiny', 0))
     if profiny:
         graph = int(ARGUMENTS.get('graph', 0)) 
@@ -136,6 +138,9 @@ if optim <= 4:
 else:
     flagstr += 'z '
     linkflagstr += 'z '
+
+if emccprofiling:
+    flagstr += ' -profiling -g4 '
 
 if profiny:
    flagstr += ' -D PROFINY '
