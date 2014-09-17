@@ -1,4 +1,4 @@
-//#line 1 "ParseFuncs.cpp"
+#line 1 "ParseFuncs.cpp"
 #include "ParseFuncs.hpp"
 #include "stringutils.hpp"
 #include "texpconsts.hpp"
@@ -890,43 +890,61 @@ Node* ParseTools::parseUnaryExpression() {
 int ParseTools::binaryPrecedence(const TokenStruct *token, 
                      const bool allowIn) {
     DEBUGIN(" binaryPrecedence(Tokenstruct token, bool allowIn)", false);
-    int prec = 0;
-    string tokval;
+    //int prec = 0;
+
 
     if (token->type != TknType::Punctuator 
         && token->type != TknType::Keyword) {
         DEBUGOUT("binaryPrec", false); 
         return 0;
     }
-    tokval = token->strvalue;
-
-    if (tokval == "||") {
-        prec = 1;
-    } else if (tokval == "&&") {
-        prec = 2;
-    } else if (tokval == "|") {
-        prec = 3;
-    } else if (tokval == "^") {
-        prec = 4;
-    } else if (tokval == "&") {
-        prec = 5;
-    } else if (has(tokval, {"==", "!=", "===", "!=="})) {
-        prec = 6;
-    } else if (has(tokval, {"<", ">", "<=", ">=", "instanceof"})) {
-        prec = 7;
-    } else if (tokval == "in") {
-        prec = allowIn ? 7 : 0;
-    } else if (has(tokval,
-                   {"<<", ">>", ">>>"})) {
-        prec = 8;
-    } else if (tokval == "+" || tokval == "-") {
-        prec = 9;
-    } else if (has(tokval, {"*", "/", "%"})) {
-        prec = 11;
-    }
+    //string tokval = token->strvalue;
+    const string &tokval = token->strvalue;
 
     DEBUGOUT("binaryPrec", false);
-    return prec;
+    switch (tokval[0]) {
+    case '|':
+        if (tokval == "||") { return 1; }
+        if (tokval == "|") { return 3; }
+        break;
+    case '&':
+        if (tokval == "&&") { return 2; }
+        if (tokval == "&") { return 5; }
+        break;
+    case '^':
+        if (tokval.length() == 1) { return 4; }
+        break;
+    case '=':
+    case '!':
+        if (tokval == "==" || tokval == "!=" 
+            || tokval == "===" || tokval == "!==") {
+            return 6;
+        }           
+        break;
+    case 'i':
+        if ((tokval == "in" && allowIn)
+            || tokval == "instanceof") { return 7; }
+        break;
+    case '<':
+    case '>':
+        if (tokval.length() == 1 || tokval == "<=" 
+            || tokval == ">=") { return 7; }
+        if (tokval == "<<" || tokval == ">>" 
+            || tokval == ">>>") { return 8; }                
+        break;
+    case '+':
+    case '-':
+        if (tokval.length() == 1) { return 9; }
+        break;
+    case '*':
+    case '/':
+    case '%':
+        if (tokval.length() == 1) { return 11; }
+        break;
+    default:
+        return 0;
+    }
+    return 0;
 }
 
 // 11.5 Multiplicative Operators
