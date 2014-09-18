@@ -83,6 +83,7 @@ namespace wojson {
 
     //string is inserted directly w/o quotes.
     void WojsonArr::movePushRaw(fixedstr::FixedStr val) {
+        //DEBUGIN("movePushRaw", false);
         if (!first) {
             segments.push_back(COMMA.f);
         } else { first = false; }
@@ -90,6 +91,7 @@ namespace wojson {
         segmentsToDelete.push_back(val);
     }
     void WojsonArr::movePush(fixedstr::FixedStr val) {
+        //DEBUGIN("movePush", false);
         if (!first) {
             segments.push_back(COMMAQUOTE.f);
         } else { 
@@ -104,6 +106,7 @@ namespace wojson {
     //for when the strings' lifetime exceeds 
     //that of this WojsonColl
     void WojsonArr::scopedPushRaw(const fixedstr::SFixedStr &val) {
+        //DEBUGIN("scopedPushRaw", false);
         if (!first) {
             segments.push_back(COMMA.f);
         } else { first = false; }
@@ -111,6 +114,7 @@ namespace wojson {
     }
 
     void WojsonArr::scopedPush(const fixedstr::SFixedStr &val) {
+        //DEBUGIN("scopedPush", false);
         if (!first) {
             segments.push_back(COMMAQUOTE.f);
         } else {                 
@@ -119,15 +123,6 @@ namespace wojson {
         }
         segments.push_back(val.f);
         segments.push_back(QUOTE.f);
-    }
-
-    void WojsonArr::pushColl(WojsonColl * val) 
-    { movePush(doc->regColl(nullptr, val->toCompressedString())); }
-
-    size_t WojsonArr::pushReserve() {
-        size_t retAddr;
-        movePush(doc->regColl(&retAddr, nullptr));
-        return retAddr;
     }
 
     WojsonMap::WojsonMap(WojsonDocument *doc) :                        
@@ -139,6 +134,7 @@ namespace wojson {
 
     void WojsonMap::moveAssignRaw(const fixedstr::SFixedStr &key, 
                                   fixedstr::FixedStr val) {
+        //DEBUGIN("moveAssignRaw", false);
         if (!first) {
             segments.push_back(COMMAQUOTE.f);
         } else { 
@@ -154,7 +150,7 @@ namespace wojson {
 
     void WojsonMap::moveAssign(const fixedstr::SFixedStr &key, 
                                fixedstr::FixedStr val) {
-
+        //DEBUGIN("moveAssign", false);
         if (!first) {
             segments.push_back(COMMAQUOTE.f);
         } else { 
@@ -171,6 +167,7 @@ namespace wojson {
 
     void WojsonMap::scopedAssignRaw(const fixedstr::SFixedStr &key, 
                                     const fixedstr::SFixedStr &val) {
+        //DEBUGIN("scopedAssignRaw", false);
         if (!first) {
             segments.push_back(COMMAQUOTE.f);
         } else { 
@@ -184,7 +181,7 @@ namespace wojson {
     
     void WojsonMap::scopedAssign(const fixedstr::SFixedStr &key, 
                                  const fixedstr::SFixedStr &val) {
-
+        //DEBUGIN("scopedAssign", false);
         if (!first) {
             segments.push_back(COMMAQUOTE.f);
         } else { 
@@ -197,37 +194,20 @@ namespace wojson {
         segments.push_back(QUOTE.f);
     }
 
-    size_t WojsonMap::assignReserve(const fixedstr::SFixedStr &key) {
-        size_t retAddr;
-        moveAssign(key,
-                   doc->regColl(&retAddr, nullptr));
-        return retAddr;
-    }
-
-    void WojsonMap::assignColl(const fixedstr::SFixedStr &key, 
-                               WojsonColl * val) 
-    { moveAssign(key, doc->regColl(nullptr, val->toCompressedString())); }
-
     SFixedStr WojsonMap::toDecompressedString(bool final,
                                               const char ** decoder) {
         return doc->toDecompressedString(this, final, decoder);
     }
 
-    void ReservedWojsonMap::complete() {
-        doc->replaceCollContents(onCompleteAddr, toCompressedString());
-    }
-    void ReservedWojsonArr::complete() {
-        doc->replaceCollContents(onCompleteAddr, toCompressedString());
-    }
-
     WojsonDocument::WojsonDocument(bool useTexpansionsArg) :
             useTexpansions(useTexpansionsArg),
-            rootmap(this) {       
+            rootmap(new WojsonMap(this)) {       
     }
     WojsonMap& WojsonDocument::getRootMap() {
-        return rootmap;
+        return *rootmap;
     }
     WojsonDocument::~WojsonDocument() {
+        delete rootmap;
         for (size_t i=0; i<finishedCollRegistry.size(); i++) {
             if (finishedCollRegistry[i] != nullptr) {
                 free(finishedCollRegistry[i]);
@@ -261,7 +241,7 @@ namespace wojson {
         //putStack: stack of expanded strings.
         long inpos=0;
 
-        bool isRoot = (map == &rootmap);
+        bool isRoot = (map == rootmap);
 
         int REALLOC_SLACK = 200; 
         //should be longer than longest text expansion + 10.
@@ -542,7 +522,7 @@ int main() {
     root.assignColl(somearr.f, &arr);
 
     SFixedStr reserved("3");
-    auto m = doc->getReservedMap(&root, reserved.f);
+    ReservedWojsonMap m(doc, &root, reserved);
 
     std::string nullkey = std::string({wojson::LITERAL_HINT});
     nullkey.append("null");

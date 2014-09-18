@@ -15,7 +15,42 @@ namespace wojson {
 
     extern const char LITERAL_HINT;
 
-    class WojsonDocument;
+    class WojsonMap;
+    class WojsonArr;
+    class WojsonColl;
+    class WojsonDocument {
+    public:
+        WojsonDocument(bool useTexpansionsArg);
+
+        ~WojsonDocument();
+
+        WojsonMap& getRootMap();
+
+
+        fixedstr::SFixedStr toDecompressedString(WojsonMap *map,
+                                         bool final,
+                                         const char ** decoder);
+
+        reqinline
+        fixedstr::SFixedStr toDecompressedString(WojsonMap *map,
+                                                       bool final) {
+            return toDecompressedString(map, final, nullptr);
+        }
+
+        fixedstr::FixedStr regColl(size_t *retAddr, 
+                                   fixedstr::FixedStr collCompressedString);
+        
+        reqinline
+        void replaceCollContents(size_t addr, fixedstr::FixedStr in) {
+            finishedCollRegistry[addr] = in;
+        }
+
+    private:
+        std::vector<fixedstr::FixedStr> finishedCollRegistry;
+        bool useTexpansions;
+        WojsonMap * rootmap;
+    };
+
 
     class WojsonColl  {
     public:
@@ -78,9 +113,18 @@ namespace wojson {
         void push(double val) 
         { movePushRaw(fixedstr::getFixedStr(std::to_string(val))); }
 
-        void pushColl(WojsonColl * val);
+        reqinline
+        void pushColl(WojsonColl * val) {
+            movePush(doc->regColl(nullptr, 
+                                  val->toCompressedString())); 
+        }
 
-        size_t pushReserve();
+        reqinline
+        size_t pushReserve() {
+            size_t retAddr;
+            movePush(doc->regColl(&retAddr, nullptr));
+            return retAddr;
+        }
     private:
 
     };
@@ -136,10 +180,21 @@ namespace wojson {
                           fixedstr::getFixedStr(std::to_string(val))); 
         }
 
-        size_t assignReserve(const fixedstr::SFixedStr &key);
+        reqinline
+        size_t assignReserve(const fixedstr::SFixedStr &key) {
+            size_t retAddr;
+            moveAssign(key,
+                       doc->regColl(&retAddr, nullptr));
+            return retAddr;
+        }
 
+        reqinline
         void assignColl(const fixedstr::SFixedStr &key, 
-                               WojsonColl * val);
+                        WojsonColl * val) {
+            moveAssign(key, 
+                       doc->regColl(nullptr, 
+                                    val->toCompressedString()));
+        }
         // final: delete Colls in the finishedCollRegistry as they 
         // are integrated into the decompressed string. Only do 
         // this if you are done with this map and all children 
@@ -189,92 +244,55 @@ namespace wojson {
 
     class ReservedWojsonMap : public WojsonMap {
     public:
-        ReservedWojsonMap(WojsonDocument *doc,
-                          size_t onCompleteAddrArg) :
-            WojsonMap(doc),
-            onCompleteAddr(onCompleteAddrArg) {
+        ReservedWojsonMap(WojsonDocument *doc, 
+                          WojsonMap *map, 
+                          const fixedstr::SFixedStr &key) :
+            WojsonMap(doc) {
+            map->moveAssign(key, 
+                            doc->regColl(&onCompleteAddr, 
+                                         nullptr));
         }
-        void complete();
+
+        ReservedWojsonMap(WojsonDocument *doc, 
+                          WojsonArr *arr) :
+            WojsonMap(doc) {
+            arr->movePush(doc->regColl(&onCompleteAddr, 
+                                       nullptr));
+        }
+        reqinline
+        void complete() {
+            doc->replaceCollContents(onCompleteAddr, 
+                                     toCompressedString());
+        }
     private:
         size_t onCompleteAddr;
     };
 
     class ReservedWojsonArr : public WojsonArr {
-    public:  
-        ReservedWojsonArr(WojsonDocument *doc,
-                  size_t onCompleteAddrArg) : 
-            WojsonArr(doc),             
-            onCompleteAddr(onCompleteAddrArg) {
+    public:
+        ReservedWojsonArr(WojsonDocument *doc, 
+                          WojsonMap *map, 
+                          const fixedstr::SFixedStr &key) :
+            WojsonArr(doc) {
+            map->moveAssign(key, 
+                            doc->regColl(&onCompleteAddr, 
+                                         nullptr));
         }
-        void complete();
+
+        ReservedWojsonArr(WojsonDocument *doc, 
+                          WojsonArr *arr) :
+            WojsonArr(doc) {
+            arr->movePush(doc->regColl(&onCompleteAddr, 
+                                       nullptr));
+        }
+  
+        reqinline
+        void complete() {
+            doc->replaceCollContents(onCompleteAddr, 
+                                     toCompressedString());
+        }
     private:
         size_t onCompleteAddr;
-    };
-
-    class WojsonDocument {
-    public:
-        WojsonDocument(bool useTexpansionsArg);
-
-        ~WojsonDocument();
-
-        WojsonMap& getRootMap();
-
-        reqinline 
-        WojsonMap getMap() 
-        { return WojsonMap(this); }
-
-        reqinline 
-        WojsonArr getArr() 
-        { return WojsonArr(this); }
-
-        reqinline 
-        ReservedWojsonMap getReservedMap(WojsonArr *arr) {
-            return ReservedWojsonMap(this,
-                                     arr->pushReserve());
-        }
-
-        reqinline 
-        ReservedWojsonMap getReservedMap(WojsonMap *map, 
-                                 const fixedstr::SFixedStr &key) {
-            return ReservedWojsonMap(this,
-                                     map->assignReserve(key));
-        }
-        
-        reqinline 
-        ReservedWojsonArr getReservedArr(WojsonArr *arr) {
-            return ReservedWojsonArr(this,
-                                     arr->pushReserve());
-        }
-
-        reqinline 
-        ReservedWojsonArr getReservedArr(WojsonMap *map, 
-                                 const fixedstr::SFixedStr &key) {
-            return ReservedWojsonArr(this,
-                                     map->assignReserve(key));
-        }
-
-        fixedstr::SFixedStr toDecompressedString(WojsonMap *map,
-                                         bool final,
-                                         const char ** decoder);
-
-        reqinline
-        fixedstr::SFixedStr toDecompressedString(WojsonMap *map,
-                                                       bool final) {
-            return toDecompressedString(map, final, nullptr);
-        }
-
-        fixedstr::FixedStr regColl(size_t *retAddr, 
-                                   fixedstr::FixedStr collCompressedString);
-        
-        reqinline
-        void replaceCollContents(size_t addr, fixedstr::FixedStr in) {
-            finishedCollRegistry[addr] = in;
-        }
-
-    private:
-        std::vector<fixedstr::FixedStr> finishedCollRegistry;
-        bool useTexpansions;
-        WojsonMap rootmap;
     };
 
 }

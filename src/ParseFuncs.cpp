@@ -236,7 +236,7 @@ Node* ParseTools::parseArrayInitialiser() {
     const SFixedStr& path = text::_elements;
 
     node->initJV(Synt::ArrayExpression);
-    auto vec = doc->getReservedArr(node->jv, path);
+    ReservedWojsonArr vec(doc, node->jv, path);
     while (!match("]")) {
 
         if (match(",")) {
@@ -450,7 +450,7 @@ Node* ParseTools::parseObjectInitialiser() {
 
     node->initJV(Synt::ObjectExpression);
     const SFixedStr &path = text::_properties;
-    auto vec = doc->getReservedArr(node->jv, path);
+    ReservedWojsonArr vec(doc, node->jv, path);
     int ctr=0;
     expect("{");
 
@@ -621,7 +621,7 @@ Node* ParseTools::parsePrimaryExpression() {
 void ParseTools::parseArguments(Node *parent) {
     DEBUGIN(" parseArguments()", false);
     const SFixedStr& path = text::_arguments;
-    auto vec = doc->getReservedArr(parent->jv, path);
+    ReservedWojsonArr vec(doc, parent->jv, path);
     int ctr=0;    
     expect("(");
     if (!match(")")) {
@@ -692,7 +692,7 @@ Node* ParseTools::parseNewExpression() {
     if (match("(")) { 
         parseArguments(node);
     } else {
-        WojsonArr emptyarr = doc->getArr(); 
+        WojsonArr emptyarr(doc); 
         //! supposed to be empty map or empty arr?
         node->jv->assignColl(text::_arguments,
                           &(emptyarr));
@@ -1421,7 +1421,7 @@ Node* ParseTools::parseBlock() {
 
     node->initJV(Synt::BlockStatement);
     const SFixedStr& path = text::_body;
-    auto vec = doc->getReservedArr(node->jv, path);
+    ReservedWojsonArr vec(doc, node->jv, path);
     int ctr=0;
 
     expect("{");
@@ -1497,7 +1497,7 @@ void ParseTools::parseVariableDeclarationList(const SFixedStr *kind,
                                                          Node *parent) {
     DEBUGIN("parseVariableDeclarationList", false);
     const SFixedStr &path = text::_declarations;
-    auto vec = doc->getReservedArr(parent->jv, path);
+    ReservedWojsonArr vec(doc, parent->jv, path);
     int ctr=0;
 
     parent->numChildren = 0;
@@ -2023,7 +2023,7 @@ Node* ParseTools::parseSwitchCase(bool &testIsNull) {
     testIsNull = (test == nullptr);
     node->reg(text::_test, test);
     const SFixedStr& path = text::_consequent;
-    auto vec = doc->getReservedArr(node->jv, path);
+    ReservedWojsonArr vec(doc, node->jv, path);
     int ctr;
     expect(":");
 
@@ -2377,7 +2377,7 @@ Node* ParseTools::parseFunctionSourceElements() {
 
     node->initJV(Synt::BlockStatement);
     const SFixedStr &path = text::_body;
-    auto vec = doc->getReservedArr(node->jv, path);
+    ReservedWojsonArr vec(doc, node->jv, path);
     int ctr=0;
     expect("{");
 
@@ -2795,7 +2795,7 @@ int ParseTools::parseSourceElements(Node * parent) {
     bool hasElements = false;
 
     const SFixedStr &path = text::_body;
-    auto vec = doc->getReservedArr(parent->jv, path);
+    ReservedWojsonArr vec(doc, parent->jv, path);
     int ctr=0;
 
     firstRestricted->isNull = true;
@@ -2865,13 +2865,13 @@ Node* ParseTools::parseProgram() {
     node->finish();
 
     if (task->extra.range) {
-        WojsonArr rangearr = doc->getArr();
+        WojsonArr rangearr(doc);
         rangearr.push(node->range[0]);
         rangearr.push(node->range[1]);        
         node->jv->assignColl(text::_range, &rangearr);
     }
     if (task->extra.loc) {
-        WojsonMap locjson = doc->getMap();
+        WojsonMap locjson(doc);
         node->loc.toJson(&locjson, doc);
         node->jv->assignColl(text::_loc, &locjson);
     }
@@ -3009,7 +3009,7 @@ SFixedStr ParseTools::parse(const bool retErrorsAsJson) {
 #endif
     outJson.assignColl(text::_program, programNode->jv);
 
-    WojsonArr regexList = doc.getArr();
+    WojsonArr regexList(&doc);
     programNode->regexPaths2json(regexList, &doc);
 
     outJson.assignColl(text::_regexp, &regexList);

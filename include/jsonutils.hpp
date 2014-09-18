@@ -21,9 +21,9 @@ void vec2jsonCallback(wojson::WojsonMap *root,
                                           wojson::WojsonDocument *doc,
                                           const ExtraStruct*extra)> const& f) {
     //DEBUGIN("vec2JsonCallback", false);
-    wojson::WojsonArr arr = doc->getArr();
+    wojson::WojsonArr arr(doc);
     for (int i=0; i<in.size(); i++) {
-        wojson::WojsonMap el = doc->getMap(); 
+        wojson::WojsonMap el(doc);
         f(in[i], &el, doc, extra);
         arr.pushColl(&el);
     }

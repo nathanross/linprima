@@ -87,6 +87,7 @@ void Node::lookavailInit() {
 
 
 void Node::delNode(Node * toDel) {
+    //DEBUGIN("delnode", true);
     if (toDel == nullptr) { return; }
     auto iter = find(heapNodes->begin(), heapNodes->end(), toDel);
     if (iter != heapNodes->end()) { heapNodes->erase(iter); }
@@ -109,44 +110,49 @@ void Node::unused() {
 
 //# different name to prevent easy bug of forgetting the string.
 //# root path, should be first in vector, then path within it, etc.
-void Node::regNoadd(const vector<RegexLeg> paths, Node * child) { 
-    //string debugmsg = " Node::regNoadd(vector<string> paths, Node &child) :::";
-    //debugmsg.append(paths[0]);
-    //DEBUGIN(debugmsg, false);
+void Node::regNoadd(Node * child) { 
+    //DEBUGIN("regNoAdd", false);
     if (child == nullptr) { return; }
 
     if (child->hasRange) {
-        WojsonArr rangearr = doc->getArr();
+        WojsonArr rangearr(doc);
         //bool m = find(heapNodes.begin(), haystack.end(), needle) != haystack.end();
         //int n = (m)? -1:0;
         //        rangearr.PushBack(n, *alloc);
         rangearr.push(child->range[0]);
         rangearr.push(child->range[1]);
-        child->jv->assignColl(text::_range, &rangearr);
+        //rangearr.movePushRaw(fixedstr::getFixedStr(std::to_string(child->range[0])));
+        //rangearr.movePushRaw(fixedstr::getFixedStr(std::to_string(child->range[1])));
+        child->jv->moveAssign(text::_range, 
+                              doc->regColl(nullptr, rangearr.toCompressedString())); 
+        //child->jv->assignColl(text::_range, &rangearr);
     } 
     if (child->hasLoc) {        
-        WojsonMap locjson = doc->getMap();
+        WojsonMap locjson(doc);
         child->loc.toJson(&locjson, doc);
-        child->jv->assignColl(text::_loc, &locjson);
-    }
-    if (child->regexPaths.size() > 0) {
-        if (child->regexPaths[0][0].isStart) {
-            vector<RegexLeg> reverse;
-            for (int i=paths.size()-1; i >= 0; i--) {
-                reverse.push_back(paths[i]);
-            }
-            regexPaths.push_back(reverse);
-        } else {
-            for (unsigned int i=0; i<child->regexPaths.size(); i++) {
-                regexPaths.push_back(child->regexPaths[i]);
-                for (int j=paths.size()-1; j>=0; j--) {
-                    regexPaths.back().push_back(paths[j]);
-                }
-
-            }
-        }
+        child->jv->moveAssign(text::_loc, 
+                              doc->regColl(nullptr, locjson.toCompressedString())); 
+        //child->jv->assignColl(text::_loc, &locjson);
     }
     //DEBUGOUT("Node::regNoAdd", false);
+}
+
+void Node::moveRegexes(const vector<RegexLeg> &paths, Node *child) {
+    if (child->regexPaths[0][0].isStart) {
+        vector<RegexLeg> reverse;
+        for (int i=paths.size()-1; i >= 0; i--) {
+            reverse.push_back(paths[i]);
+        }
+        regexPaths.push_back(reverse);
+    } else {
+        for (unsigned int i=0; i<child->regexPaths.size(); i++) {
+            regexPaths.push_back(child->regexPaths[i]);
+            for (int j=paths.size()-1; j>=0; j--) {
+                regexPaths.back().push_back(paths[j]);
+            }
+
+        }
+    }
 }
 
 void Node::lateResolve() {
@@ -171,19 +177,22 @@ void Node::reg(const SFixedStr &path, Node * child) {
             child->reg(text::_left, child->leftAssign);
             child->reg(text::_right, child->rightAssign);
         }
-        vector<RegexLeg> pathlist;
-        pathlist.emplace_back((&(path)));
-        regNoadd(pathlist, child);
+        regNoadd(child);
+        if (child->regexPaths.size() > 0) {
+            vector<RegexLeg> pathlist;
+            pathlist.emplace_back((&(path)));
+            moveRegexes(pathlist, child);
+        }
+        
+        if (( ! task->extra.attachComment) 
+            || ( ! child->thisnc) 
+            || child->thisnc->resolved) {
 
-        if (task->extra.attachComment 
-            && child->thisnc 
-            && !(child->thisnc->resolved)) {
-            child->completedPos = jv->assignReserve(path);
-          
-            child->thisnc->setNodeDetached(child);
-        } else {
             jv->assignColl(path, child->jv);
             delNode (child); 
+        } else {
+            child->completedPos = jv->assignReserve(path);          
+            child->thisnc->setNodeDetached(child);
         }
 
     } else {
@@ -205,11 +214,15 @@ void Node::regPush(WojsonArr* arr, const SFixedStr &path, int &ctr,
             child->reg(text::_value, child->rightAssign);
             child->jv->scopedAssign(text::_kind, *(child->spareStrref));
         }
-        vector<RegexLeg> pathlist;
-        pathlist.emplace_back((&(path)));
-        //child not added yet, so no need for ->Size()-1
-        pathlist.emplace_back((ctr));
-        regNoadd(pathlist, child);
+
+        regNoadd(child);
+        if (child->regexPaths.size() > 0) {
+            vector<RegexLeg> pathlist;
+            pathlist.emplace_back((&(path)));
+            //child not added yet, so no need for ->Size()-1
+            pathlist.emplace_back((ctr));
+            moveRegexes(pathlist, child);
+        }
         ++ctr;
 
         if (task->extra.attachComment 
@@ -228,7 +241,7 @@ void Node::regPush(WojsonArr* arr, const SFixedStr &path, int &ctr,
 }
 void Node::nodeVec(const SFixedStr &path, const vector< Node* > & nodes) { 
     //DEBUGIN("nodeVec(string path, vector< Node > & nodes)", false);
-    WojsonArr arr = doc->getArr();
+    WojsonArr arr(doc);
     for (unsigned int i=0; i<nodes.size(); i++) {
         if (nodes[i] != nullptr) {
             if (nodes[i]->type == Syntax[Synt::SequenceExpression]) {
@@ -241,11 +254,16 @@ void Node::nodeVec(const SFixedStr &path, const vector< Node* > & nodes) {
                 nodes[i]->reg(text::_value, nodes[i]->rightAssign);
                 nodes[i]->jv->scopedAssign(text::_kind, *(nodes[i]->spareStrref));
             }
-            vector<RegexLeg> pathlist;
-            pathlist.emplace_back((&(path)));
-            pathlist.emplace_back(i);
-            regNoadd(pathlist, nodes[i]);
 
+            regNoadd(nodes[i]);
+
+            if (nodes[i]->regexPaths.size() > 0) {
+                vector<RegexLeg> pathlist;
+                pathlist.emplace_back((&(path)));
+                //child not added yet, so no need for ->Size()-1
+                pathlist.emplace_back((i));
+                moveRegexes(pathlist, nodes[i]);
+            }
             if (task->extra.attachComment 
                 && nodes[i]->thisnc 
                 && !(nodes[i]->thisnc->resolved)) {
@@ -268,14 +286,14 @@ void Node::nodeVec(const SFixedStr &path, const vector< Node* > & nodes) {
 void Node::initJV(const Synt in) { 
     //DEBUGIN("initJV", false);
     type = Syntax[in];
-    jv = new WojsonMap(doc->getMap());
+    jv = new WojsonMap(doc);
     jv->scopedAssign(text::_type, *type);
 }
 void Node::regexPaths2json(WojsonArr& out, WojsonDocument *doc) { 
     //DEBUGIN("Node::regexPaths2json()", false);
     
     for (unsigned int i=0; i<regexPaths.size(); i++) {
-        WojsonArr path = doc->getArr();
+        WojsonArr path(doc);
         
         for (int j=regexPaths[i].size()-1; j>=0; j--) {
             if (regexPaths[i][j].isNum) {
@@ -696,7 +714,7 @@ void Node::finishLiteral(ptrTkn token) {
         name = "null";
         jv->assignNull(text::_value);
     } else if (token->literaltype == LiteralType["Regexp"]) {
-        WojsonMap reg = doc->getMap();
+        WojsonMap reg(doc);
         reg.moveAssign(text::_regexpBody, 
                       lstr(token->strvalue));
         reg.moveAssign(text::_regexpFlags,
@@ -777,13 +795,13 @@ void Node::finishProgram(const vector< Node* >& body) {
     this->finish();
     //no parent node to call reg so add these atts. here.
     if (task->extra.range) {
-        WojsonArr rangearr = doc->getArr();
+        WojsonArr rangearr(doc);
         rangearr.push(this->range[0]);
         rangearr.push(this->range[1]);
         jv->assignColl(text::_range, &rangearr);
     }
     if (task->extra.loc) {
-        WojsonMap locjson = doc->getMap();
+        WojsonMap locjson(doc);
         this->loc.toJson(&locjson, doc);
         jv->assignColl(text::_loc, &locjson);
     }

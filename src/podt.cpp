@@ -71,12 +71,12 @@ Loc::Loc(int lineNumber, int idx, int lineStart) :
 
 void Loc::toJson(WojsonMap* out, WojsonDocument* doc) const { 
     //DEBUGIN(" locToJson(Loc l)", false);
-    WojsonMap startjson = doc->getMap();
+    WojsonMap startjson(doc);
     startjson.assign(text::_line, startLine);
     startjson.assign(text::_column, startColumn);
     out->assignColl(text::_start, &startjson);
     if (this->endLine != -1) {
-        WojsonMap endjson = doc->getMap();
+        WojsonMap endjson(doc);
         endjson.assign(text::_line, endLine);
         endjson.assign(text::_column, endColumn);
         out->assignColl(text::_end, &endjson);
@@ -105,13 +105,13 @@ void Comment::toJson(WojsonMap* out, WojsonDocument* doc,
     out->scopedAssign(text::_type, *type);
     out->moveAssign(text::_value, lstr(value));
     if (extra->range) {
-        WojsonArr rangearr = doc->getArr();
+        WojsonArr rangearr(doc);
         rangearr.push(this->range[0]);
         rangearr.push(this->range[1]);
         out->assignColl(text::_range, &rangearr);
     }
     if (extra->loc) {
-        WojsonMap locjson = doc->getMap();
+        WojsonMap locjson(doc);
         this->loc.toJson(&locjson, doc);
         out->assignColl(text::_loc, &locjson);
     }
@@ -263,13 +263,13 @@ void TokenRecord::toJson(WojsonMap* out, WojsonDocument* doc,
     out->scopedAssign(text::_type, *(TokenName[this->type]));
     out->moveAssign(text::_value, lstr(valuestring));
     if (extra->range) {
-        WojsonArr rangearr = doc->getArr();
+        WojsonArr rangearr(doc);
         rangearr.push(this->range[0]);
         rangearr.push(this->range[1]);
         out->assignColl(text::_range, &rangearr);
     }
     if (extra->loc) {
-        WojsonMap locjson = doc->getMap();
+        WojsonMap locjson(doc);
         this->loc.toJson(&locjson, doc);
         out->assignColl(text::_loc, &locjson);
     }

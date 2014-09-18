@@ -67,8 +67,9 @@ public:
     size_t pushUnresolvedDocument(rapidjson::Value &root);
     void lateResolve();
 
-    void regNoadd(const std::vector<RegexLeg> paths, 
-                  Node * child);
+    void regNoadd(Node * child);
+    void moveRegexes(const std::vector<RegexLeg> &paths,
+                     Node * child);
     void reg(const fixedstr::SFixedStr& path, 
              Node * child);
     rapidjson::Value* initVec(const fixedstr::SFixedStr &path);
